@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-dm-sans), sans-serif;
+  --font-fraunces: var(--font-fraunces), serif;
+
+  /* Dompet Pintar Color Palette */
+  --color-dp-bg: #0c0c10;
+  --color-dp-s1: #13131a;
+  --color-dp-s2: #1a1a24;
+  --color-dp-s3: #22222f;
+  --color-dp-border: #2e2e3e;
+  --color-dp-text: #ede9ff;
+  --color-dp-muted: #6e6e8a;
+  --color-dp-purple: #8b72ff;
+  --color-dp-pink: #ff72b8;
+  --color-dp-teal: #00c9a7;
+  --color-dp-amber: #ffb340;
+  --color-dp-red: #ff4f6d;
+  --color-dp-green: #00c9a7;
+  --color-dp-yellow: #ffb340;
+}
+
+@layer base {
+  :root {
+    --bg: #0c0c10;
+    --s1: #13131a;
+    --s2: #1a1a24;
+    --s3: #22222f;
+    --border: #2e2e3e;
+    --text: #ede9ff;
+    --muted: #6e6e8a;
+    --purple: #8b72ff;
+    --purple-dim: rgba(139,114,255,.12);
+    --pink: #ff72b8;
+    --pink-dim: rgba(255,114,184,.12);
+    --teal: #00c9a7;
+    --teal-dim: rgba(0,201,167,.12);
+    --amber: #ffb340;
+    --amber-dim: rgba(255,179,64,.12);
+    --red: #ff4f6d;
+    --green: #00c9a7;
+    --yellow: #ffb340;
+    --r: 14px;
+    --r-sm: 10px;
+  }
+
+  body {
+    background-color: #08080d;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+}
