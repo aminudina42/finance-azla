@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import { AppProvider } from "@/lib/store";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -14,9 +15,23 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0c0c10",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
   title: "Dompet Pintar v3",
   description: "Manajemen keuangan keluarga cerdas",
+  manifest: "/manifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Dompet Pintar",
+  },
 };
 
 export default function RootLayout({
@@ -29,11 +44,13 @@ export default function RootLayout({
       lang="id"
       className={`${dmSans.variable} ${fraunces.variable} font-sans antialiased`}
     >
-      <body className="flex justify-center min-h-screen bg-[#08080d] text-[var(--text)]">
-        <div className="w-full max-w-[430px] min-h-screen bg-[var(--bg)] flex flex-col relative overflow-x-hidden pb-[84px] shadow-2xl">
-          {children}
-          <BottomNav />
-        </div>
+      <body className={dmSans.variable + " " + fraunces.variable}>
+        <AppProvider>
+          <div className="shell">
+            {children}
+            <BottomNav />
+          </div>
+        </AppProvider>
       </body>
     </html>
   );
