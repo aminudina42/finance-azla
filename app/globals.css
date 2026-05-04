@@ -1317,6 +1317,266 @@
     background: var(--border);
     border-radius: 2px;
   }
+
+  /* ════════════ GOAL STYLES ════════════ */
+  .goal-badge {
+    display: inline-block;
+    font-size: 8px;
+    margin-left: 6px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 201, 167, .12);
+    color: var(--teal);
+    font-weight: 700;
+    letter-spacing: .5px;
+    vertical-align: middle;
+  }
+
+  .ec.goal {
+    border-color: rgba(0, 201, 167, .25);
+    background: linear-gradient(135deg, #0f1f18, #081510);
+  }
+
+  .ec.goal .ec-fill {
+    background: linear-gradient(90deg, var(--teal), #00e6be);
+  }
+
+  .ec.goal .ec-amt {
+    color: var(--teal);
+  }
+
+  /* ════════════ DEBT DASHBOARD WIDGET ════════════ */
+  .debt-warning {
+    margin: 10px 20px 0;
+    padding: 14px 16px;
+    border-radius: var(--r);
+    background: rgba(255, 79, 109, .06);
+    border: 1px solid rgba(255, 79, 109, .2);
+  }
+
+  .dw-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 8px;
+  }
+
+  .dw-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+
+  .dw-item + .dw-item {
+    border-top: 1px solid rgba(255, 79, 109, .1);
+  }
+
+  .dw-due {
+    font-family: var(--font-fraunces), serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--red);
+  }
+
+  /* ════════════ DEBT PAGE ════════════ */
+  #pg-debts {
+    background:
+      radial-gradient(ellipse 70% 30% at 50% 0%, rgba(255, 79, 109, .08) 0%, transparent 60%),
+      var(--bg);
+  }
+
+  .debt-hero {
+    margin-top: 16px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #2a0f15, #3d1520);
+    border: 1px solid rgba(255, 79, 109, .3);
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .debt-hero::before {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: rgba(255, 79, 109, .08);
+  }
+
+  .dh-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .dh-label {
+    font-size: 10px;
+    color: rgba(255, 79, 109, .7);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .dh-amount {
+    font-family: var(--font-fraunces), serif;
+    font-size: clamp(22px, 7vw, 30px);
+    font-weight: 900;
+    color: var(--red);
+    margin-top: 4px;
+  }
+
+  .dh-monthly {
+    font-family: var(--font-fraunces), serif;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--amber);
+    margin-top: 4px;
+  }
+
+  .debt-body {
+    padding: 16px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+
+  .debt-card {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 16px;
+    transition: border-color .18s;
+  }
+
+  .debt-card:hover {
+    border-color: rgba(255, 79, 109, .3);
+  }
+
+  .debt-card.lunas {
+    border-color: rgba(0, 201, 167, .25);
+    opacity: .7;
+  }
+
+  .dc-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .dc-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--s2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .dc-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dc-name {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .lunas-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 201, 167, .12);
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  .dc-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .dc-actions {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .dc-amounts {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+
+  .dc-amt-label {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .dc-amt-value {
+    font-family: var(--font-fraunces), serif;
+    font-size: 16px;
+    font-weight: 900;
+    margin-top: 2px;
+  }
+
+  .dc-pay-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: var(--r-sm);
+    background: rgba(139, 114, 255, .1);
+    border: 1px solid rgba(139, 114, 255, .25);
+    color: var(--purple);
+    font-family: var(--font-fraunces), serif;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all .18s;
+  }
+
+  .dc-pay-btn:hover {
+    background: rgba(139, 114, 255, .2);
+    border-color: var(--purple);
+  }
+
+  .dc-pay-form {
+    margin-top: 12px;
+    padding: 14px;
+    border-radius: var(--r-sm);
+    background: var(--s2);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ════════════ HISTORY INCOME AMOUNT ════════════ */
+  .hi-amt-in {
+    font-family: var(--font-fraunces), serif;
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--teal);
+    flex-shrink: 0;
+  }
 }
 
 .bni-spacer {

@@ -11,14 +11,19 @@ function formatRp(n: number): string {
   return prefix + "Rp " + Math.abs(n).toLocaleString("id-ID");
 }
 
-function getEnvColor(balance: number, target: number): string {
+function getEnvColor(balance: number, target: number, isGoal: boolean): string {
+  if (isGoal) return "goal";
   if (balance < 0) return "r";
   const pct = balance / target;
   if (pct <= 0.25) return "y";
   return "g";
 }
 
-function getPctLabel(balance: number, target: number, name: string): string {
+function getPctLabel(balance: number, target: number, name: string, isGoal: boolean, goalTarget: number): string {
+  if (isGoal && goalTarget > 0) {
+    const pct = Math.round((balance / goalTarget) * 100);
+    return `🎯 ${pct}% dari target ${formatRp(goalTarget)}`;
+  }
   if (name === "Tabungan") {
     const diff = balance - target;
     return diff >= 0 ? `Akumulasi +${formatRp(diff)}` : `${formatRp(balance)} tersisa`;
@@ -37,6 +42,7 @@ export default function Home() {
     gajianDate,
     setGajianDate,
     posList,
+    debts,
     dbConnected,
     isLoading,
   } = useApp();
@@ -44,14 +50,24 @@ export default function Home() {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showGajianModal, setShowGajianModal] = useState(false);
 
-  const totalBudget = posList.reduce((sum, p) => sum + p.monthly_target, 0);
-  const sisaBudget = posList.reduce((sum, p) => sum + p.current_balance, 0);
+  const totalBudget = posList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.monthly_target, 0);
+  const sisaBudget = posList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.current_balance, 0);
 
   // Calculate day in cycle
   const activeCycle = cycles[0];
   const startDate = new Date(activeCycle.start_date);
   const today = new Date();
   const dayInCycle = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+  // Upcoming debt due dates (within 7 days)
+  const todayDate = today.getDate();
+  const upcomingDebts = debts.filter((d) => {
+    if (d.remaining_amount <= 0) return false;
+    const daysUntilDue = d.due_date >= todayDate
+      ? d.due_date - todayDate
+      : 30 - todayDate + d.due_date; // wrap to next month
+    return daysUntilDue <= 7;
+  });
 
   if (isLoading) {
     return (
@@ -97,6 +113,27 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Debt due date warning */}
+      {upcomingDebts.length > 0 && (
+        <div className="debt-warning">
+          <div className="dw-title">⏰ Jatuh Tempo Terdekat</div>
+          {upcomingDebts.map((d) => {
+            const daysLeft = d.due_date >= todayDate
+              ? d.due_date - todayDate
+              : 30 - todayDate + d.due_date;
+            return (
+              <div className="dw-item" key={d.id}>
+                <span>{d.icon} {d.name}</span>
+                <span className="dw-due">
+                  {daysLeft === 0 ? "HARI INI!" : `${daysLeft} hari lagi`}
+                  {" · "}{formatRp(d.monthly_payment)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Gajian setting */}
       <div className="gajian-row">
         <span>
@@ -111,21 +148,29 @@ export default function Home() {
       <div className="env-wrap">
         <div className="sec-label">Pos Keuangan</div>
         <div className="env-grid">
-          {posList.map((pos, idx) => {
-            const color = getEnvColor(pos.current_balance, pos.monthly_target);
-            const fillWidth =
-              pos.current_balance < 0
+          {posList.map((pos) => {
+            const isGoal = pos.is_goal;
+            const color = getEnvColor(pos.current_balance, pos.monthly_target, isGoal);
+            const goalProgress = isGoal && pos.goal_target > 0
+              ? Math.min(100, Math.max(0, (pos.current_balance / pos.goal_target) * 100))
+              : null;
+            const fillWidth = goalProgress !== null
+              ? goalProgress
+              : pos.current_balance < 0
                 ? 100
                 : Math.min(100, Math.max(0, (pos.current_balance / pos.monthly_target) * 100));
             const isTabungan = pos.name === "Tabungan";
-            const pctLabel = getPctLabel(pos.current_balance, pos.monthly_target, pos.name);
+            const pctLabel = getPctLabel(pos.current_balance, pos.monthly_target, pos.name, isGoal, pos.goal_target);
 
-            if (isTabungan) {
+            if (isTabungan || isGoal) {
               return (
                 <div key={pos.id} className={`ec wide ${color}`}>
                   <span className="ec-icon">{pos.icon}</span>
                   <div className="ec-left">
-                    <div className="ec-name">{pos.name}</div>
+                    <div className="ec-name">
+                      {pos.name}
+                      {isGoal && <span className="goal-badge">🎯 GOAL</span>}
+                    </div>
                     <div className="ec-amt">{formatRp(pos.current_balance)}</div>
                     <div className="ec-bar">
                       <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>

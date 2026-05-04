@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, Child, ChildTransaction, Transaction, Cycle } from "./types";
+import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt } from "./types";
 
 // ═══ Fallback Mock Data ═══
 const FALLBACK_CYCLES: Cycle[] = [
@@ -20,14 +20,14 @@ const FALLBACK_CYCLES: Cycle[] = [
   { id: "c1", start_date: "2025-12-25", end_date: "2026-01-24", is_active: false, label: "25 Des – 24 Jan 2026" },
 ];
 const FALLBACK_POS: Pos[] = [
-  { id: "p1", name: "Tabungan", icon: "🏦", sub: "Akumulasi otomatis", monthly_target: 2000000, current_balance: 2450000, order_index: 0 },
-  { id: "p2", name: "Belanja Dapur", icon: "🍚", sub: "Kebutuhan harian", monthly_target: 1200000, current_balance: 780000, order_index: 1 },
-  { id: "p3", name: "Suami", icon: "👨‍💼", sub: "Uang saku", monthly_target: 1000000, current_balance: 600000, order_index: 2 },
-  { id: "p4", name: "Istri", icon: "👩", sub: "Uang saku", monthly_target: 1000000, current_balance: 150000, order_index: 3 },
-  { id: "p5", name: "Listrik", icon: "⚡", sub: "Token PLN", monthly_target: 500000, current_balance: 350000, order_index: 4 },
-  { id: "p6", name: "Online Shop", icon: "🛒", sub: "E-commerce", monthly_target: 500000, current_balance: -45000, order_index: 5 },
-  { id: "p7", name: "Sabun", icon: "🧴", sub: "Toiletries", monthly_target: 250000, current_balance: 200000, order_index: 6 },
-  { id: "p8", name: "Tagihan", icon: "📱", sub: "Internet, pulsa", monthly_target: 600000, current_balance: 120000, order_index: 7 },
+  { id: "p1", name: "Tabungan", icon: "🏦", sub: "Akumulasi otomatis", monthly_target: 2000000, current_balance: 2450000, order_index: 0, is_goal: true, goal_target: 50000000 },
+  { id: "p2", name: "Belanja Dapur", icon: "🍚", sub: "Kebutuhan harian", monthly_target: 1200000, current_balance: 780000, order_index: 1, is_goal: false, goal_target: 0 },
+  { id: "p3", name: "Suami", icon: "👨‍💼", sub: "Uang saku", monthly_target: 1000000, current_balance: 600000, order_index: 2, is_goal: false, goal_target: 0 },
+  { id: "p4", name: "Istri", icon: "👩", sub: "Uang saku", monthly_target: 1000000, current_balance: 150000, order_index: 3, is_goal: false, goal_target: 0 },
+  { id: "p5", name: "Listrik", icon: "⚡", sub: "Token PLN", monthly_target: 500000, current_balance: 350000, order_index: 4, is_goal: false, goal_target: 0 },
+  { id: "p6", name: "Online Shop", icon: "🛒", sub: "E-commerce", monthly_target: 500000, current_balance: -45000, order_index: 5, is_goal: false, goal_target: 0 },
+  { id: "p7", name: "Sabun", icon: "🧴", sub: "Toiletries", monthly_target: 250000, current_balance: 200000, order_index: 6, is_goal: false, goal_target: 0 },
+  { id: "p8", name: "Tagihan", icon: "📱", sub: "Internet, pulsa", monthly_target: 600000, current_balance: 120000, order_index: 7, is_goal: false, goal_target: 0 },
 ];
 const FALLBACK_TX: Transaction[] = [];
 const FALLBACK_CHILDREN: Child[] = [
@@ -35,6 +35,7 @@ const FALLBACK_CHILDREN: Child[] = [
   { id: "ch2", name: "Nisa", icon: "👧", balance: 92000 },
 ];
 const FALLBACK_CHILD_TX: ChildTransaction[] = [];
+const FALLBACK_DEBTS: Debt[] = [];
 
 // ═══ Context ═══
 interface AppState {
@@ -45,16 +46,22 @@ interface AppState {
   gajianDate: number;
   setGajianDate: (d: number) => void;
   posList: Pos[];
-  addPos: (name: string, icon: string, sub: string, amount: number) => void;
-  updatePos: (id: string, name: string, icon: string, sub: string, amount: number) => void;
+  addPos: (name: string, icon: string, sub: string, amount: number, isGoal?: boolean, goalTarget?: number) => void;
+  updatePos: (id: string, name: string, icon: string, sub: string, amount: number, isGoal?: boolean, goalTarget?: number) => void;
   deletePos: (id: string) => void;
   transactions: Transaction[];
-  addTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string) => void;
+  addTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, type?: "income" | "expense") => void;
   children: Child[];
   addChild: (name: string, icon: string, initialBalance: number) => void;
   childTransactions: ChildTransaction[];
   addChildTransaction: (childId: string, type: "in" | "out", amount: number, description: string) => void;
   startNewCycle: () => void;
+  // Debt management
+  debts: Debt[];
+  addDebt: (name: string, icon: string, totalAmount: number, monthlyPayment: number, dueDate: number) => void;
+  updateDebt: (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number) => void;
+  deleteDebt: (id: string) => void;
+  payDebt: (debtId: string, amount: number, posId: string) => void;
   isLoading: boolean;
   dbConnected: boolean;
 }
@@ -83,28 +90,42 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [transactions, setTransactions] = useState<Transaction[]>(FALLBACK_TX);
   const [childrenList, setChildrenList] = useState<Child[]>(FALLBACK_CHILDREN);
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>(FALLBACK_CHILD_TX);
+  const [debts, setDebts] = useState<Debt[]>(FALLBACK_DEBTS);
 
   // ── Load from Supabase on mount ──
   useEffect(() => {
     async function loadData() {
       try {
-        const [posRes, cycRes, txRes, childRes, ctxRes] = await Promise.all([
+        const [posRes, cycRes, txRes, childRes, ctxRes, debtRes] = await Promise.all([
           supabase.from("pos").select("*").order("order_index"),
           supabase.from("cycles").select("*").order("start_date", { ascending: false }),
           supabase.from("transactions").select("*").order("created_at", { ascending: false }),
           supabase.from("children").select("*"),
           supabase.from("child_transactions").select("*").order("created_at", { ascending: false }),
+          supabase.from("debts").select("*").order("created_at", { ascending: false }),
         ]);
 
         // If ANY query succeeds (no error), we're connected to Supabase
         const connected = !posRes.error && !cycRes.error;
         if (connected) {
           setDbConnected(true);
-          setPosList((posRes.data as Pos[]) ?? []);
+          // Ensure backward compatibility — fill in default values for new fields
+          const posData = ((posRes.data as Pos[]) ?? []).map((p) => ({
+            ...p,
+            is_goal: p.is_goal ?? false,
+            goal_target: p.goal_target ?? 0,
+          }));
+          setPosList(posData);
+          // Ensure backward compatibility for transactions
+          const txData = ((txRes.data as Transaction[]) ?? []).map((t) => ({
+            ...t,
+            type: t.type ?? "expense" as const,
+          }));
           setCycles((cycRes.data as Cycle[]) ?? FALLBACK_CYCLES);
-          setTransactions((txRes.data as Transaction[]) ?? []);
+          setTransactions(txData);
           setChildrenList((childRes.data as Child[]) ?? []);
           setChildTransactions((ctxRes.data as ChildTransaction[]) ?? []);
+          if (!debtRes.error) setDebts((debtRes.data as Debt[]) ?? []);
         }
       } catch {
         console.log("Supabase not available, using fallback data");
@@ -138,17 +159,17 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   );
 
   // ── Pos actions ──
-  const addPos = useCallback(async (name: string, icon: string, sub: string, amount: number) => {
-    const newPos: Pos = { id: "p" + Date.now(), name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99 };
+  const addPos = useCallback(async (name: string, icon: string, sub: string, amount: number, isGoal: boolean = false, goalTarget: number = 0) => {
+    const newPos: Pos = { id: "p" + Date.now(), name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99, is_goal: isGoal, goal_target: goalTarget };
     setPosList((prev) => [...prev, newPos]);
 
-    const { data } = await supabase.from("pos").insert({ name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99 }).select().single();
-    if (data) setPosList((prev) => prev.map((p) => (p.id === newPos.id ? { ...data } as Pos : p)));
+    const { data } = await supabase.from("pos").insert({ name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99, is_goal: isGoal, goal_target: goalTarget }).select().single();
+    if (data) setPosList((prev) => prev.map((p) => (p.id === newPos.id ? { ...data, is_goal: data.is_goal ?? false, goal_target: data.goal_target ?? 0 } as Pos : p)));
   }, []);
 
-  const updatePos = useCallback(async (id: string, name: string, icon: string, sub: string, amount: number) => {
-    setPosList((prev) => prev.map((p) => (p.id === id ? { ...p, name, icon, sub, monthly_target: amount } : p)));
-    await supabase.from("pos").update({ name, icon, sub, monthly_target: amount }).eq("id", id);
+  const updatePos = useCallback(async (id: string, name: string, icon: string, sub: string, amount: number, isGoal: boolean = false, goalTarget: number = 0) => {
+    setPosList((prev) => prev.map((p) => (p.id === id ? { ...p, name, icon, sub, monthly_target: amount, is_goal: isGoal, goal_target: goalTarget } : p)));
+    await supabase.from("pos").update({ name, icon, sub, monthly_target: amount, is_goal: isGoal, goal_target: goalTarget }).eq("id", id);
   }, []);
 
   const deletePos = useCallback(async (id: string) => {
@@ -156,25 +177,30 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     await supabase.from("pos").delete().eq("id", id);
   }, []);
 
-  // ── Transaction actions ──
+  // ── Transaction actions (supports income & expense) ──
   const addTransaction = useCallback(
-    async (amount: number, posId: string, userRole: "suami" | "istri", description: string) => {
+    async (amount: number, posId: string, userRole: "suami" | "istri", description: string, type: "income" | "expense" = "expense") => {
       const pos = posList.find((p) => p.id === posId);
       if (!pos) return;
       const userName = userRole === "suami" ? "Suami" : "Istri";
 
       const newTx: Transaction = {
-        id: "t" + Date.now(), amount, pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
+        id: "t" + Date.now(), amount, type, pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
         user_id: userRole === "suami" ? "u1" : "u2", user_name: userName, user_role: userRole,
-        description: description || `Pengeluaran ${pos.name}`, created_at: new Date().toISOString(),
+        description: description || (type === "income" ? `Pemasukan ${pos.name}` : `Pengeluaran ${pos.name}`),
+        created_at: new Date().toISOString(),
       };
       setTransactions((prev) => [newTx, ...prev]);
-      const newBalance = pos.current_balance - amount;
+
+      // Income adds to balance, expense subtracts
+      const newBalance = type === "income"
+        ? pos.current_balance + amount
+        : pos.current_balance - amount;
       setPosList((prev) => prev.map((p) => (p.id === posId ? { ...p, current_balance: newBalance } : p)));
 
       // Sync to Supabase
       await supabase.from("transactions").insert({
-        amount, pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
+        amount, type, pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
         user_id: userRole === "suami" ? "u1" : "u2", user_name: userName, user_role: userRole,
         description: newTx.description,
       });
@@ -212,17 +238,81 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     [childrenList]
   );
 
+  // ── Debt actions ──
+  const addDebt = useCallback(async (name: string, icon: string, totalAmount: number, monthlyPayment: number, dueDate: number) => {
+    const localDebt: Debt = {
+      id: "d" + Date.now(), name, icon,
+      total_amount: totalAmount, remaining_amount: totalAmount,
+      monthly_payment: monthlyPayment, due_date: dueDate,
+      created_at: new Date().toISOString(),
+    };
+    setDebts((prev) => [...prev, localDebt]);
+
+    const { data } = await supabase.from("debts").insert({
+      name, icon, total_amount: totalAmount, remaining_amount: totalAmount,
+      monthly_payment: monthlyPayment, due_date: dueDate,
+    }).select().single();
+    if (data) setDebts((prev) => prev.map((d) => (d.id === localDebt.id ? { ...data } as Debt : d)));
+  }, []);
+
+  const updateDebt = useCallback(async (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number) => {
+    setDebts((prev) => prev.map((d) => (d.id === id ? { ...d, name, icon, total_amount: totalAmount, remaining_amount: remainingAmount, monthly_payment: monthlyPayment, due_date: dueDate } : d)));
+    await supabase.from("debts").update({ name, icon, total_amount: totalAmount, remaining_amount: remainingAmount, monthly_payment: monthlyPayment, due_date: dueDate }).eq("id", id);
+  }, []);
+
+  const deleteDebt = useCallback(async (id: string) => {
+    setDebts((prev) => prev.filter((d) => d.id !== id));
+    await supabase.from("debts").delete().eq("id", id);
+  }, []);
+
+  const payDebt = useCallback(async (debtId: string, amount: number, posId: string) => {
+    const debt = debts.find((d) => d.id === debtId);
+    const pos = posList.find((p) => p.id === posId);
+    if (!debt || !pos) return;
+
+    const newRemaining = Math.max(0, debt.remaining_amount - amount);
+    setDebts((prev) => prev.map((d) => (d.id === debtId ? { ...d, remaining_amount: newRemaining } : d)));
+
+    // Deduct from pos balance
+    const newBalance = pos.current_balance - amount;
+    setPosList((prev) => prev.map((p) => (p.id === posId ? { ...p, current_balance: newBalance } : p)));
+
+    // Record as expense transaction
+    const newTx: Transaction = {
+      id: "t" + Date.now(), amount, type: "expense",
+      pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
+      user_id: "u1", user_name: "Suami", user_role: "suami",
+      description: `Bayar cicilan: ${debt.name}`,
+      created_at: new Date().toISOString(),
+    };
+    setTransactions((prev) => [newTx, ...prev]);
+
+    // Sync to Supabase
+    await supabase.from("debts").update({ remaining_amount: newRemaining }).eq("id", debtId);
+    await supabase.from("pos").update({ current_balance: newBalance }).eq("id", posId);
+    await supabase.from("transactions").insert({
+      amount, type: "expense", pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
+      user_id: "u1", user_name: "Suami", user_role: "suami",
+      description: newTx.description,
+    });
+  }, [debts, posList]);
+
   // ── Gajian Tiba! — Start New Cycle ──
   const startNewCycle = useCallback(async () => {
-    // 1. Calculate leftover from non-Tabungan pos → sweep to Tabungan
+    // 1. Calculate leftover from non-goal pos → sweep to Tabungan
     const tabungan = posList.find((p) => p.name === "Tabungan");
-    const otherPos = posList.filter((p) => p.name !== "Tabungan");
+    const otherPos = posList.filter((p) => p.name !== "Tabungan" && !p.is_goal);
     const leftover = otherPos.reduce((sum, p) => sum + Math.max(0, p.current_balance), 0);
 
-    // 2. Reset all pos to monthly_target, add leftover to Tabungan
+    // 2. Reset non-goal pos to monthly_target, add leftover to Tabungan
+    // Goal pos are NOT reset — they only accumulate
     const updatedPos = posList.map((p) => {
       if (p.name === "Tabungan") {
         return { ...p, current_balance: p.current_balance + leftover };
+      }
+      if (p.is_goal) {
+        // Goal pos: do not reset, keep accumulating
+        return p;
       }
       return { ...p, current_balance: p.monthly_target };
     });
@@ -265,6 +355,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     children: childrenList, addChild,
     childTransactions, addChildTransaction,
     startNewCycle,
+    debts, addDebt, updateDebt, deleteDebt, payDebt,
     isLoading, dbConnected,
   };
 

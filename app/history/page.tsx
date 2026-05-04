@@ -22,11 +22,12 @@ export default function HistoryPage() {
 
   const [selectedCycleId, setSelectedCycleId] = useState(cycles[0]?.id ?? "");
   const [selectedPos, setSelectedPos] = useState("Semua");
+  const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
 
   const posFilters = ["Semua", ...Array.from(new Set(posList.filter((p) => p.name !== "Tabungan").map((p) => `${p.icon} ${p.name}`)))];
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
 
-  // Filter by cycle date range
+  // Filter by cycle date range, pos, and type
   const filtered = transactions.filter((tx) => {
     if (selectedCycle) {
       const txDate = new Date(tx.created_at);
@@ -34,9 +35,12 @@ export default function HistoryPage() {
       const end = new Date(selectedCycle.end_date + "T23:59:59Z");
       if (txDate < start || txDate > end) return false;
     }
-    if (selectedPos === "Semua") return true;
-    const posName = selectedPos.replace(/^[^\s]+\s/, "");
-    return tx.pos_name.includes(posName);
+    if (selectedPos !== "Semua") {
+      const posName = selectedPos.replace(/^[^\s]+\s/, "");
+      if (!tx.pos_name.includes(posName)) return false;
+    }
+    if (selectedType !== "all" && tx.type !== selectedType) return false;
+    return true;
   });
 
   // Group by date
@@ -54,7 +58,7 @@ export default function HistoryPage() {
     <main id="pg-history" className="page active">
       <div className="ph ph-border">
         <h2>📋 Riwayat</h2>
-        <p>Semua pengeluaran yang sudah tercatat</p>
+        <p>Semua transaksi yang sudah tercatat</p>
       </div>
       <div className="hist-filters">
         <div className="frow">
@@ -79,6 +83,27 @@ export default function HistoryPage() {
             </div>
           ))}
         </div>
+        {/* Type filter */}
+        <div className="frow">
+          <div
+            className={`fc ${selectedType === "all" ? "active" : ""}`}
+            onClick={() => setSelectedType("all")}
+          >
+            📊 Semua
+          </div>
+          <div
+            className={`fc ${selectedType === "expense" ? "active" : ""}`}
+            onClick={() => setSelectedType("expense")}
+          >
+            📤 Pengeluaran
+          </div>
+          <div
+            className={`fc ${selectedType === "income" ? "active" : ""}`}
+            onClick={() => setSelectedType("income")}
+          >
+            📥 Pemasukan
+          </div>
+        </div>
       </div>
       <div className="hist-body">
         {Object.keys(grouped).length === 0 && (
@@ -89,18 +114,24 @@ export default function HistoryPage() {
         {Object.entries(grouped).map(([label, txs]) => (
           <div className="hday" key={label}>
             <div className="hday-label">{label}</div>
-            {txs.map((tx) => (
-              <div className="hi" key={tx.id}>
-                <div className="hi-ic">{tx.pos_icon}</div>
-                <div className="hi-info">
-                  <div className="hi-desc">{tx.description}</div>
-                  <div className="hi-meta">
-                    {tx.pos_icon} {tx.pos_name} · {tx.user_role === "suami" ? "👨‍💼" : "👩"} {tx.user_name}
+            {txs.map((tx) => {
+              const isIncome = tx.type === "income";
+              return (
+                <div className="hi" key={tx.id}>
+                  <div className="hi-ic" style={isIncome ? { background: "rgba(0,201,167,.12)" } : {}}>{tx.pos_icon}</div>
+                  <div className="hi-info">
+                    <div className="hi-desc">{tx.description}</div>
+                    <div className="hi-meta">
+                      {tx.pos_icon} {tx.pos_name} · {tx.user_role === "suami" ? "👨‍💼" : "👩"} {tx.user_name}
+                      {isIncome && <span style={{ color: "var(--teal)", marginLeft: "6px", fontWeight: 700 }}>MASUK</span>}
+                    </div>
+                  </div>
+                  <div className={isIncome ? "hi-amt-in" : "hi-amt"}>
+                    {isIncome ? "+" : "-"}Rp {tx.amount.toLocaleString("id-ID")}
                   </div>
                 </div>
-                <div className="hi-amt">-Rp {tx.amount.toLocaleString("id-ID")}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

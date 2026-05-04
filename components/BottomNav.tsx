@@ -11,7 +11,7 @@ export default function BottomNav() {
   return (
     <nav className="bnav">
       <Link href="/" className={`bni ${pathname === "/" ? "active" : ""}`}>
-        <span className="bni-icon">💳</span>
+        <span className="bni-icon">💰</span>
         <span className="bni-label">Dompet</span>
       </Link>
       <Link href="/saku" className={`bni ${pathname === "/saku" ? "active" : ""}`}>
@@ -27,13 +27,13 @@ export default function BottomNav() {
         </div>
       </Link>
 
+      <Link href="/debts" className={`bni ${pathname === "/debts" ? "active" : ""}`}>
+        <span className="bni-icon">💳</span>
+        <span className="bni-label">Hutang</span>
+      </Link>
       <Link href="/manager" className={`bni ${pathname === "/manager" ? "active" : ""}`}>
         <span className="bni-icon">⚙️</span>
         <span className="bni-label">Atur</span>
-      </Link>
-      <Link href="/history" className={`bni ${pathname === "/history" ? "active" : ""}`}>
-        <span className="bni-icon">📜</span>
-        <span className="bni-label">Riwayat</span>
       </Link>
     </nav>
   );

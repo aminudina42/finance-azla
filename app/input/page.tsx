@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 export default function InputPage() {
   const { posList, addTransaction } = useApp();
 
+  const [txType, setTxType] = useState<"expense" | "income">("expense");
   const [user, setUser] = useState<"suami" | "istri">("suami");
   const [nominal, setNominal] = useState("");
   const [posId, setPosId] = useState("");
@@ -16,7 +17,7 @@ export default function InputPage() {
     const amount = Number(nominal.replace(/\D/g, ""));
     if (!amount || !posId) return;
 
-    addTransaction(amount, posId, user, keterangan);
+    addTransaction(amount, posId, user, keterangan, txType);
 
     setSaved(true);
     setTimeout(() => {
@@ -36,13 +37,33 @@ export default function InputPage() {
     setNominal(Number(rawValue).toLocaleString("id-ID"));
   };
 
+  const isIncome = txType === "income";
+
   return (
     <main id="pg-input" className="page active">
       <div className="ph ph-border">
-        <h2>✏️ Input Pengeluaran</h2>
-        <p>Catat pengeluaran manual ke pos</p>
+        <h2>{isIncome ? "💰 Input Pemasukan" : "✏️ Input Pengeluaran"}</h2>
+        <p>{isIncome ? "Catat pemasukan ke pos keuangan" : "Catat pengeluaran manual ke pos"}</p>
       </div>
       <div className="form-body">
+        {/* Type toggle */}
+        <div className="fg">
+          <div className="fl">Jenis Transaksi</div>
+          <div className="type-toggle">
+            <div
+              className={`type-opt ${txType === "expense" ? "active-out" : ""}`}
+              onClick={() => setTxType("expense")}
+            >
+              📤 Pengeluaran
+            </div>
+            <div
+              className={`type-opt ${txType === "income" ? "active-in" : ""}`}
+              onClick={() => setTxType("income")}
+            >
+              📥 Pemasukan
+            </div>
+          </div>
+        </div>
         <div className="fg">
           <div className="fl">Dicatat oleh</div>
           <div className="user-row">
@@ -83,7 +104,7 @@ export default function InputPage() {
             >
               <option value="">— Pilih Pos —</option>
               {posList
-                .filter((p) => p.name !== "Tabungan")
+                .filter((p) => isIncome ? true : p.name !== "Tabungan")
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.icon} {p.name}
@@ -97,7 +118,7 @@ export default function InputPage() {
           <div className="fl">Keterangan</div>
           <textarea
             className="fi"
-            placeholder="Contoh: Beli beras 5kg di pasar…"
+            placeholder={isIncome ? "Contoh: Bonus proyek freelance…" : "Contoh: Beli beras 5kg di pasar…"}
             value={keterangan}
             onChange={(e) => setKeterangan(e.target.value)}
           ></textarea>
@@ -105,11 +126,17 @@ export default function InputPage() {
         <button
           className="btn-primary"
           style={{
-            background: "linear-gradient(135deg,var(--pink),#d43a7a)",
+            background: isIncome
+              ? "linear-gradient(135deg, var(--teal), #00a88c)"
+              : "linear-gradient(135deg, var(--pink), #d43a7a)",
           }}
           onClick={handleSave}
         >
-          {saved ? "✅ Tersimpan!" : "💾 Simpan Pengeluaran"}
+          {saved
+            ? "✅ Tersimpan!"
+            : isIncome
+              ? "💰 Simpan Pemasukan"
+              : "💾 Simpan Pengeluaran"}
         </button>
       </div>
     </main>

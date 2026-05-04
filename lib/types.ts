@@ -22,11 +22,14 @@ export interface Pos {
   monthly_target: number;
   current_balance: number;
   order_index: number;
+  is_goal: boolean;
+  goal_target: number;
 }
 
 export interface Transaction {
   id: string;
   amount: number;
+  type: "income" | "expense";
   pos_id: string;
   pos_name: string;
   pos_icon: string;
@@ -62,6 +65,17 @@ export interface ChildTransaction {
   created_at: string;
 }
 
+export interface Debt {
+  id: string;
+  name: string;
+  icon: string;
+  total_amount: number;
+  remaining_amount: number;
+  monthly_payment: number;
+  due_date: number;
+  created_at: string;
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {
@@ -74,14 +88,15 @@ export interface Database {
       };
       pos: {
         Row: Pos;
-        Insert: Omit<Pos, "id"> & { id?: string };
+        Insert: Omit<Pos, "id" | "is_goal" | "goal_target"> & { id?: string; is_goal?: boolean; goal_target?: number };
         Update: Partial<Pos>;
       };
       transactions: {
         Row: Transaction;
-        Insert: Omit<Transaction, "id" | "created_at"> & {
+        Insert: Omit<Transaction, "id" | "created_at" | "type"> & {
           id?: string;
           created_at?: string;
+          type?: "income" | "expense";
         };
         Update: Partial<Transaction>;
       };
@@ -103,6 +118,26 @@ export interface Database {
         };
         Update: Partial<ChildTransaction>;
       };
+      debts: {
+        Row: Debt;
+        Insert: Omit<Debt, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Debt>;
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }
