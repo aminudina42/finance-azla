@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useApp } from "@/lib/store";
 import CyclePickerModal from "@/components/Modals/CyclePickerModal";
 import GajianModal from "@/components/Modals/GajianModal";
+import GeneralHistory from "@/components/GeneralHistory";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -49,6 +50,7 @@ export default function Home() {
 
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showGajianModal, setShowGajianModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
 
   const totalBudget = posList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.monthly_target, 0);
   const sisaBudget = posList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.current_balance, 0);
@@ -144,56 +146,81 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Envelopes */}
+      {/* Tab Toggle: Pos / History */}
       <div className="env-wrap">
-        <div className="sec-label">Pos Keuangan</div>
-        <div className="env-grid">
-          {posList.map((pos) => {
-            const isGoal = pos.is_goal;
-            const color = getEnvColor(pos.current_balance, pos.monthly_target, isGoal);
-            const goalProgress = isGoal && pos.goal_target > 0
-              ? Math.min(100, Math.max(0, (pos.current_balance / pos.goal_target) * 100))
-              : null;
-            const fillWidth = goalProgress !== null
-              ? goalProgress
-              : pos.current_balance < 0
-                ? 100
-                : Math.min(100, Math.max(0, (pos.current_balance / pos.monthly_target) * 100));
-            const isTabungan = pos.name === "Tabungan";
-            const pctLabel = getPctLabel(pos.current_balance, pos.monthly_target, pos.name, isGoal, pos.goal_target);
-
-            if (isTabungan || isGoal) {
-              return (
-                <div key={pos.id} className={`ec wide ${color}`}>
-                  <span className="ec-icon">{pos.icon}</span>
-                  <div className="ec-left">
-                    <div className="ec-name">
-                      {pos.name}
-                      {isGoal && <span className="goal-badge">🎯 GOAL</span>}
-                    </div>
-                    <div className="ec-amt">{formatRp(pos.current_balance)}</div>
-                    <div className="ec-bar">
-                      <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>
-                    </div>
-                    <div className="ec-pct">{pctLabel}</div>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div key={pos.id} className={`ec ${color}`}>
-                <span className="ec-icon">{pos.icon}</span>
-                <div className="ec-name">{pos.name}</div>
-                <div className="ec-amt">{formatRp(pos.current_balance)}</div>
-                <div className="ec-bar">
-                  <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>
-                </div>
-                <div className="ec-pct">{pctLabel}</div>
-              </div>
-            );
-          })}
+        <div className="dash-tabs">
+          <div
+            className={`dash-tab ${activeTab === "pos" ? "active" : ""}`}
+            onClick={() => setActiveTab("pos")}
+          >
+            💰 Pos
+          </div>
+          <div
+            className={`dash-tab ${activeTab === "history" ? "active" : ""}`}
+            onClick={() => setActiveTab("history")}
+          >
+            📋 History
+          </div>
         </div>
+
+        {activeTab === "pos" ? (
+          <>
+            <div className="sec-label">Pos Keuangan</div>
+            <div className="env-grid">
+              {posList.map((pos) => {
+                const isGoal = pos.is_goal;
+                const color = getEnvColor(pos.current_balance, pos.monthly_target, isGoal);
+                const goalProgress = isGoal && pos.goal_target > 0
+                  ? Math.min(100, Math.max(0, (pos.current_balance / pos.goal_target) * 100))
+                  : null;
+                const fillWidth = goalProgress !== null
+                  ? goalProgress
+                  : pos.current_balance < 0
+                    ? 100
+                    : Math.min(100, Math.max(0, (pos.current_balance / pos.monthly_target) * 100));
+                const isTabungan = pos.name === "Tabungan";
+                const pctLabel = getPctLabel(pos.current_balance, pos.monthly_target, pos.name, isGoal, pos.goal_target);
+
+                if (isTabungan || isGoal) {
+                  return (
+                    <Link key={pos.id} href={`/pos/${pos.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                      <div className={`ec wide ${color}`}>
+                        <span className="ec-icon">{pos.icon}</span>
+                        <div className="ec-left">
+                          <div className="ec-name">
+                            {pos.name}
+                            {isGoal && <span className="goal-badge">🎯 GOAL</span>}
+                          </div>
+                          <div className="ec-amt">{formatRp(pos.current_balance)}</div>
+                          <div className="ec-bar">
+                            <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>
+                          </div>
+                          <div className="ec-pct">{pctLabel}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <Link key={pos.id} href={`/pos/${pos.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <div className={`ec ${color}`}>
+                      <span className="ec-icon">{pos.icon}</span>
+                      <div className="ec-name">{pos.name}</div>
+                      <div className="ec-amt">{formatRp(pos.current_balance)}</div>
+                      <div className="ec-bar">
+                        <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>
+                      </div>
+                      <div className="ec-pct">{pctLabel}</div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <GeneralHistory />
+        )}
       </div>
 
       {/* Modals */}

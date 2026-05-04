@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 
 export default function InputPage() {
   const { posList, addTransaction } = useApp();
+  const searchParams = useSearchParams();
 
   const [txType, setTxType] = useState<"expense" | "income">("expense");
   const [user, setUser] = useState<"suami" | "istri">("suami");
@@ -12,6 +14,14 @@ export default function InputPage() {
   const [posId, setPosId] = useState("");
   const [keterangan, setKeterangan] = useState("");
   const [saved, setSaved] = useState(false);
+
+  // Auto-select pos from URL query param (e.g. /input?pos=p2)
+  useEffect(() => {
+    const posParam = searchParams.get("pos");
+    if (posParam && posList.some((p) => p.id === posParam)) {
+      setPosId(posParam);
+    }
+  }, [searchParams, posList]);
 
   const handleSave = () => {
     const amount = Number(nominal.replace(/\D/g, ""));

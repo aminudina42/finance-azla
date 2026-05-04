@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useApp } from "@/lib/store";
 import EditPosModal from "@/components/Modals/EditPosModal";
+import NewCycleModal from "@/components/Modals/NewCycleModal";
+import AlertModal from "@/components/Modals/AlertModal";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -20,6 +22,8 @@ export default function ManagerPage() {
   const [editGoalTarget, setEditGoalTarget] = useState(0);
   const [isAddMode, setIsAddMode] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showNewCycleModal, setShowNewCycleModal] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string}>({ isOpen: false, title: "", message: "" });
 
   const openEdit = (p: { id: string; name: string; icon: string; sub: string; monthly_target: number; is_goal: boolean; goal_target: number }) => {
     setEditingId(p.id); setEditName(p.name); setEditSub(p.sub); setEditIcon(p.icon); setEditAmount(p.monthly_target);
@@ -45,7 +49,18 @@ export default function ManagerPage() {
             <p>Gajian tiap tgl <strong style={{ color: "var(--text)" }}>{gajianDate}</strong></p>
             <h3>🎉 Mulai siklus baru?</h3>
           </div>
-          <button className="gc-btn" onClick={() => { startNewCycle(); setShowConfirm(true); setTimeout(() => setShowConfirm(false), 3000); }}>
+          <button className="gc-btn" onClick={() => {
+            const today = new Date().getDate();
+            if (today !== gajianDate) {
+              setAlertConfig({
+                isOpen: true,
+                title: "Belum Waktunya!",
+                message: `Belum waktunya gajian! Gajian Anda diatur pada tanggal ${gajianDate}.`
+              });
+              return;
+            }
+            setShowNewCycleModal(true);
+          }}>
             {showConfirm ? "✅ Siklus Dimulai!" : "💰 Gajian Tiba!"}
           </button>
         </div>
@@ -84,6 +99,22 @@ export default function ManagerPage() {
         posGoalTarget={editGoalTarget}
         onSave={handleSave}
         title={isAddMode ? "＋ Tambah Pos Baru" : "✏️ Edit Pos Keuangan"}
+      />
+      <NewCycleModal
+        isOpen={showNewCycleModal}
+        onClose={() => setShowNewCycleModal(false)}
+        onConfirm={(newBudgets) => {
+          startNewCycle(newBudgets);
+          setShowNewCycleModal(false);
+          setShowConfirm(true);
+          setTimeout(() => setShowConfirm(false), 3000);
+        }}
+      />
+      <AlertModal 
+        isOpen={alertConfig.isOpen} 
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))} 
+        title={alertConfig.title} 
+        message={alertConfig.message} 
       />
     </main>
   );

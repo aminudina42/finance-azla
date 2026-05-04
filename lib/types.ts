@@ -65,6 +65,15 @@ export interface ChildTransaction {
   created_at: string;
 }
 
+export interface CyclePosHistory {
+  id: string;
+  cycle_id: string;
+  pos_id: string;
+  monthly_target: number;
+  goal_target: number;
+  created_at: string;
+}
+
 export interface Debt {
   id: string;
   name: string;
@@ -73,6 +82,9 @@ export interface Debt {
   remaining_amount: number;
   monthly_payment: number;
   due_date: number;
+  principal_amount?: number;
+  tenor_months?: number;
+  paid_months?: number;
   created_at: string;
 }
 
@@ -125,6 +137,14 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Debt>;
+      };
+      cycle_pos_history: {
+        Row: CyclePosHistory;
+        Insert: Omit<CyclePosHistory, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<CyclePosHistory>;
       };
     };
     Views: {

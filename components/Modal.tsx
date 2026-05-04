@@ -38,8 +38,14 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="mb" onClick={(e) => e.stopPropagation()}>
+      <div className="mb" style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
         <div className="mh"></div>
+        <button 
+          onClick={onClose} 
+          style={{ position: "absolute", top: "15px", right: "15px", background: "var(--bg)", border: "none", width: "30px", height: "30px", borderRadius: "15px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", color: "var(--muted)", cursor: "pointer", zIndex: 10 }}
+        >
+          ✕
+        </button>
         {children}
       </div>
     </div>,

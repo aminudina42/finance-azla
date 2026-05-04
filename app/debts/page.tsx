@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useApp } from "@/lib/store";
 import DebtModal from "@/components/Modals/DebtModal";
+import ConfirmModal from "@/components/Modals/ConfirmModal";
+import PayDebtModal from "@/components/Modals/PayDebtModal";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -14,9 +16,8 @@ export default function DebtsPage() {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [editingDebt, setEditingDebt] = useState<any>(null);
-  const [payingDebtId, setPayingDebtId] = useState<string | null>(null);
-  const [payPosId, setPayPosId] = useState("");
-  const [payAmountStr, setPayAmountStr] = useState("");
+  const [debtToDelete, setDebtToDelete] = useState<any>(null);
+  const [payingDebt, setPayingDebt] = useState<any>(null);
 
   const totalDebt = debts.reduce((s, d) => s + d.remaining_amount, 0);
   const totalMonthly = debts.reduce((s, d) => s + d.monthly_payment, 0);
@@ -29,27 +30,26 @@ export default function DebtsPage() {
     setEditingDebt(d); setModalMode("edit"); setShowModal(true);
   };
 
-  const handleSave = (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number) => {
+  const handleSave = (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number) => {
     if (modalMode === "add") {
-      addDebt(name, icon, totalAmount, monthlyPayment, dueDate);
+      addDebt(name, icon, totalAmount, remainingAmount, monthlyPayment, dueDate, principalAmount, tenorMonths, paidMonths);
     } else if (editingDebt) {
-      updateDebt(editingDebt.id, name, icon, totalAmount, remainingAmount, monthlyPayment, dueDate);
+      updateDebt(editingDebt.id, name, icon, totalAmount, remainingAmount, monthlyPayment, dueDate, principalAmount, tenorMonths, paidMonths);
     }
   };
 
-  const handlePay = (debtId: string) => {
-    const amount = Number(payAmountStr.replace(/\D/g, ""));
-    if (!amount || !payPosId) return;
-    payDebt(debtId, amount, payPosId);
-    setPayingDebtId(null);
-    setPayAmountStr("");
-    setPayPosId("");
+  const handlePay = (posId: string, amount: number) => {
+    if (payingDebt) {
+      payDebt(payingDebt.id, amount, posId);
+      setPayingDebt(null);
+    }
   };
 
-  const handlePayAmtChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\D/g, "");
-    if (!rawValue) { setPayAmountStr(""); return; }
-    setPayAmountStr(Number(rawValue).toLocaleString("id-ID"));
+  const confirmDelete = () => {
+    if (debtToDelete) {
+      deleteDebt(debtToDelete.id);
+      setDebtToDelete(null);
+    }
   };
 
   return (
@@ -88,8 +88,8 @@ export default function DebtsPage() {
           const progress = debt.total_amount > 0
             ? Math.round(((debt.total_amount - debt.remaining_amount) / debt.total_amount) * 100)
             : 0;
-          const isPaying = payingDebtId === debt.id;
           const isLunas = debt.remaining_amount <= 0;
+          const isKredit = (debt.tenor_months || 0) > 0;
 
           return (
             <div key={debt.id} className={`debt-card ${isLunas ? "lunas" : ""}`}>
@@ -106,65 +106,57 @@ export default function DebtsPage() {
                 </div>
                 <div className="dc-actions">
                   <div className="ib e" onClick={() => openEdit(debt)}>✏️</div>
-                  <div className="ib d" onClick={() => deleteDebt(debt.id)}>🗑</div>
+                  <div className="ib d" onClick={() => setDebtToDelete(debt)}>🗑</div>
                 </div>
               </div>
-              <div className="dc-amounts">
-                <div>
-                  <div className="dc-amt-label">Sisa</div>
-                  <div className="dc-amt-value" style={{ color: isLunas ? "var(--teal)" : "var(--red)" }}>
-                    {formatRp(debt.remaining_amount)}
+              {isKredit ? (
+                <div style={{ margin: "16px 0", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--border)", paddingBottom: "8px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>Sisa Tagihan</div>
+                    <div style={{ fontSize: "14px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--red)" }}>
+                      {formatRp(debt.remaining_amount)} {!isLunas && <span style={{ fontSize: "11px", fontWeight: 600 }}>(Sisa {(debt.tenor_months || 0) - (debt.paid_months || 0)}x)</span>}
+                    </div>
+                  </div>
+                  {(debt.principal_amount || 0) > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>Total Pinjaman</div>
+                      <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--text)" }}>{formatRp(debt.principal_amount!)}</div>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>Total Kewajiban</div>
+                    <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--text)" }}>{formatRp(debt.total_amount)}</div>
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div className="dc-amt-label">dari Total</div>
-                  <div className="dc-amt-value" style={{ color: "var(--muted)" }}>
-                    {formatRp(debt.total_amount)}
+              ) : (
+                <div className="dc-amounts">
+                  <div>
+                    <div className="dc-amt-label">Sisa</div>
+                    <div className="dc-amt-value" style={{ color: isLunas ? "var(--teal)" : "var(--red)" }}>
+                      {formatRp(debt.remaining_amount)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div className="dc-amt-label">dari Total</div>
+                    <div className="dc-amt-value" style={{ color: "var(--muted)" }}>
+                      {formatRp(debt.total_amount)}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               <div className="ec-bar" style={{ margin: "8px 0 4px" }}>
                 <div className="ec-fill" style={{ width: `${progress}%`, background: isLunas ? "var(--teal)" : "var(--purple)" }}></div>
               </div>
               <div style={{ fontSize: "10px", color: "var(--muted)" }}>{progress}% terbayar</div>
 
               {/* Pay button */}
-              {!isLunas && !isPaying && (
+              {!isLunas && (
                 <button
                   className="dc-pay-btn"
-                  onClick={() => { setPayingDebtId(debt.id); setPayAmountStr(debt.monthly_payment.toLocaleString("id-ID")); }}
+                  onClick={() => setPayingDebt(debt)}
                 >
-                  💸 Bayar Cicilan
+                  💸 Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}
                 </button>
-              )}
-
-              {/* Pay form */}
-              {isPaying && (
-                <div className="dc-pay-form">
-                  <div className="fg">
-                    <div className="fl">Bayar dari Pos</div>
-                    <div className="sw">
-                      <select className="fi" value={payPosId} onChange={(e) => setPayPosId(e.target.value)} style={{ fontSize: "13px" }}>
-                        <option value="">— Pilih Pos —</option>
-                        {posList.filter((p) => !p.is_goal).map((p) => (
-                          <option key={p.id} value={p.id}>{p.icon} {p.name} ({formatRp(p.current_balance)})</option>
-                        ))}
-                      </select>
-                      <span className="sa">▼</span>
-                    </div>
-                  </div>
-                  <div className="fg">
-                    <div className="fl">Nominal Bayar</div>
-                    <div className="amt-wrap">
-                      <span className="amt-pre" style={{ fontSize: "12px" }}>Rp</span>
-                      <input type="tel" className="fi" value={payAmountStr} onChange={handlePayAmtChange} style={{ paddingLeft: "38px", fontFamily: "'Fraunces',serif", fontSize: "18px", fontWeight: 900 }} />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button className="m-cancel" style={{ flex: 1, padding: "10px", fontSize: "12px" }} onClick={() => setPayingDebtId(null)}>Batal</button>
-                    <button className="m-save" style={{ flex: 2, padding: "10px", fontSize: "12px" }} onClick={() => handlePay(debt.id)}>✅ Konfirmasi Bayar</button>
-                  </div>
-                </div>
               )}
             </div>
           );
@@ -182,7 +174,31 @@ export default function DebtsPage() {
         debtRemaining={editingDebt?.remaining_amount}
         debtMonthly={editingDebt?.monthly_payment}
         debtDueDate={editingDebt?.due_date}
+        debtPrincipal={editingDebt?.principal_amount}
+        debtTenor={editingDebt?.tenor_months}
+        debtPaidMonths={editingDebt?.paid_months}
         onSave={handleSave}
+      />
+
+      <ConfirmModal
+        isOpen={!!debtToDelete}
+        title="Hapus Hutang?"
+        message={`Apakah Anda yakin ingin menghapus data ${debtToDelete?.name}? Data yang dihapus tidak dapat dikembalikan.`}
+        confirmText="Hapus"
+        onConfirm={confirmDelete}
+        onCancel={() => setDebtToDelete(null)}
+      />
+
+      <PayDebtModal
+        isOpen={!!payingDebt}
+        onClose={() => setPayingDebt(null)}
+        debtName={payingDebt?.name || ""}
+        debtIcon={payingDebt?.icon || "💳"}
+        monthlyPayment={payingDebt?.monthly_payment || 0}
+        paidMonths={payingDebt?.paid_months || 0}
+        tenorMonths={payingDebt?.tenor_months || 0}
+        posList={posList}
+        onPay={handlePay}
       />
     </main>
   );
