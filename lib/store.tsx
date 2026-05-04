@@ -98,7 +98,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   useEffect(() => {
     async function loadData() {
       try {
-        const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes] = await Promise.all([
+        const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes] = await Promise.all([
           supabase.from("pos").select("*").order("order_index"),
           supabase.from("cycles").select("*").order("start_date", { ascending: false }),
           supabase.from("transactions").select("*").order("created_at", { ascending: false }),
@@ -106,6 +106,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           supabase.from("child_transactions").select("*").order("created_at", { ascending: false }),
           supabase.from("debts").select("*").order("created_at", { ascending: false }),
           supabase.from("cycle_pos_history").select("*"),
+          supabase.from("app_settings").select("*").eq("key", "gajian_date").single(),
         ]);
 
         // If ANY query succeeds (no error), we're connected to Supabase
@@ -139,6 +140,10 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           }
           if (!histRes.error) {
             setCyclePosHistory(histRes.data as CyclePosHistory[]);
+          }
+          // Load gajian_date from settings
+          if (!settingsRes.error && settingsRes.data) {
+            setGajianDate(Number(settingsRes.data.value) || 25);
           }
         }
       } catch {
@@ -414,9 +419,18 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     });
   }, [posList, cycles]);
 
+  // Wrap setGajianDate to also persist to Supabase
+  const updateGajianDate = useCallback(async (d: number) => {
+    setGajianDate(d);
+    await supabase.from("app_settings").upsert(
+      { key: "gajian_date", value: String(d), updated_at: new Date().toISOString() },
+      { onConflict: "key" }
+    );
+  }, []);
+
   const value: AppState = {
     cycles, cycleIndex, setCycleIndex, shiftCycle,
-    gajianDate, setGajianDate,
+    gajianDate, setGajianDate: updateGajianDate,
     posList, addPos, updatePos, deletePos,
     transactions, addTransaction,
     children: childrenList, addChild,

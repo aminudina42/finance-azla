@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import CyclePickerModal from "@/components/Modals/CyclePickerModal";
@@ -46,20 +46,65 @@ export default function Home() {
     debts,
     dbConnected,
     isLoading,
+    cyclePosHistory,
+    transactions,
   } = useApp();
 
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showGajianModal, setShowGajianModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
 
-  const totalBudget = posList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.monthly_target, 0);
-  const sisaBudget = posList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.current_balance, 0);
+  const selectedCycle = cycles[cycleIndex];
+
+  const displayPosList = useMemo(() => {
+    if (!selectedCycle || cycleIndex === 0) return posList;
+
+    const historyForCycle = cyclePosHistory.filter(h => h.cycle_id === selectedCycle.id);
+    const cycleStart = new Date(selectedCycle.start_date + "T00:00:00");
+    const cycleEnd = new Date(selectedCycle.end_date + "T23:59:59");
+
+    return posList.map(p => {
+      const hist = historyForCycle.find(h => h.pos_id === p.id);
+      const target = hist ? hist.monthly_target : p.monthly_target;
+      const goalTarget = hist ? hist.goal_target : p.goal_target;
+      
+      const txs = transactions.filter(t => {
+        const d = new Date(t.created_at);
+        return t.pos_id === p.id && d >= cycleStart && d <= cycleEnd;
+      });
+      
+      const incomes = txs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+      const expenses = txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+      
+      // Untuk siklus lalu, kita hitung saldo dengan menganggap saldo awal = target bulanan
+      // Ini memberikan gambaran yang akurat tentang sisa budget/penggunaan di bulan tsb
+      const computedBalance = target + incomes - expenses;
+
+      return {
+        ...p,
+        monthly_target: target,
+        goal_target: goalTarget,
+        current_balance: computedBalance,
+      };
+    });
+  }, [cycleIndex, selectedCycle, posList, cyclePosHistory, transactions]);
+
+  const totalBudget = displayPosList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.monthly_target, 0);
+  const sisaBudget = displayPosList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.current_balance, 0);
 
   // Calculate day in cycle
-  const activeCycle = cycles[0];
-  const startDate = new Date(activeCycle.start_date);
+  const startDate = new Date(selectedCycle?.start_date || new Date());
+  const endDate = new Date(selectedCycle?.end_date || new Date());
   const today = new Date();
-  const dayInCycle = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  let dayInCycleStr = "";
+  if (cycleIndex === 0) {
+    const dayInCycle = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    dayInCycleStr = `Hari ke-${dayInCycle}`;
+  } else {
+    const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    dayInCycleStr = `Selesai (${totalDays} hari)`;
+  }
 
   // Upcoming debt due dates (within 7 days)
   const todayDate = today.getDate();
@@ -110,7 +155,7 @@ export default function Home() {
           <div className="bh-amount">{formatRp(sisaBudget)}</div>
           <div className="bh-meta">
             <span>💼 Total {formatRp(totalBudget)}</span>
-            <span>📅 Hari ke-{dayInCycle}</span>
+            <span>📅 {dayInCycleStr}</span>
           </div>
         </div>
       </div>
@@ -167,7 +212,7 @@ export default function Home() {
           <>
             <div className="sec-label">Pos Keuangan</div>
             <div className="env-grid">
-              {posList.map((pos) => {
+              {displayPosList.map((pos) => {
                 const isGoal = pos.is_goal;
                 const color = getEnvColor(pos.current_balance, pos.monthly_target, isGoal);
                 const goalProgress = isGoal && pos.goal_target > 0
