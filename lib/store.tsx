@@ -105,11 +105,22 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     emoji: string;
     bg: string;
     image: string;
-  }>({
-    type: "emoji",
-    emoji: "💳",
-    bg: "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-    image: "",
+  }>(() => {
+    // Pre-load from localStorage cache so loading screen shows custom logo immediately
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("logoSettings");
+        if (cached) return JSON.parse(cached);
+      } catch {
+        // ignore
+      }
+    }
+    return {
+      type: "emoji",
+      emoji: "💳",
+      bg: "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+      image: "",
+    };
   });
 
   // ── Load from Supabase on mount ──
@@ -170,12 +181,19 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             const lBg = settingsMap.get("website_logo_bg");
             const lImg = settingsMap.get("website_logo_image");
 
-            setLogoSettings({
+            const freshLogo = {
               type: lType || "emoji",
               emoji: lEmoji || "💳",
               bg: lBg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
               image: lImg || "",
-            });
+            };
+            setLogoSettings(freshLogo);
+            // Persist to localStorage so next load shows custom logo immediately
+            try {
+              localStorage.setItem("logoSettings", JSON.stringify(freshLogo));
+            } catch {
+              // ignore storage errors
+            }
           }
         }
       } catch {
@@ -500,6 +518,12 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     image: string;
   }) => {
     setLogoSettings(newSettings);
+    // Immediately persist to localStorage so loading screen reflects change
+    try {
+      localStorage.setItem("logoSettings", JSON.stringify(newSettings));
+    } catch {
+      // ignore storage errors
+    }
     await Promise.all([
       supabase.from("app_settings").upsert(
         { key: "website_logo_type", value: newSettings.type, updated_at: new Date().toISOString() },
