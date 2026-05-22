@@ -107,7 +107,7 @@ export default function ManagerPage() {
               width: "60px",
               height: "60px",
               borderRadius: "14px",
-              background: logoSettings.type === "emoji" ? logoSettings.bg : "transparent",
+              background: logoSettings.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -118,7 +118,7 @@ export default function ManagerPage() {
             }}>
               {logoSettings.type === "image" && logoSettings.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoSettings.image} alt="Logo Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src={logoSettings.image} alt="Logo Preview" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px" }} />
               ) : (
                 logoSettings.emoji
               )}
@@ -150,8 +150,8 @@ export default function ManagerPage() {
           </div>
 
           {/* Conditional inputs */}
-          {logoSettings.type === "emoji" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "4px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "4px" }}>
+            {logoSettings.type === "emoji" ? (
               <div className="fg">
                 <div className="fl" style={{ fontSize: "9px" }}>Pilih Emoji</div>
                 <input
@@ -164,85 +164,98 @@ export default function ManagerPage() {
                   style={{ padding: "8px 12px", fontSize: "13px" }}
                 />
               </div>
+            ) : (
               <div className="fg">
-                <div className="fl" style={{ fontSize: "9px" }}>Pilih Preset Background</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "2px" }}>
-                  {[
-                    "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-                    "linear-gradient(135deg, #00c9a7 0%, #8b72ff 100%)",
-                    "linear-gradient(135deg, #ffb340 0%, #ff4f6d 100%)",
-                    "linear-gradient(135deg, #13131a 0%, #2e2e3e 100%)",
-                    "#8b72ff",
-                    "#ff72b8",
-                    "#00c9a7",
-                    "#ffb340",
-                  ].map((presetBg) => (
-                    <div
-                      key={presetBg}
-                      onClick={() => handleUpdateBg(presetBg)}
-                      style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "8px",
-                        background: presetBg,
-                        border: logoSettings.bg === presetBg ? "2.5px solid #fff" : "1px solid var(--border)",
-                        cursor: "pointer",
-                        boxShadow: logoSettings.bg === presetBg ? "0 0 6px rgba(255,255,255,0.4)" : "none",
-                        transition: "all 0.15s ease"
-                      }}
-                    />
-                  ))}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginTop: "6px" }}>
-                  <span className="fl" style={{ fontSize: "9px" }}>Custom Warna/Gradient CSS</span>
+                <div className="fl" style={{ fontSize: "9px" }}>Upload File Logo (PNG/JPG)</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "2px" }}>
                   <input
-                    type="text"
-                    className="fi"
-                    style={{ padding: "8px 12px", fontSize: "12px" }}
-                    value={logoSettings.bg}
-                    onChange={(e) => handleUpdateBg(e.target.value)}
-                    placeholder="Contoh: #8b72ff atau linear-gradient(135deg, ...)"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: "none" }}
+                    id="logo-image-file-input"
                   />
+                  <label
+                    htmlFor="logo-image-file-input"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      border: "2px dashed var(--border)",
+                      cursor: "pointer",
+                      background: "var(--s2)",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      color: "var(--purple)",
+                      textAlign: "center",
+                      transition: "border-color 0.2s"
+                    }}
+                  >
+                    📁 Pilih Gambar dari Perangkat
+                  </label>
+                  <div style={{ fontSize: "10px", color: "var(--muted)", textAlign: "center", lineHeight: "1.4" }}>
+                    Format kotak (square) min. 512x512 piksel direkomendasikan. Gunakan file PNG transparan jika ingin memadukannya dengan preset background warna di bawah.
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="fg" style={{ marginTop: "4px" }}>
-              <div className="fl" style={{ fontSize: "9px" }}>Upload File Logo (PNG/JPG)</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "2px" }}>
+            )}
+
+            {/* Background settings - available for BOTH emoji and transparent images */}
+            <div className="fg">
+              <div className="fl" style={{ fontSize: "9px" }}>Pilih Preset Background (Berlaku untuk Emoji & Gambar Transparan)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "2px" }}>
+                {[
+                  "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+                  "linear-gradient(135deg, #00c9a7 0%, #8b72ff 100%)",
+                  "linear-gradient(135deg, #ffb340 0%, #ff4f6d 100%)",
+                  "linear-gradient(135deg, #13131a 0%, #2e2e3e 100%)",
+                  "#8b72ff",
+                  "#ff72b8",
+                  "#00c9a7",
+                  "#ffb340",
+                  "transparent",
+                ].map((presetBg) => (
+                  <div
+                    key={presetBg}
+                    onClick={() => handleUpdateBg(presetBg)}
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                      background: presetBg === "transparent" ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)" : presetBg,
+                      backgroundSize: presetBg === "transparent" ? "8px 8px" : "auto",
+                      backgroundPosition: presetBg === "transparent" ? "0 0, 0 4px, 4px -4px, -4px 0px" : "auto",
+                      border: logoSettings.bg === presetBg ? "2.5px solid #fff" : "1px solid var(--border)",
+                      cursor: "pointer",
+                      boxShadow: logoSettings.bg === presetBg ? "0 0 6px rgba(255,255,255,0.4)" : "none",
+                      transition: "all 0.15s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "9px",
+                      color: "#333",
+                      fontWeight: "bold"
+                    }}
+                  >
+                    {presetBg === "transparent" && "❌"}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginTop: "6px" }}>
+                <span className="fl" style={{ fontSize: "9px" }}>Custom Warna/Gradient CSS</span>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{ display: "none" }}
-                  id="logo-image-file-input"
+                  type="text"
+                  className="fi"
+                  style={{ padding: "8px 12px", fontSize: "12px" }}
+                  value={logoSettings.bg}
+                  onChange={(e) => handleUpdateBg(e.target.value)}
+                  placeholder="Contoh: #8b72ff atau linear-gradient(135deg, ...)"
                 />
-                <label
-                  htmlFor="logo-image-file-input"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "12px",
-                    borderRadius: "10px",
-                    border: "2px dashed var(--border)",
-                    cursor: "pointer",
-                    background: "var(--s2)",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    color: "var(--purple)",
-                    textAlign: "center",
-                    transition: "border-color 0.2s"
-                  }}
-                >
-                  📁 Pilih Gambar dari Perangkat
-                </label>
-                <div style={{ fontSize: "10px", color: "var(--muted)", textAlign: "center", lineHeight: "1.4" }}>
-                  Format kotak (square) min. 512x512 piksel direkomendasikan agar tidak terpotong saat dipasang di layar utama.
-                </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         <div className="pos-hdr"><span>Icon</span><span>Nama</span><span style={{ textAlign: "right" }}>Jatah</span><span>Aksi</span></div>

@@ -43,7 +43,8 @@ export default async function AppleIcon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'transparent',
+            background: bg || 'linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)',
+            borderRadius: '120px',
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -51,9 +52,9 @@ export default async function AppleIcon() {
             src={image}
             alt="Logo"
             style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
+              width: '90%',
+              height: '90%',
+              objectFit: 'contain',
             }}
           />
         </div>

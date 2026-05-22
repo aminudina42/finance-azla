@@ -41,14 +41,11 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               <div style={{
                 width: "52px",
                 height: "52px",
-                borderRadius: "12px",
-                background: logoSettings.type === "emoji" ? logoSettings.bg : "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "28px",
                 overflow: "hidden",
-                border: "1px solid #e0e0e0",
                 flexShrink: 0,
               }}>
                 {logoSettings.type === "image" && logoSettings.image ? (

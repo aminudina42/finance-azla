@@ -124,18 +124,32 @@ export default function Home() {
         <div style={{ textAlign: "center", color: "var(--muted)" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
             {isImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoSettings.image}
-                alt="Logo"
+              <div
                 style={{
                   width: "64px",
                   height: "64px",
                   borderRadius: "16px",
-                  objectFit: "cover",
-                  border: "1px solid var(--border)"
+                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  border: "1px solid var(--border)",
+                  flexShrink: 0
                 }}
-              />
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoSettings.image}
+                  alt="Logo"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    padding: "4px"
+                  }}
+                />
+              </div>
             ) : (
               <div
                 style={{
@@ -169,19 +183,32 @@ export default function Home() {
         <div className="dash-top-left">
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             {isImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoSettings.image}
-                alt="Logo"
+              <div
                 style={{
                   width: "32px",
                   height: "32px",
                   borderRadius: "9px",
-                  objectFit: "cover",
+                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
                   border: "1px solid var(--border)",
                   flexShrink: 0
                 }}
-              />
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoSettings.image}
+                  alt="Logo"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    padding: "2px"
+                  }}
+                />
+              </div>
             ) : (
               <div
                 style={{

@@ -82,18 +82,32 @@ export default function LoginPage() {
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
           {logoSettings.type === "image" && logoSettings.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoSettings.image}
-              alt="Logo"
+            <div
               style={{
                 width: "80px",
                 height: "80px",
                 borderRadius: "20px",
-                objectFit: "cover",
-                border: "1px solid var(--border)"
+                background: logoSettings.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                border: "1px solid var(--border)",
+                flexShrink: 0
               }}
-            />
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoSettings.image}
+                alt="Logo"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  padding: "5px"
+                }}
+              />
+            </div>
           ) : (
             <div
               style={{
