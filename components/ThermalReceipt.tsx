@@ -89,7 +89,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
               const qty   = item.quantity || 1;
               const price = item.price    || 0;
               const disc  = item.discount || 0;
-              const sub   = (qty * price) - disc;
+              const sub   = (price - disc) * qty;
 
               return (
                 <div key={idx}>
@@ -101,7 +101,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                   {disc > 0 && (
                     <div className="thermal-item-detail" style={{ color: "#888" }}>
                       <span>Diskon</span>
-                      <span>-Rp{formatRp(disc)}</span>
+                      <span>-Rp{formatRp(disc * qty)}</span>
                     </div>
                   )}
                 </div>

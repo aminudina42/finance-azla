@@ -73,7 +73,7 @@ export default function DetailStrukPage() {
       const q = item.quantity || 1;
       const p = item.price    || 0;
       const d = item.discount || 0;
-      return sum + ((q * p) - d);
+      return sum + ((p - d) * q);
     }, 0),
   [items]);
 
@@ -86,7 +86,13 @@ export default function DetailStrukPage() {
   };
 
   const handleNumberChange = (idx: number, field: keyof ReceiptItem, valStr: string) => {
-    const val = valStr === "" ? 0 : Number(valStr);
+    if (field === "quantity") {
+      const val = valStr === "" ? 0 : Number(valStr.replace(/\D/g, ""));
+      setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
+      return;
+    }
+    const cleanStr = valStr.replace(/\D/g, "");
+    const val = cleanStr === "" ? 0 : Number(cleanStr);
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
   };
 
@@ -289,15 +295,15 @@ export default function DetailStrukPage() {
                 <div className="fg">
                   <div className="fl">Qty</div>
                   <input type="number" className="fi" min="1"
-                    value={item.quantity?.toString() ?? "0"}
+                    value={item.quantity === 0 ? "" : (item.quantity?.toString() ?? "")}
                     onChange={e => handleNumberChange(idx, "quantity", e.target.value)} />
                 </div>
                 <div className="fg">
                   <div className="fl">Harga Satuan</div>
                   <div style={{ position: "relative" }}>
                     <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
-                    <input type="number" className="fi" style={{ paddingLeft: "34px" }}
-                      value={item.price?.toString() ?? "0"}
+                    <input type="text" className="fi" style={{ paddingLeft: "34px" }}
+                      value={(item.price || 0) === 0 ? "" : (item.price || 0).toLocaleString("id-ID")}
                       onChange={e => handleNumberChange(idx, "price", e.target.value)} />
                   </div>
                 </div>
@@ -308,8 +314,8 @@ export default function DetailStrukPage() {
                   <div className="fl">Diskon (Rp)</div>
                   <div style={{ position: "relative" }}>
                     <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
-                    <input type="number" className="fi" style={{ paddingLeft: "34px" }}
-                      value={item.discount?.toString() ?? "0"}
+                    <input type="text" className="fi" style={{ paddingLeft: "34px" }}
+                      value={(item.discount || 0) === 0 ? "" : (item.discount || 0).toLocaleString("id-ID")}
                       onChange={e => handleNumberChange(idx, "discount", e.target.value)} />
                   </div>
                 </div>
@@ -319,7 +325,7 @@ export default function DetailStrukPage() {
                 }}>
                   <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--teal)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Subtotal</div>
                   <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, color: "var(--teal)", fontSize: "14px" }}>
-                    {formatRp(((item.quantity || 1) * (item.price || 0)) - (item.discount || 0))}
+                    {formatRp(((item.price || 0) - (item.discount || 0)) * (item.quantity || 1))}
                   </div>
                 </div>
               </div>

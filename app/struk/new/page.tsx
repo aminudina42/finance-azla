@@ -32,7 +32,7 @@ export default function NewStrukPage() {
     { item_name: "", quantity: 1, price: 0, discount: 0 },
   ]);
 
-  // Load draft from localStorage
+  // Load draft from localStorage or fallback to last used store
   useEffect(() => {
     const draft = localStorage.getItem("struk_draft");
     if (draft) {
@@ -42,6 +42,37 @@ export default function NewStrukPage() {
         if (p.storeAddress) setStoreAddress(p.storeAddress);
         if (p.items?.length) setItems(p.items);
       } catch { /* ignore */ }
+    } else {
+      // Load last used store from localStorage
+      const lastStoreName = localStorage.getItem("last_store_name");
+      const lastStoreAddress = localStorage.getItem("last_store_address");
+      if (lastStoreName) setStoreName(lastStoreName);
+      if (lastStoreAddress) setStoreAddress(lastStoreAddress);
+
+      // Fetch from Supabase for sync across devices
+      const loadLastStoreFromDb = async () => {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const userId = sessionData?.session?.user?.id;
+          if (userId) {
+            const { data: lastStore } = await supabase
+              .from("stores")
+              .select("name, address")
+              .eq("user_id", userId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (lastStore) {
+              setStoreName(prev => prev || lastStore.name);
+              setStoreAddress(prev => prev || lastStore.address);
+              localStorage.setItem("last_store_name", lastStore.name);
+              localStorage.setItem("last_store_address", lastStore.address);
+            }
+          }
+        } catch { /* ignore */ }
+      };
+      loadLastStoreFromDb();
     }
     setReceiptNumber(generateReceiptNumber());
   }, []);
@@ -56,7 +87,7 @@ export default function NewStrukPage() {
       const q = item.quantity || 1;
       const p = item.price    || 0;
       const d = item.discount || 0;
-      return sum + (q * p - d);
+      return sum + ((p - d) * q);
     }, 0),
   [items]);
 
@@ -68,7 +99,13 @@ export default function NewStrukPage() {
 
   // Clears to 0 if empty
   const handleNumberChange = (idx: number, field: keyof ReceiptItem, valStr: string) => {
-    const val = valStr === "" ? 0 : Number(valStr);
+    if (field === "quantity") {
+      const val = valStr === "" ? 0 : Number(valStr.replace(/\D/g, ""));
+      setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
+      return;
+    }
+    const cleanStr = valStr.replace(/\D/g, "");
+    const val = cleanStr === "" ? 0 : Number(cleanStr);
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
   };
 
@@ -121,6 +158,8 @@ export default function NewStrukPage() {
       );
 
       localStorage.removeItem("struk_draft");
+      localStorage.setItem("last_store_name", storeName);
+      localStorage.setItem("last_store_address", storeAddress);
       router.push(`/struk/${receipt.id}`);
     } catch (e: any) {
       alert("Gagal menyimpan: " + e.message);
@@ -214,15 +253,15 @@ export default function NewStrukPage() {
                 <div className="fg">
                   <div className="fl">Qty</div>
                   <input type="number" className="fi" min="1"
-                    value={item.quantity?.toString() ?? "0"}
+                    value={item.quantity === 0 ? "" : (item.quantity?.toString() ?? "")}
                     onChange={e => handleNumberChange(idx, "quantity", e.target.value)} />
                 </div>
                 <div className="fg">
                   <div className="fl">Harga Satuan</div>
                   <div style={{ position: "relative" }}>
                     <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
-                    <input type="number" className="fi" style={{ paddingLeft: "34px" }}
-                      value={item.price?.toString() ?? "0"}
+                    <input type="text" className="fi" style={{ paddingLeft: "34px" }}
+                      value={(item.price || 0) === 0 ? "" : (item.price || 0).toLocaleString("id-ID")}
                       onChange={e => handleNumberChange(idx, "price", e.target.value)} />
                   </div>
                 </div>
@@ -233,8 +272,8 @@ export default function NewStrukPage() {
                   <div className="fl">Diskon (Rp)</div>
                   <div style={{ position: "relative" }}>
                     <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
-                    <input type="number" className="fi" style={{ paddingLeft: "34px" }}
-                      value={item.discount?.toString() ?? "0"}
+                    <input type="text" className="fi" style={{ paddingLeft: "34px" }}
+                      value={(item.discount || 0) === 0 ? "" : (item.discount || 0).toLocaleString("id-ID")}
                       onChange={e => handleNumberChange(idx, "discount", e.target.value)} />
                   </div>
                 </div>
@@ -244,7 +283,7 @@ export default function NewStrukPage() {
                 }}>
                   <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--teal)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Subtotal</div>
                   <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, color: "var(--teal)", fontSize: "14px" }}>
-                    {formatRp(((item.quantity || 1) * (item.price || 0)) - (item.discount || 0))}
+                    {formatRp(((item.price || 0) - (item.discount || 0)) * (item.quantity || 1))}
                   </div>
                 </div>
               </div>
