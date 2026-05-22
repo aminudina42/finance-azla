@@ -18,6 +18,10 @@ export default function BottomNav() {
         <span className="bni-icon">🧒</span>
         <span className="bni-label">Saku</span>
       </Link>
+      <Link href="/struk" className={`bni ${pathname.startsWith("/struk") ? "active" : ""}`}>
+        <span className="bni-icon">🧾</span>
+        <span className="bni-label">Struk</span>
+      </Link>
 
       {/* Center FAB / Placeholder */}
       <div className="bni-spacer"></div>

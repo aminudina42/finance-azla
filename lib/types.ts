@@ -88,6 +88,37 @@ export interface Debt {
   created_at: string;
 }
 
+export interface Store {
+  id: string;
+  user_id: string;
+  name: string;
+  address: string;
+  logo_url: string | null;
+  created_at: string;
+}
+
+export interface Receipt {
+  id: string;
+  store_id: string;
+  user_id: string;
+  receipt_number: string;
+  total: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReceiptItem {
+  id: string;
+  receipt_id: string;
+  item_name: string;
+  quantity: number;
+  price: number;
+  discount: number;
+  price_after_discount: number;
+  sort_order: number;
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {
