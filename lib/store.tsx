@@ -63,6 +63,13 @@ interface AppState {
   updateDebt: (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number) => void;
   deleteDebt: (id: string) => void;
   payDebt: (debtId: string, amount: number, posId: string) => void;
+  logoSettings: {
+    type: "emoji" | "image";
+    emoji: string;
+    bg: string;
+    image: string;
+  };
+  updateLogoSettings: (settings: { type: "emoji" | "image"; emoji: string; bg: string; image: string }) => Promise<void>;
   isLoading: boolean;
   dbConnected: boolean;
 }
@@ -93,6 +100,17 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>(FALLBACK_CHILD_TX);
   const [debts, setDebts] = useState<Debt[]>(FALLBACK_DEBTS);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
+  const [logoSettings, setLogoSettings] = useState<{
+    type: "emoji" | "image";
+    emoji: string;
+    bg: string;
+    image: string;
+  }>({
+    type: "emoji",
+    emoji: "💳",
+    bg: "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+    image: "",
+  });
 
   // ── Load from Supabase on mount ──
   useEffect(() => {
@@ -106,7 +124,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           supabase.from("child_transactions").select("*").order("created_at", { ascending: false }),
           supabase.from("debts").select("*").order("created_at", { ascending: false }),
           supabase.from("cycle_pos_history").select("*"),
-          supabase.from("app_settings").select("*").eq("key", "gajian_date").single(),
+          supabase.from("app_settings").select("*"),
         ]);
 
         // If ANY query succeeds (no error), we're connected to Supabase
@@ -141,9 +159,23 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           if (!histRes.error) {
             setCyclePosHistory(histRes.data as CyclePosHistory[]);
           }
-          // Load gajian_date from settings
-          if (!settingsRes.error && settingsRes.data) {
-            setGajianDate(Number(settingsRes.data.value) || 25);
+          // Load settings
+          if (!settingsRes.error && Array.isArray(settingsRes.data)) {
+            const settingsMap = new Map(settingsRes.data.map((s) => [s.key, s.value]));
+            const gajianVal = settingsMap.get("gajian_date");
+            if (gajianVal) setGajianDate(Number(gajianVal) || 25);
+
+            const lType = settingsMap.get("website_logo_type") as "emoji" | "image" | undefined;
+            const lEmoji = settingsMap.get("website_logo_emoji");
+            const lBg = settingsMap.get("website_logo_bg");
+            const lImg = settingsMap.get("website_logo_image");
+
+            setLogoSettings({
+              type: lType || "emoji",
+              emoji: lEmoji || "💳",
+              bg: lBg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+              image: lImg || "",
+            });
           }
         }
       } catch {
@@ -197,9 +229,42 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   }, []);
 
   const updatePos = useCallback(async (id: string, name: string, icon: string, sub: string, amount: number, isGoal: boolean = false, goalTarget: number = 0) => {
-    setPosList((prev) => prev.map((p) => (p.id === id ? { ...p, name, icon, sub, monthly_target: amount, is_goal: isGoal, goal_target: goalTarget } : p)));
-    await supabase.from("pos").update({ name, icon, sub, monthly_target: amount, is_goal: isGoal, goal_target: goalTarget }).eq("id", id);
-  }, []);
+    const oldPos = posList.find((p) => p.id === id);
+    if (!oldPos) return;
+
+    const diff = amount - oldPos.monthly_target;
+    const newBalance = isGoal ? oldPos.current_balance : oldPos.current_balance + diff;
+
+    setPosList((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              name,
+              icon,
+              sub,
+              monthly_target: amount,
+              current_balance: newBalance,
+              is_goal: isGoal,
+              goal_target: goalTarget,
+            }
+          : p
+      )
+    );
+
+    await supabase
+      .from("pos")
+      .update({
+        name,
+        icon,
+        sub,
+        monthly_target: amount,
+        current_balance: newBalance,
+        is_goal: isGoal,
+        goal_target: goalTarget,
+      })
+      .eq("id", id);
+  }, [posList]);
 
   const deletePos = useCallback(async (id: string) => {
     setPosList((prev) => prev.filter((p) => p.id !== id));
@@ -428,6 +493,33 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     );
   }, []);
 
+  const updateLogoSettings = useCallback(async (newSettings: {
+    type: "emoji" | "image";
+    emoji: string;
+    bg: string;
+    image: string;
+  }) => {
+    setLogoSettings(newSettings);
+    await Promise.all([
+      supabase.from("app_settings").upsert(
+        { key: "website_logo_type", value: newSettings.type, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      ),
+      supabase.from("app_settings").upsert(
+        { key: "website_logo_emoji", value: newSettings.emoji, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      ),
+      supabase.from("app_settings").upsert(
+        { key: "website_logo_bg", value: newSettings.bg, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      ),
+      supabase.from("app_settings").upsert(
+        { key: "website_logo_image", value: newSettings.image, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      ),
+    ]);
+  }, []);
+
   const value: AppState = {
     cycles, cycleIndex, setCycleIndex, shiftCycle,
     gajianDate, setGajianDate: updateGajianDate,
@@ -437,6 +529,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     childTransactions, addChildTransaction,
     cyclePosHistory, startNewCycle,
     debts, addDebt, updateDebt, deleteDebt, payDebt,
+    logoSettings, updateLogoSettings,
     isLoading, dbConnected,
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -9,6 +9,37 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  const [logoSettings, setLogoSettings] = useState({
+    type: "emoji",
+    emoji: "💳",
+    bg: "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+    image: "",
+  });
+
+  useEffect(() => {
+    async function loadLogo() {
+      try {
+        const { data } = await supabase.from("app_settings").select("*");
+        if (data) {
+          const settingsMap = new Map(data.map((s) => [s.key, s.value]));
+          const lType = settingsMap.get("website_logo_type") as "emoji" | "image" | undefined;
+          const lEmoji = settingsMap.get("website_logo_emoji");
+          const lBg = settingsMap.get("website_logo_bg");
+          const lImg = settingsMap.get("website_logo_image");
+          setLogoSettings({
+            type: lType || "emoji",
+            emoji: lEmoji || "💳",
+            bg: lBg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+            image: lImg || "",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load login logo settings:", err);
+      }
+    }
+    loadLogo();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +80,39 @@ export default function LoginPage() {
   return (
     <main className="page active" style={{ justifyContent: "center", display: "flex", flexDirection: "column", padding: "20px" }}>
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
-        <div style={{ fontSize: "50px", marginBottom: "10px" }}>💳</div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+          {logoSettings.type === "image" && logoSettings.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSettings.image}
+              alt="Logo"
+              style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "20px",
+                objectFit: "cover",
+                border: "1px solid var(--border)"
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "20px",
+                background: logoSettings.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "40px",
+                color: "#fff",
+                border: "1px solid var(--border)"
+              }}
+            >
+              {logoSettings.emoji}
+            </div>
+          )}
+        </div>
         <h1 style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "28px" }}>Dompet Pintar</h1>
         <p style={{ color: "var(--muted)", fontSize: "14px", marginTop: "5px" }}>Login untuk mengatur keuangan keluarga</p>
       </div>

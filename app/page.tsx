@@ -48,6 +48,7 @@ export default function Home() {
     isLoading,
     cyclePosHistory,
     transactions,
+    logoSettings,
   } = useApp();
 
   const [showCycleModal, setShowCycleModal] = useState(false);
@@ -117,22 +118,92 @@ export default function Home() {
   });
 
   if (isLoading) {
+    const isImage = logoSettings?.type === "image" && logoSettings?.image;
     return (
       <main id="pg-dash" className="page active" style={{ justifyContent: "center", alignItems: "center" }}>
         <div style={{ textAlign: "center", color: "var(--muted)" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>💳</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+            {isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoSettings.image}
+                alt="Logo"
+                style={{
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "16px",
+                  objectFit: "cover",
+                  border: "1px solid var(--border)"
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "16px",
+                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "32px",
+                  color: "#fff",
+                  border: "1px solid var(--border)"
+                }}
+              >
+                {logoSettings?.emoji || "💳"}
+              </div>
+            )}
+          </div>
           <div style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "18px", fontWeight: 800 }}>Memuat data...</div>
         </div>
       </main>
     );
   }
 
+  const isImage = logoSettings?.type === "image" && logoSettings?.image;
+
   return (
     <main id="pg-dash" className="page active">
       <div className="dash-top">
         <div className="dash-top-left">
-          <h1>Dompet Azla 💳</h1>
-          <p>Selamat datang kembali!</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoSettings.image}
+                alt="Logo"
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "9px",
+                  objectFit: "cover",
+                  border: "1px solid var(--border)",
+                  flexShrink: 0
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "9px",
+                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
+                  color: "#fff",
+                  border: "1px solid var(--border)",
+                  flexShrink: 0
+                }}
+              >
+                {logoSettings?.emoji || "💳"}
+              </div>
+            )}
+            <h1>Dompet Azla</h1>
+          </div>
+          <p style={{ marginTop: "6px" }}>Selamat datang kembali!</p>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", marginTop: "6px", padding: "3px 8px", borderRadius: "6px", background: dbConnected ? "rgba(0,201,167,.12)" : "rgba(255,179,64,.12)", border: `1px solid ${dbConnected ? "rgba(0,201,167,.25)" : "rgba(255,179,64,.25)"}`, fontSize: "9px", fontWeight: 700, color: dbConnected ? "var(--teal)" : "var(--amber)", letterSpacing: ".5px", textTransform: "uppercase" }}>
             {dbConnected ? "🟢 Supabase" : "🟡 Offline"}
           </div>
