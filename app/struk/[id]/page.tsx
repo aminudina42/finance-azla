@@ -17,13 +17,14 @@ export default function DetailStrukPage() {
   const params = useParams();
   const id = params.id as string;
   const receiptRef = useRef<HTMLDivElement>(null);
-  const { logoSettings } = useApp();
+  const { logoSettings, setIsMutating, setIsNavigating } = useApp();
 
   const [isLoading, setIsLoading] = useState(true);
   const [storeName, setStoreName] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
   const [date, setDate] = useState("");
+  const [creatorName, setCreatorName] = useState("");
 
   const [items, setItems] = useState<Partial<ReceiptItem>[]>([
     { item_name: "", quantity: 1, price: 0, discount: 0 }
@@ -47,6 +48,16 @@ export default function DetailStrukPage() {
         setStoreAddress(receipt.stores?.address ?? "");
         setReceiptNumber(receipt.receipt_number);
         setDate(new Date(receipt.created_at).toLocaleString("id-ID"));
+
+        // Fetch creator's name from users table
+        if (receipt.user_id) {
+          const { data: uData } = await supabase
+            .from("users")
+            .select("name")
+            .eq("id", receipt.user_id)
+            .maybeSingle();
+          if (uData) setCreatorName(uData.name);
+        }
 
         const { data: rItems, error: iErr } = await supabase
           .from("receipt_items")
@@ -106,6 +117,7 @@ export default function DetailStrukPage() {
     }
 
     setIsSaving(true);
+    setIsMutating(true);
     try {
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user.id;
@@ -135,6 +147,7 @@ export default function DetailStrukPage() {
       alert("Gagal update struk: " + e.message);
     } finally {
       setIsSaving(false);
+      setIsMutating(false);
     }
   };
 
@@ -196,10 +209,28 @@ export default function DetailStrukPage() {
   return (
     <main className="page active" style={{ paddingBottom: "100px" }}>
       <div className="ph ph-border" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <button onClick={() => router.push("/struk")} className="ib" style={{ fontSize: "18px" }}>←</button>
+        <button onClick={() => { setIsNavigating(true); router.push("/struk"); }} className="ib" style={{ fontSize: "18px" }}>←</button>
         <div>
           <h2>Struk {receiptNumber}</h2>
-          <p>Edit atau bagikan struk ini</p>
+          <p style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
+            <span>Edit atau bagikan struk ini</span>
+            {creatorName && (
+              <>
+                <span>•</span>
+                <span style={{
+                  color: creatorName.toLowerCase().includes("suami") ? "var(--teal)" : creatorName.toLowerCase().includes("istri") ? "var(--pink)" : "var(--purple)",
+                  fontWeight: 800,
+                  background: creatorName.toLowerCase().includes("suami") ? "var(--teal-dim)" : creatorName.toLowerCase().includes("istri") ? "var(--pink-dim)" : "var(--purple-dim)",
+                  padding: "1px 6px",
+                  borderRadius: "4px",
+                  letterSpacing: "0.2px",
+                  fontSize: "9.5px"
+                }}>
+                  👤 {creatorName}
+                </span>
+              </>
+            )}
+          </p>
         </div>
       </div>
 
@@ -226,7 +257,7 @@ export default function DetailStrukPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
           <button className="btn-primary"
             style={{ padding: "12px", fontSize: "14px", background: "var(--s2)", color: "var(--text)", border: "1px solid var(--border)" }}
-            onClick={() => router.push(`/struk/${id}/print`)}>
+            onClick={() => { setIsNavigating(true); router.push(`/struk/${id}/print`); }}>
             🖨️ Cetak
           </button>
           <button className="btn-primary"

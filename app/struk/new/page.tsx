@@ -21,7 +21,7 @@ function formatRp(n: number): string {
 export default function NewStrukPage() {
   const router = useRouter();
   const receiptRef = useRef<HTMLDivElement>(null);
-  const { logoSettings } = useApp();
+  const { logoSettings, setIsMutating, setIsNavigating } = useApp();
 
   const [storeName, setStoreName] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
@@ -117,6 +117,7 @@ export default function NewStrukPage() {
     if (items.some(i => !i.item_name?.trim())) { alert("Semua nama barang wajib diisi."); return; }
 
     setIsSaving(true);
+    setIsMutating(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
@@ -160,11 +161,13 @@ export default function NewStrukPage() {
       localStorage.removeItem("struk_draft");
       localStorage.setItem("last_store_name", storeName);
       localStorage.setItem("last_store_address", storeAddress);
+      setIsNavigating(true);
       router.push(`/struk/${receipt.id}`);
     } catch (e: any) {
       alert("Gagal menyimpan: " + e.message);
     } finally {
       setIsSaving(false);
+      setIsMutating(false);
     }
   };
 
@@ -172,7 +175,7 @@ export default function NewStrukPage() {
     <main className="page active" style={{ paddingBottom: "100px" }}>
       {/* Header */}
       <div className="ph ph-border" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <button onClick={() => router.back()} className="ib" style={{ fontSize: "18px" }}>←</button>
+        <button onClick={() => { setIsNavigating(true); router.back(); }} className="ib" style={{ fontSize: "18px" }}>←</button>
         <div>
           <h2>✏️ Buat Struk</h2>
           <p>Isi data toko dan barang, lalu simpan</p>

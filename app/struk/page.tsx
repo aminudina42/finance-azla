@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Receipt } from "@/lib/types";
+import { useApp } from "@/lib/store";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -23,10 +24,13 @@ function formatDate(iso: string): string {
 
 export default function StrukListPage() {
   const router = useRouter();
-  const [receipts, setReceipts] = useState<(Receipt & { store_name?: string })[]>([]);
+  const { setIsMutating, setIsNavigating } = useApp();
+  const [receipts, setReceipts] = useState<(Receipt & { store_name?: string; user_name?: string })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<"month" | "week" | "day">("month");
   const [offset, setOffset] = useState(0);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   const handleFilterTypeChange = (type: "month" | "week" | "day") => {
     setFilterType(type);
@@ -35,6 +39,13 @@ export default function StrukListPage() {
 
   const loadReceipts = useCallback(async () => {
     try {
+      // Fetch users to map user_id to user_name
+      const { data: usersData } = await supabase
+        .from("users")
+        .select("id, name");
+      const userList = usersData || [];
+      setUsers(userList);
+
       const { data, error } = await supabase
         .from("receipts")
         .select("*, stores(name)")
@@ -44,6 +55,7 @@ export default function StrukListPage() {
         const mapped = data.map((r: any) => ({
           ...r,
           store_name: r.stores?.name ?? "—",
+          user_name: userList.find((u: any) => u.id === r.user_id)?.name ?? "Anonim",
         }));
         setReceipts(mapped);
       }
@@ -59,13 +71,23 @@ export default function StrukListPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus struk ini?")) return;
-    await supabase.from("receipt_items").delete().eq("receipt_id", id);
-    await supabase.from("receipts").delete().eq("id", id);
-    setReceipts((prev) => prev.filter((r) => r.id !== id));
+    setIsMutating(true);
+    try {
+      await supabase.from("receipt_items").delete().eq("receipt_id", id);
+      await supabase.from("receipts").delete().eq("id", id);
+      setReceipts((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsMutating(false);
+    }
   };
 
   const filteredReceipts = useMemo(() => {
     return receipts.filter((r) => {
+      if (selectedUserId !== "all" && r.user_id !== selectedUserId) {
+        return false;
+      }
       const rDate = new Date(r.created_at);
       if (filterType === "day") {
         const targetDate = new Date();
@@ -99,7 +121,7 @@ export default function StrukListPage() {
       }
       return true;
     });
-  }, [receipts, filterType, offset]);
+  }, [receipts, filterType, offset, selectedUserId]);
 
   const periodLabel = useMemo(() => {
     const targetDate = new Date();
@@ -146,7 +168,7 @@ export default function StrukListPage() {
       <div className="struk-body">
 
         {/* ── New Button ── */}
-        <button className="struk-new-btn" onClick={() => router.push("/struk/new")}>
+        <button className="struk-new-btn" onClick={() => { setIsNavigating(true); router.push("/struk/new"); }}>
           <span className="struk-new-icon">＋</span>
           <div>
             <div className="struk-new-title">Buat Struk Baru</div>
@@ -252,6 +274,93 @@ export default function StrukListPage() {
               </button>
             </div>
 
+            {/* Creator Filter */}
+            {users.length > 0 && (
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                marginTop: "8px"
+              }}>
+                <div style={{
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  letterSpacing: "1.2px",
+                  textTransform: "uppercase",
+                  color: "var(--muted)"
+                }}>
+                  👤 Dibuat Oleh
+                </div>
+                <div style={{
+                  display: "flex",
+                  gap: "8px",
+                  overflowX: "auto",
+                  scrollbarWidth: "none",
+                  padding: "4px 0"
+                }}>
+                  <button
+                    onClick={() => setSelectedUserId("all")}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      borderRadius: "999px",
+                      border: "1px solid " + (selectedUserId === "all" ? "var(--purple)" : "var(--border)"),
+                      background: selectedUserId === "all" ? "var(--purple-dim)" : "var(--s1)",
+                      color: selectedUserId === "all" ? "var(--purple)" : "var(--muted)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    👥 Semua User
+                  </button>
+                  {users.map((u) => {
+                    const isActive = selectedUserId === u.id;
+                    const isSuami = u.name.toLowerCase().includes("suami");
+                    const isIstri = u.name.toLowerCase().includes("istri");
+                    let icon = "👤";
+                    let activeBorder = "var(--purple)";
+                    let activeBg = "var(--purple-dim)";
+                    let activeColor = "var(--purple)";
+                    
+                    if (isSuami) {
+                      icon = "👨‍💼";
+                      activeBorder = "var(--teal)";
+                      activeBg = "var(--teal-dim)";
+                      activeColor = "var(--teal)";
+                    } else if (isIstri) {
+                      icon = "👩";
+                      activeBorder = "var(--pink)";
+                      activeBg = "var(--pink-dim)";
+                      activeColor = "var(--pink)";
+                    }
+                    
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => setSelectedUserId(u.id)}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          borderRadius: "999px",
+                          border: "1px solid " + (isActive ? activeBorder : "var(--border)"),
+                          background: isActive ? activeBg : "var(--s1)",
+                          color: isActive ? activeColor : "var(--muted)",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        {icon} {u.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="struk-stats">
               <div className="struk-stat-card">
                 <span className="struk-stat-label">Struk Terfilter</span>
@@ -301,7 +410,21 @@ export default function StrukListPage() {
                 <Link href={`/struk/${r.id}`} className="struk-card-link">
                   <div className="struk-card-left">
                     <div className="struk-card-num">{r.receipt_number}</div>
-                    <div className="struk-card-store">🏪 {r.store_name}</div>
+                    <div className="struk-card-store" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+                      <span>🏪 {r.store_name}</span>
+                      <span style={{ fontSize: "10px", color: "var(--muted)" }}>•</span>
+                      <span style={{
+                        color: r.user_name?.toLowerCase().includes("suami") ? "var(--teal)" : r.user_name?.toLowerCase().includes("istri") ? "var(--pink)" : "var(--purple)",
+                        fontWeight: 800,
+                        background: r.user_name?.toLowerCase().includes("suami") ? "var(--teal-dim)" : r.user_name?.toLowerCase().includes("istri") ? "var(--pink-dim)" : "var(--purple-dim)",
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                        letterSpacing: "0.2px",
+                        fontSize: "9px"
+                      }}>
+                        👤 {r.user_name}
+                      </span>
+                    </div>
                     <div className="struk-card-date">{formatDate(r.created_at)}</div>
                   </div>
                   <div className="struk-card-right">
