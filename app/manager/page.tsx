@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import EditPosModal from "@/components/Modals/EditPosModal";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import AlertModal from "@/components/Modals/AlertModal";
@@ -23,22 +24,41 @@ export default function ManagerPage() {
   const handleUpdateBg = async (bg: string) => {
     await updateLogoSettings({ ...logoSettings, bg });
   };
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64 = event.target?.result as string;
-      if (base64) {
-        await updateLogoSettings({
-          ...logoSettings,
-          type: "image",
-          image: base64
+    try {
+      const fileExtension = file.name.split(".").pop();
+      const fileName = `logo-${Date.now()}.${fileExtension}`;
+
+      // Upload file directly to Supabase storage bucket 'logos'
+      const { data, error } = await supabase.storage
+        .from("logos")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: true,
         });
-      }
-    };
-    reader.readAsDataURL(file);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("logos")
+        .getPublicUrl(fileName);
+
+      // Save public URL to logoSettings
+      await updateLogoSettings({
+        ...logoSettings,
+        type: "image",
+        image: publicUrl,
+      });
+
+      alert("Logo berhasil diunggah ke Supabase Storage!");
+    } catch (err: any) {
+      console.error("Gagal mengupload logo:", err);
+      alert("Gagal mengupload logo ke Supabase Storage: " + err.message);
+    }
   };
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
