@@ -138,7 +138,7 @@ export default function ManagerPage() {
             }}>
               {logoSettings.type === "image" && logoSettings.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoSettings.image} alt="Logo Preview" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px" }} />
+                <img src={logoSettings.image} alt="Logo Preview" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px" }} />
               ) : (
                 logoSettings.emoji
               )}

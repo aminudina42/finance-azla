@@ -100,6 +100,7 @@ export default function LoginPage() {
               <img
                 src={logoSettings.image}
                 alt="Logo"
+                crossOrigin="anonymous"
                 style={{
                   width: "100%",
                   height: "100%",
