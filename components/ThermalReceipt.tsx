@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useState, useEffect } from "react";
 import type { ReceiptItem } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -26,6 +26,31 @@ interface ThermalReceiptProps {
 
 const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
   ({ storeName, storeAddress, receiptNumber, date, items, total, logoSettings }, ref) => {
+    const [logoBase64, setLogoBase64] = useState<string>("");
+
+    useEffect(() => {
+      if (logoSettings?.type === "image" && logoSettings.image) {
+        // Convert to Base64 to bypass iOS Safari CORS / SVG foreignObject limitations
+        // when rendering canvas/PNG from DOM elements
+        fetch(logoSettings.image)
+          .then((res) => res.blob())
+          .then((blob) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setLogoBase64(reader.result as string);
+            };
+            reader.readAsDataURL(blob);
+          })
+          .catch((err) => {
+            console.error("Gagal men-convert logo ke base64:", err);
+            // Fallback to original image URL
+            setLogoBase64(logoSettings.image);
+          });
+      } else {
+        setLogoBase64("");
+      }
+    }, [logoSettings?.type, logoSettings?.image]);
+
     return (
       <div className="thermal-preview" ref={ref}>
         {/* Header */}
@@ -48,10 +73,10 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                 overflow: "hidden",
                 flexShrink: 0,
               }}>
-                {logoSettings.type === "image" && logoSettings.image ? (
+                {logoSettings.type === "image" && (logoBase64 || logoSettings.image) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={logoSettings.image}
+                    src={logoBase64 || logoSettings.image}
                     alt="Logo"
                     crossOrigin="anonymous"
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}

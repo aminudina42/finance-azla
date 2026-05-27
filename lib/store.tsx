@@ -52,6 +52,7 @@ interface AppState {
   deletePos: (id: string) => void;
   transactions: Transaction[];
   addTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, type?: "income" | "expense") => void;
+  deleteTransaction: (txId: string) => void;
   children: Child[];
   addChild: (name: string, icon: string, initialBalance: number) => void;
   childTransactions: ChildTransaction[];
@@ -77,6 +78,7 @@ interface AppState {
   setIsNavigating: (b: boolean) => void;
   isMutating: boolean;
   setIsMutating: (b: boolean) => void;
+  recalculateBalances: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -391,6 +393,37 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     [posList, sessionUser]
   );
 
+  // ── Delete Transaction ──
+  const deleteTransaction = useCallback(
+    async (txId: string) => {
+      setIsMutating(true);
+      try {
+        const tx = transactions.find((t) => t.id === txId);
+        if (!tx) return;
+
+        // Restore pos balance
+        const pos = posList.find((p) => p.id === tx.pos_id);
+        if (pos) {
+          const restoredBalance = tx.type === "income"
+            ? pos.current_balance - tx.amount
+            : pos.current_balance + tx.amount;
+          setPosList((prev) => prev.map((p) => (p.id === tx.pos_id ? { ...p, current_balance: restoredBalance } : p)));
+          await supabase.from("pos").update({ current_balance: restoredBalance }).eq("id", tx.pos_id);
+        }
+
+        // Remove transaction from state
+        setTransactions((prev) => prev.filter((t) => t.id !== txId));
+
+        // Delete from Supabase
+        const { error } = await supabase.from("transactions").delete().eq("id", txId);
+        if (error) console.error("❌ Gagal hapus transaksi:", error.message);
+      } finally {
+        setIsMutating(false);
+      }
+    },
+    [transactions, posList]
+  );
+
   // ── Child actions ──
   const addChild = useCallback(async (name: string, icon: string, initialBalance: number) => {
     setIsMutating(true);
@@ -655,11 +688,51 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, []);
 
+  // ── Recalculate all pos balances from transactions ──
+  const recalculateBalances = useCallback(async () => {
+    setIsMutating(true);
+    try {
+      const activeCycle = cycles[0];
+      if (!activeCycle) return;
+
+      const cycleStart = new Date(activeCycle.start_date + "T00:00:00");
+
+      const updatedPos = posList.map((p) => {
+        // Get all transactions for this pos in the active cycle
+        const posTxs = transactions.filter((t) => {
+          const d = new Date(t.created_at);
+          return t.pos_id === p.id && d >= cycleStart;
+        });
+
+        const income = posTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const expense = posTxs.filter((t) => t.type !== "income").reduce((s, t) => s + t.amount, 0);
+
+        // For goal pos, we can't simply reset — we need accumulated balance
+        // For regular pos, balance = monthly_target + income - expense
+        const correctBalance = p.monthly_target + income - expense;
+
+        return { ...p, current_balance: correctBalance };
+      });
+
+      setPosList(updatedPos);
+
+      // Sync all corrected balances to Supabase
+      for (const p of updatedPos) {
+        const { error } = await supabase.from("pos").update({ current_balance: p.current_balance }).eq("id", p.id);
+        if (error) console.error(`❌ Gagal update saldo ${p.name}:`, error.message);
+      }
+
+      console.log("✅ Semua saldo pos berhasil disinkronisasi dari data transaksi.");
+    } finally {
+      setIsMutating(false);
+    }
+  }, [posList, transactions, cycles]);
+
   const value: AppState = {
     cycles, cycleIndex, setCycleIndex, shiftCycle,
     gajianDate, setGajianDate: updateGajianDate,
     posList, addPos, updatePos, deletePos,
-    transactions, addTransaction,
+    transactions, addTransaction, deleteTransaction,
     children: childrenList, addChild,
     childTransactions, addChildTransaction,
     cyclePosHistory, startNewCycle,
@@ -668,6 +741,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     isLoading, dbConnected,
     isNavigating, setIsNavigating,
     isMutating, setIsMutating,
+    recalculateBalances,
   };
 
   if (authLoading) return null; // Or a loading spinner
