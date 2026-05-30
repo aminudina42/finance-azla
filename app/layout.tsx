@@ -44,6 +44,24 @@ export default function RootLayout({
       lang="id"
       className={`${dmSans.variable} ${fraunces.variable} font-sans antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var cached = localStorage.getItem('theme');
+                  if (cached === 'light' || cached === 'dark') {
+                    document.documentElement.setAttribute('data-theme', cached);
+                  } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className={dmSans.variable + " " + fraunces.variable}>
         <AppProvider>
           <div className="shell">

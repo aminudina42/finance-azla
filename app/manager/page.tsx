@@ -12,7 +12,7 @@ function formatRp(n: number): string {
 }
 
 export default function ManagerPage() {
-  const { posList, addPos, updatePos, deletePos, gajianDate, startNewCycle, logoSettings, updateLogoSettings, recalculateBalances } = useApp();
+  const { posList, addPos, updatePos, deletePos, gajianDate, startNewCycle, logoSettings, updateLogoSettings, recalculateBalances, theme, updateTheme } = useApp();
   const [showEditModal, setShowEditModal] = useState(false);
 
   const handleUpdateType = async (type: "emoji" | "image") => {
@@ -310,6 +310,37 @@ export default function ManagerPage() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Theme settings card */}
+        <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "15px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="gc-left">
+              <p>Pengaturan Tampilan</p>
+              <h3>🎨 Tema Aplikasi</h3>
+            </div>
+          </div>
+          
+          <div className="type-toggle" style={{ marginTop: "4px" }}>
+            <div
+              className={`type-opt ${theme === "dark" ? "active-out" : ""}`}
+              onClick={() => updateTheme("dark")}
+              style={{ padding: "10px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+            >
+              🌙 Mode Gelap
+            </div>
+            <div
+              className={`type-opt ${theme === "light" ? "active-in" : ""}`}
+              onClick={() => updateTheme("light")}
+              style={{ padding: "10px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+            >
+              ☀️ Mode Terang
+            </div>
+          </div>
+          
+          <div style={{ fontSize: "11px", color: "var(--muted)", lineHeight: "1.4", textAlign: "center" }}>
+            Pilih Mode Gelap untuk warna futuristik, atau Mode Terang untuk nuansa putih bersih yang minimalis.
           </div>
         </div>
 

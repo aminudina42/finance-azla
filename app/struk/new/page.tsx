@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any */
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,10 @@ export default function NewStrukPage() {
   const [storeAddress, setStoreAddress] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [qrisActive, setQrisActive] = useState(false);
+  const [qrisData, setQrisData] = useState("");
+  const [qrisName, setQrisName] = useState("");
+  const [isUploadingQris, setIsUploadingQris] = useState(false);
 
   const [items, setItems] = useState<Partial<ReceiptItem>[]>([
     { item_name: "", quantity: 1, price: 0, discount: 0 },
@@ -41,13 +46,23 @@ export default function NewStrukPage() {
         if (p.storeName)    setStoreName(p.storeName);
         if (p.storeAddress) setStoreAddress(p.storeAddress);
         if (p.items?.length) setItems(p.items);
+        if (p.qrisActive !== undefined) setQrisActive(p.qrisActive);
+        if (p.qrisData !== undefined)   setQrisData(p.qrisData);
+        if (p.qrisName !== undefined)   setQrisName(p.qrisName);
       } catch { /* ignore */ }
     } else {
       // Load last used store from localStorage
       const lastStoreName = localStorage.getItem("last_store_name");
       const lastStoreAddress = localStorage.getItem("last_store_address");
+      const lastQrisActive = localStorage.getItem("last_qris_active") === "true";
+      const lastQrisData = localStorage.getItem("last_qris_data") || "";
+      const lastQrisName = localStorage.getItem("last_qris_name") || "";
+      
       if (lastStoreName) setStoreName(lastStoreName);
       if (lastStoreAddress) setStoreAddress(lastStoreAddress);
+      setQrisActive(lastQrisActive);
+      setQrisData(lastQrisData);
+      setQrisName(lastQrisName);
 
       // Fetch from Supabase for sync across devices
       const loadLastStoreFromDb = async () => {
@@ -57,7 +72,7 @@ export default function NewStrukPage() {
           if (userId) {
             const { data: lastStore } = await supabase
               .from("stores")
-              .select("name, address")
+              .select("name, address, qris_active, qris_data, qris_name")
               .eq("user_id", userId)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -66,8 +81,15 @@ export default function NewStrukPage() {
             if (lastStore) {
               setStoreName(prev => prev || lastStore.name);
               setStoreAddress(prev => prev || lastStore.address);
+              setQrisActive(prev => prev || !!lastStore.qris_active);
+              setQrisData(prev => prev || lastStore.qris_data || "");
+              setQrisName(prev => prev || lastStore.qris_name || "");
+              
               localStorage.setItem("last_store_name", lastStore.name);
               localStorage.setItem("last_store_address", lastStore.address);
+              localStorage.setItem("last_qris_active", String(!!lastStore.qris_active));
+              localStorage.setItem("last_qris_data", lastStore.qris_data || "");
+              localStorage.setItem("last_qris_name", lastStore.qris_name || "");
             }
           }
         } catch { /* ignore */ }
@@ -79,8 +101,8 @@ export default function NewStrukPage() {
 
   // Autosave draft
   useEffect(() => {
-    localStorage.setItem("struk_draft", JSON.stringify({ storeName, storeAddress, items }));
-  }, [storeName, storeAddress, items]);
+    localStorage.setItem("struk_draft", JSON.stringify({ storeName, storeAddress, items, qrisActive, qrisData, qrisName }));
+  }, [storeName, storeAddress, items, qrisActive, qrisData, qrisName]);
 
   const total = useMemo(() =>
     items.reduce((sum, item) => {
@@ -112,6 +134,43 @@ export default function NewStrukPage() {
   const handleItemChange = (idx: number, field: keyof ReceiptItem, value: any) =>
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
 
+  const handleQrisUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Instant local object URL preview for fallback & speed
+    const localUrl = URL.createObjectURL(file);
+    setQrisData(localUrl);
+    setIsUploadingQris(true);
+
+    try {
+      const fileExtension = file.name.split(".").pop();
+      const fileName = `qris-${Date.now()}.${fileExtension}`;
+
+      // Upload file directly to Supabase storage bucket 'logos'
+      const { error } = await supabase.storage
+        .from("logos")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      // Get public URL from logos bucket
+      const { data: { publicUrl } } = supabase.storage
+        .from("logos")
+        .getPublicUrl(fileName);
+
+      setQrisData(publicUrl);
+    } catch (err: any) {
+      console.error("Gagal mengupload QRIS:", err);
+      alert("Gagal mengupload QRIS ke Supabase Storage: " + err.message);
+    } finally {
+      setIsUploadingQris(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!storeName.trim()) { alert("Isi nama toko terlebih dahulu."); return; }
     if (items.some(i => !i.item_name?.trim())) { alert("Semua nama barang wajib diisi."); return; }
@@ -130,10 +189,10 @@ export default function NewStrukPage() {
 
       if (existing) {
         storeId = existing.id;
-        await supabase.from("stores").update({ address: storeAddress }).eq("id", storeId);
+        await supabase.from("stores").update({ address: storeAddress, qris_active: qrisActive, qris_data: qrisData, qris_name: qrisName }).eq("id", storeId);
       } else {
         const { data: ns, error: nsErr } = await supabase
-          .from("stores").insert({ name: storeName, address: storeAddress, user_id: userId })
+          .from("stores").insert({ name: storeName, address: storeAddress, user_id: userId, qris_active: qrisActive, qris_data: qrisData, qris_name: qrisName })
           .select("id").single();
         if (nsErr) throw nsErr;
         storeId = ns.id;
@@ -161,6 +220,9 @@ export default function NewStrukPage() {
       localStorage.removeItem("struk_draft");
       localStorage.setItem("last_store_name", storeName);
       localStorage.setItem("last_store_address", storeAddress);
+      localStorage.setItem("last_qris_active", String(qrisActive));
+      localStorage.setItem("last_qris_data", qrisData);
+      localStorage.setItem("last_qris_name", qrisName);
       setIsNavigating(true);
       router.push(`/struk/${receipt.id}`);
     } catch (e: any) {
@@ -218,6 +280,149 @@ export default function NewStrukPage() {
             <textarea className="fi" placeholder="Contoh: Jl. Merdeka No.1, Jakarta"
               value={storeAddress} onChange={e => setStoreAddress(e.target.value)} />
           </div>
+        </div>
+
+        {/* ── Form QRIS ── */}
+        <div style={{
+          background: "var(--s1)", border: "1px solid var(--border)",
+          borderRadius: "var(--r)", padding: "16px", display: "flex", flexDirection: "column", gap: "14px",
+          transition: "all 0.3s ease",
+          boxShadow: qrisActive ? "0 0 15px rgba(139, 114, 255, 0.15)" : "none",
+          borderColor: qrisActive ? "var(--purple)" : "var(--border)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--purple)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>📱 QRIS / Pembayaran Digital</span>
+            </div>
+            {/* Toggle switch */}
+            <label style={{ position: "relative", display: "inline-block", width: "42px", height: "24px", cursor: "pointer" }}>
+              <input type="checkbox" checked={qrisActive} onChange={e => setQrisActive(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+              <span style={{
+                position: "absolute", cursor: "pointer", top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: qrisActive ? "var(--purple)" : "#333",
+                transition: ".3s", borderRadius: "24px"
+              }}>
+                <span style={{
+                  position: "absolute", content: "", height: "18px", width: "18px", left: "3px", bottom: "3px",
+                  backgroundColor: "white", transition: ".3s", borderRadius: "50%",
+                  transform: qrisActive ? "translateX(18px)" : "translateX(0)"
+                }} />
+              </span>
+            </label>
+          </div>
+          
+          {qrisActive && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px", animation: "pageIn .2s ease both" }}>
+              <div className="fg">
+                <div className="fl">Nama Merchant / Pemilik</div>
+                <input type="text" className="fi" placeholder="Contoh: AZLA STORE"
+                  value={qrisName} onChange={e => setQrisName(e.target.value)} />
+              </div>
+              
+              <div className="fg">
+                <div className="fl">Gambar Lembar QRIS</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "2px" }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleQrisUpload}
+                    style={{ display: "none" }}
+                    id="qris-image-file-input"
+                  />
+                  
+                  {!qrisData ? (
+                    <label
+                      htmlFor="qris-image-file-input"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "20px 14px",
+                        borderRadius: "10px",
+                        border: "2px dashed var(--border)",
+                        cursor: "pointer",
+                        background: "var(--s2)",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      <span style={{ fontSize: "24px", marginBottom: "4px" }}>📸</span>
+                      <span style={{ fontSize: "13px", fontWeight: "bold", color: "var(--purple)" }}>
+                        {isUploadingQris ? "⏳ Mengunggah..." : "Pilih Lembar QRIS (PNG/JPG)"}
+                      </span>
+                      <span style={{ fontSize: "10px", color: "var(--muted)", marginTop: "4px", textAlign: "center" }}>
+                        Pilih foto atau screenshot lembar QRIS toko Anda.
+                      </span>
+                    </label>
+                  ) : (
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      padding: "12px",
+                      background: "var(--s2)",
+                      borderRadius: "10px",
+                      border: "1px solid var(--border)"
+                    }}>
+                      <div style={{
+                        position: "relative",
+                        width: "120px",
+                        height: "170px",
+                        background: "#fff",
+                        padding: "4px",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden"
+                      }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={qrisData}
+                          alt="QRIS Preview"
+                          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                        />
+                        {isUploadingQris && (
+                          <div style={{
+                            position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            color: "#fff", fontSize: "11px", fontWeight: "bold"
+                          }}>
+                            ⏳ Mengunggah...
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ display: "flex", gap: "10px", width: "100%", marginTop: "12px" }}>
+                        <label
+                          htmlFor="qris-image-file-input"
+                          style={{
+                            flex: 1, padding: "8px", borderRadius: "8px", background: "rgba(255,255,255,0.05)",
+                            border: "1px solid var(--border)", color: "var(--text)", fontSize: "11px",
+                            fontWeight: "bold", textAlign: "center", cursor: "pointer"
+                          }}
+                        >
+                          🔄 Ganti
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setQrisData("")}
+                          style={{
+                            flex: 1, padding: "8px", borderRadius: "8px", background: "rgba(255,79,109,0.1)",
+                            border: "1px solid rgba(255,79,109,0.2)", color: "var(--red)", fontSize: "11px",
+                            fontWeight: "bold", cursor: "pointer"
+                          }}
+                        >
+                          🗑 Hapus
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Form Items ── */}
@@ -325,6 +530,9 @@ export default function NewStrukPage() {
               items={items}
               total={total}
               logoSettings={logoSettings}
+              qrisActive={qrisActive}
+              qrisData={qrisData}
+              qrisName={qrisName}
             />
           </div>
         </div>

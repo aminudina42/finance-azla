@@ -72,6 +72,8 @@ interface AppState {
     image: string;
   };
   updateLogoSettings: (settings: { type: "emoji" | "image"; emoji: string; bg: string; image: string }) => Promise<void>;
+  theme: "dark" | "light";
+  updateTheme: (t: "dark" | "light") => Promise<void>;
   isLoading: boolean;
   dbConnected: boolean;
   isNavigating: boolean;
@@ -148,6 +150,24 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>(FALLBACK_CHILD_TX);
   const [debts, setDebts] = useState<Debt[]>(FALLBACK_DEBTS);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("theme");
+        if (cached === "dark" || cached === "light") return cached;
+      } catch {
+        // ignore
+      }
+    }
+    return "dark";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  }, [theme]);
+
   const [logoSettings, setLogoSettings] = useState<{
     type: "emoji" | "image";
     emoji: string;
@@ -223,6 +243,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             const settingsMap = new Map(settingsRes.data.map((s) => [s.key, s.value]));
             const gajianVal = settingsMap.get("gajian_date");
             if (gajianVal) setGajianDate(Number(gajianVal) || 25);
+
+            const dbTheme = settingsMap.get("theme");
+            if (dbTheme === "dark" || dbTheme === "light") {
+              setTheme(dbTheme);
+              try {
+                localStorage.setItem("theme", dbTheme);
+              } catch {
+                // ignore
+              }
+            }
 
             const lType = settingsMap.get("website_logo_type") as "emoji" | "image" | undefined;
             const lEmoji = settingsMap.get("website_logo_emoji");
@@ -688,6 +718,24 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, []);
 
+  const updateTheme = useCallback(async (newTheme: "dark" | "light") => {
+    setIsMutating(true);
+    try {
+      setTheme(newTheme);
+      try {
+        localStorage.setItem("theme", newTheme);
+      } catch {
+        // ignore
+      }
+      await supabase.from("app_settings").upsert(
+        { key: "theme", value: newTheme, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
   // ── Recalculate all pos balances from transactions ──
   const recalculateBalances = useCallback(async () => {
     setIsMutating(true);
@@ -738,6 +786,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     cyclePosHistory, startNewCycle,
     debts, addDebt, updateDebt, deleteDebt, payDebt,
     logoSettings, updateLogoSettings,
+    theme, updateTheme,
     isLoading, dbConnected,
     isNavigating, setIsNavigating,
     isMutating, setIsMutating,
