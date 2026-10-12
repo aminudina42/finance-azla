@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/lib/store";
 import type { Transaction } from "@/lib/types";
+import ConfirmModal from "@/components/Modals/ConfirmModal";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -28,11 +29,12 @@ function getDateLabel(iso: string): string {
 }
 
 export default function GeneralHistory() {
-  const { transactions, posList, cycles } = useApp();
+  const { transactions, posList, cycles, deleteTransaction } = useApp();
 
   const [selectedCycleId, setSelectedCycleId] = useState(cycles[0]?.id ?? "");
   const [selectedPos, setSelectedPos] = useState("Semua");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
 
   const posFilters = useMemo(() => {
     return ["Semua", ...posList.map((p) => `${p.icon} ${p.name}`)];
@@ -47,19 +49,24 @@ export default function GeneralHistory() {
     setSelectedType("all");
   };
 
-  // Filter transactions
-  const filtered = useMemo(() => {
+  // Transactions filtered by cycle only (for summary totals)
+  const cycleFiltered = useMemo(() => {
     return transactions.filter((tx) => {
-      // Filter by cycle date range
       if (selectedCycle) {
         const txDate = new Date(tx.created_at);
         const start = new Date(selectedCycle.start_date + "T00:00:00");
         const end = new Date(selectedCycle.end_date + "T23:59:59");
-        // For the latest (active) cycle, include transactions beyond end_date
         const isLatestCycle = selectedCycle.id === cycles[0]?.id;
         if (txDate < start) return false;
         if (!isLatestCycle && txDate > end) return false;
       }
+      return true;
+    });
+  }, [transactions, selectedCycle, cycles]);
+
+  // Transactions filtered by cycle + pos + type (for display)
+  const filtered = useMemo(() => {
+    return cycleFiltered.filter((tx) => {
       // Filter by pos
       if (selectedPos !== "Semua") {
         const posName = selectedPos.replace(/^[^\s]+\s/, "");
@@ -69,11 +76,12 @@ export default function GeneralHistory() {
       if (selectedType !== "all" && tx.type !== selectedType) return false;
       return true;
     });
-  }, [transactions, selectedCycle, selectedPos, selectedType, cycles]);
+  }, [cycleFiltered, selectedPos, selectedType]);
 
-  // Summary totals
-  const totalIncome = useMemo(() => filtered.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0), [filtered]);
-  const totalExpense = useMemo(() => filtered.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0), [filtered]);
+  // Summary totals — always calculated from cycleFiltered (not affected by type/pos filter)
+  // Use `!== "income"` for expenses to catch transactions with missing/undefined type
+  const totalIncome = useMemo(() => cycleFiltered.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0), [cycleFiltered]);
+  const totalExpense = useMemo(() => cycleFiltered.filter((t) => t.type !== "income").reduce((s, t) => s + t.amount, 0), [cycleFiltered]);
 
   // Group by date
   const grouped = useMemo(() => {
@@ -87,6 +95,17 @@ export default function GeneralHistory() {
   }, [filtered]);
 
   const shortLabel = (label: string) => label.replace(/\s\d{4}$/, "").replace(" – ", "–");
+
+  const handleDelete = (tx: Transaction) => {
+    setDeleteTarget(tx);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      deleteTransaction(deleteTarget.id);
+      setDeleteTarget(null);
+    }
+  };
 
   return (
     <div style={{ animation: "fadeIn .3s ease" }}>
@@ -169,7 +188,7 @@ export default function GeneralHistory() {
             {txs.map((tx) => {
               const isIncome = tx.type === "income";
               return (
-                <div className="hi" key={tx.id}>
+                <div className="hi" key={tx.id} style={{ position: "relative" }}>
                   <div
                     className="hi-ic"
                     style={isIncome ? { background: "rgba(0,201,167,.12)" } : {}}
@@ -188,8 +207,20 @@ export default function GeneralHistory() {
                     </div>
                     <div className="hi-time">{formatTime(tx.created_at)}</div>
                   </div>
-                  <div className={isIncome ? "hi-amt-in" : "hi-amt"}>
-                    {isIncome ? "+" : "-"}Rp {tx.amount.toLocaleString("id-ID")}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px", flexShrink: 0 }}>
+                    <div className={isIncome ? "hi-amt-in" : "hi-amt"}>
+                      {isIncome ? "+" : "-"}Rp {tx.amount.toLocaleString("id-ID")}
+                    </div>
+                    <button
+                      className="hi-delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(tx);
+                      }}
+                      title="Hapus transaksi"
+                    >
+                      🗑️
+                    </button>
                   </div>
                 </div>
               );
@@ -197,6 +228,22 @@ export default function GeneralHistory() {
           </div>
         ))
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Hapus Transaksi?"
+        message={
+          deleteTarget
+            ? `Hapus "${deleteTarget.description}" sebesar ${formatRp(deleteTarget.amount)}? Saldo pos akan dikembalikan.`
+            : ""
+        }
+        confirmText="Hapus"
+        cancelText="Batal"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        isDanger={true}
+      />
     </div>
   );
 }

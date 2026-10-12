@@ -19,13 +19,16 @@ export default function PrintStrukPage() {
   const [receiptNumber, setReceiptNumber] = useState("");
   const [date, setDate] = useState("");
   const [items, setItems] = useState<Partial<ReceiptItem>[]>([]);
+  const [qrisActive, setQrisActive] = useState(false);
+  const [qrisData, setQrisData] = useState("");
+  const [qrisName, setQrisName] = useState("");
 
   useEffect(() => {
     async function loadData() {
       try {
         const { data: receipt, error: rErr } = await supabase
           .from("receipts")
-          .select("*, stores(name, address)")
+          .select("*, stores(name, address, qris_active, qris_data, qris_name)")
           .eq("id", id)
           .single();
 
@@ -33,6 +36,9 @@ export default function PrintStrukPage() {
 
         setStoreName(receipt.stores?.name ?? "");
         setStoreAddress(receipt.stores?.address ?? "");
+        setQrisActive(!!receipt.stores?.qris_active);
+        setQrisData(receipt.stores?.qris_data ?? "");
+        setQrisName(receipt.stores?.qris_name ?? "");
         setReceiptNumber(receipt.receipt_number);
         setDate(new Date(receipt.created_at).toLocaleString("id-ID"));
 
@@ -101,6 +107,9 @@ export default function PrintStrukPage() {
         items={items}
         total={total}
         logoSettings={logoSettings}
+        qrisActive={qrisActive}
+        qrisData={qrisData}
+        qrisName={qrisName}
       />
     </div>
   );

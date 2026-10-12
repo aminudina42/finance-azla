@@ -14,6 +14,7 @@ export default function InputPage() {
   const [posId, setPosId] = useState("");
   const [keterangan, setKeterangan] = useState("");
   const [saved, setSaved] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auto-select pos from URL query param (e.g. /input?pos=p2)
   useEffect(() => {
@@ -23,19 +24,24 @@ export default function InputPage() {
     }
   }, [searchParams, posList]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const amount = Number(nominal.replace(/\D/g, ""));
-    if (!amount || !posId) return;
+    if (!amount || !posId || isSubmitting) return;
 
-    addTransaction(amount, posId, user, keterangan, txType);
+    setIsSubmitting(true);
+    try {
+      await addTransaction(amount, posId, user, keterangan, txType);
 
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      setNominal("");
-      setPosId("");
-      setKeterangan("");
-    }, 2000);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        setNominal("");
+        setPosId("");
+        setKeterangan("");
+      }, 2000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleNominalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,14 +145,19 @@ export default function InputPage() {
             background: isIncome
               ? "linear-gradient(135deg, var(--teal), #00a88c)"
               : "linear-gradient(135deg, var(--pink), #d43a7a)",
+            opacity: isSubmitting ? 0.6 : 1,
+            pointerEvents: isSubmitting ? "none" : "auto",
           }}
           onClick={handleSave}
+          disabled={isSubmitting || saved}
         >
           {saved
             ? "✅ Tersimpan!"
-            : isIncome
-              ? "💰 Simpan Pemasukan"
-              : "💾 Simpan Pengeluaran"}
+            : isSubmitting
+              ? "⏳ Menyimpan..."
+              : isIncome
+                ? "💰 Simpan Pemasukan"
+                : "💾 Simpan Pengeluaran"}
         </button>
       </div>
     </main>

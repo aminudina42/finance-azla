@@ -95,6 +95,9 @@ export interface Store {
   address: string;
   logo_url: string | null;
   created_at: string;
+  qris_active?: boolean;
+  qris_data?: string;
+  qris_name?: string;
 }
 
 export interface Receipt {
@@ -176,6 +179,34 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<CyclePosHistory>;
+      };
+      stores: {
+        Row: Store;
+        Insert: Omit<Store, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+          qris_active?: boolean;
+          qris_data?: string;
+          qris_name?: string;
+        };
+        Update: Partial<Store>;
+      };
+      receipts: {
+        Row: Receipt;
+        Insert: Omit<Receipt, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Receipt>;
+      };
+      receipt_items: {
+        Row: ReceiptItem;
+        Insert: Omit<ReceiptItem, "id" | "price_after_discount"> & {
+          id?: string;
+          price_after_discount?: number;
+        };
+        Update: Partial<ReceiptItem>;
       };
     };
     Views: {

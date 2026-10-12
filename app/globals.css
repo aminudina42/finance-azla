@@ -21,12 +21,29 @@
   --color-da-warning: #f4a33b;
   --color-da-danger: #f04467;
   --color-da-track: #e5edf5;
+
+  /* Dompet Pintar Color Palette */
+  --color-dp-bg: var(--bg);
+  --color-dp-s1: var(--s1);
+  --color-dp-s2: var(--s2);
+  --color-dp-s3: var(--s3);
+  --color-dp-border: var(--border);
+  --color-dp-text: var(--text);
+  --color-dp-muted: var(--muted);
+  --color-dp-purple: var(--purple);
+  --color-dp-pink: var(--pink);
+  --color-dp-teal: var(--teal);
+  --color-dp-amber: var(--amber);
+  --color-dp-red: var(--red);
+  --color-dp-green: var(--green);
+  --color-dp-yellow: var(--yellow);
 }
 
 @layer base {
-  :root {
+  :root, [data-theme="light"] {
     /* === Dompet Azla Light Theme Tokens === */
     --bg: #f7fbff;
+    --bg-desktop: #f1f8fd;
     --surface: #ffffff;
     --surface-soft: #f1f8fd;
     --surface-blue: #eaf5fc;
@@ -51,7 +68,6 @@
     --red: #f04467;
     --track: #e5edf5;
     --shadow: 0 10px 24px rgba(38, 111, 183, 0.08);
-    /* legacy aliases for components not yet migrated */
     --purple: #287ff0;
     --purple-dim: rgba(40, 127, 240, .12);
     --pink: #f04467;
@@ -60,6 +76,59 @@
     --yellow: #f4a33b;
     --r: 14px;
     --r-sm: 10px;
+
+    /* Layout Variables */
+    --bnav-bg: rgba(255, 255, 255, .94);
+    --card-gradient-end: #f8fbff;
+    --ec-wide-bg: linear-gradient(135deg, rgba(22, 168, 154, 0.08), rgba(22, 168, 154, 0.04));
+    --ec-wide-border: rgba(22, 168, 154, 0.2);
+    --saku-hero-bg: linear-gradient(135deg, rgba(244, 163, 59, 0.08), rgba(244, 163, 59, 0.04));
+    --saku-hero-border: rgba(244, 163, 59, 0.2);
+  }
+
+  [data-theme="dark"] {
+    --bg: #0c0c10;
+    --bg-desktop: #08080d;
+    --surface: #13131a;
+    --surface-soft: #1a1a24;
+    --surface-blue: #22222f;
+    --s1: #13131a;
+    --s2: #1a1a24;
+    --s3: #22222f;
+    --border: #2e2e3e;
+    --navy: #ede9ff;
+    --text: #ede9ff;
+    --text-secondary: #8e8ea8;
+    --muted: #6e6e8a;
+    --primary: #8b72ff;
+    --primary-hover: #7b62ef;
+    --primary-soft: rgba(139, 114, 255, .15);
+    --purple: #8b72ff;
+    --purple-dim: rgba(139, 114, 255, .12);
+    --pink: #ff72b8;
+    --pink-dim: rgba(255, 114, 184, .12);
+    --teal: #00c9a7;
+    --teal-dim: rgba(0, 201, 167, .12);
+    --success: #00c9a7;
+    --warning: #ffb340;
+    --amber: #ffb340;
+    --amber-dim: rgba(255, 179, 64, .12);
+    --danger: #ff4f6d;
+    --red: #ff4f6d;
+    --green: #00c9a7;
+    --yellow: #ffb340;
+    --r: 14px;
+    --r-sm: 10px;
+
+    /* Layout Variables */
+    --bnav-bg: rgba(13, 13, 18, .92);
+    --card-gradient-end: #10101a;
+    --ec-wide-bg: linear-gradient(135deg, #0f1f18, #081510);
+    --ec-wide-border: rgba(0, 201, 167, .25);
+    --saku-hero-bg: linear-gradient(135deg, #2a1f00, #3d2e00);
+    --saku-hero-border: rgba(255, 179, 64, .3);
+    --track: #22222f;
+    --shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
   }
 
   *,
@@ -77,6 +146,7 @@
     display: flex;
     justify-content: center;
     min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -90,6 +160,7 @@
     flex-direction: column;
     position: relative;
     overflow-x: hidden;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
   }
 
   /* ══ BOTTOM NAV — 3 items: Home | + | Setting ══ */
@@ -1144,6 +1215,37 @@
     background: linear-gradient(180deg, #eef8ff 0px, #f7fbff 220px, #ffffff 600px);
   }
 
+  .dash-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 32px 20px 0;
+  }
+
+  .dash-top-left h1 {
+    font-family: var(--font-fraunces), serif;
+    font-size: 24px;
+    font-weight: 900;
+    background: linear-gradient(120deg, var(--text) 40%, var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dash-top-left p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* Cycle nav bar */
+  .cycle-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 20px 0;
+  }
+
   /* ── App Header (new design) ── */
   .app-header {
     display: flex;
@@ -1803,6 +1905,62 @@
     transition: width .3s ease;
   }
 
+  .ec-pct {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .ec.g .ec-fill {
+    background: var(--teal);
+  }
+
+  .ec.g .ec-amt {
+    color: var(--teal);
+  }
+
+  .ec.y .ec-fill {
+    background: var(--yellow);
+  }
+
+  .ec.y .ec-amt {
+    color: var(--yellow);
+  }
+
+  .ec.r .ec-fill {
+    background: var(--red);
+  }
+
+  .ec.r .ec-amt {
+    color: var(--red);
+  }
+
+  .ec.r::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 79, 109, .04);
+  }
+
+  .ec.wide {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--ec-wide-bg);
+    border-color: var(--ec-wide-border);
+    transition: background 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, transform 0.18s;
+  }
+
+  .ec.wide .ec-icon {
+    margin-bottom: 0;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+
+  .ec.wide .ec-left {
+    flex: 1;
+  }
+
   /* FAB (legacy, now in bottom nav) */
   .fab {
     display: none;
@@ -1854,11 +2012,12 @@
 
   .saku-hero {
     border-radius: 18px;
-    background: linear-gradient(135deg, #fff8ec, #fff2d8);
-    border: 1px solid rgba(244, 163, 59, .3);
+    background: var(--saku-hero-bg);
+    border: 1px solid var(--saku-hero-border);
     padding: 20px 22px;
     position: relative;
     overflow: hidden;
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
 
   .saku-hero::before {
@@ -2075,6 +2234,7 @@
     justify-content: space-between;
     gap: 12px;
     box-shadow: 0 2px 8px rgba(38, 111, 183, 0.06);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
 
   .gc-left p {
@@ -2742,6 +2902,25 @@
     color: var(--success);
     flex-shrink: 0;
   }
+
+  .hi-delete-btn {
+    background: rgba(255, 79, 109, .08);
+    border: 1px solid rgba(255, 79, 109, .15);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .18s;
+    line-height: 1;
+    opacity: 0.6;
+  }
+
+  .hi-delete-btn:hover {
+    background: rgba(255, 79, 109, .18);
+    border-color: rgba(255, 79, 109, .35);
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
 /* Legacy dash-tabs — hidden, replaced by .content-tabs */
@@ -2901,6 +3080,7 @@
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(38, 111, 183, 0.08);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .pos-detail-header::before {

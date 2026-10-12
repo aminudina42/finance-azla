@@ -66,10 +66,11 @@ export default function Home() {
         const d = new Date(t.created_at);
         return t.pos_id === p.id && d >= cycleStart && d <= cycleEnd;
       });
-
       const incomes = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
       const expenses = txs.filter((t) => t.type !== "income").reduce((s, t) => s + t.amount, 0);
 
+      // Untuk siklus lalu, kita hitung saldo dengan menganggap saldo awal = target bulanan
+      // Ini memberikan gambaran yang akurat tentang sisa budget/penggunaan di bulan tsb
       const computedBalance = target + incomes - expenses;
 
       return {

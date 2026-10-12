@@ -52,6 +52,7 @@ interface AppState {
   deletePos: (id: string) => void;
   transactions: Transaction[];
   addTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, type?: "income" | "expense") => void;
+  deleteTransaction: (txId: string) => void;
   children: Child[];
   addChild: (name: string, icon: string, initialBalance: number) => void;
   childTransactions: ChildTransaction[];
@@ -71,12 +72,15 @@ interface AppState {
     image: string;
   };
   updateLogoSettings: (settings: { type: "emoji" | "image"; emoji: string; bg: string; image: string }) => Promise<void>;
+  theme: "dark" | "light";
+  updateTheme: (t: "dark" | "light") => Promise<void>;
   isLoading: boolean;
   dbConnected: boolean;
   isNavigating: boolean;
   setIsNavigating: (b: boolean) => void;
   isMutating: boolean;
   setIsMutating: (b: boolean) => void;
+  recalculateBalances: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -146,6 +150,24 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>(FALLBACK_CHILD_TX);
   const [debts, setDebts] = useState<Debt[]>(FALLBACK_DEBTS);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("theme");
+        if (cached === "dark" || cached === "light") return cached;
+      } catch {
+        // ignore
+      }
+    }
+    return "dark";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  }, [theme]);
+
   const [logoSettings, setLogoSettings] = useState<{
     type: "emoji" | "image";
     emoji: string;
@@ -221,6 +243,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             const settingsMap = new Map(settingsRes.data.map((s) => [s.key, s.value]));
             const gajianVal = settingsMap.get("gajian_date");
             if (gajianVal) setGajianDate(Number(gajianVal) || 25);
+
+            const dbTheme = settingsMap.get("theme");
+            if (dbTheme === "dark" || dbTheme === "light") {
+              setTheme(dbTheme);
+              try {
+                localStorage.setItem("theme", dbTheme);
+              } catch {
+                // ignore
+              }
+            }
 
             const lType = settingsMap.get("website_logo_type") as "emoji" | "image" | undefined;
             const lEmoji = settingsMap.get("website_logo_emoji");
@@ -389,6 +421,37 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       }
     },
     [posList, sessionUser]
+  );
+
+  // ── Delete Transaction ──
+  const deleteTransaction = useCallback(
+    async (txId: string) => {
+      setIsMutating(true);
+      try {
+        const tx = transactions.find((t) => t.id === txId);
+        if (!tx) return;
+
+        // Restore pos balance
+        const pos = posList.find((p) => p.id === tx.pos_id);
+        if (pos) {
+          const restoredBalance = tx.type === "income"
+            ? pos.current_balance - tx.amount
+            : pos.current_balance + tx.amount;
+          setPosList((prev) => prev.map((p) => (p.id === tx.pos_id ? { ...p, current_balance: restoredBalance } : p)));
+          await supabase.from("pos").update({ current_balance: restoredBalance }).eq("id", tx.pos_id);
+        }
+
+        // Remove transaction from state
+        setTransactions((prev) => prev.filter((t) => t.id !== txId));
+
+        // Delete from Supabase
+        const { error } = await supabase.from("transactions").delete().eq("id", txId);
+        if (error) console.error("❌ Gagal hapus transaksi:", error.message);
+      } finally {
+        setIsMutating(false);
+      }
+    },
+    [transactions, posList]
   );
 
   // ── Child actions ──
@@ -655,19 +718,79 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, []);
 
+  const updateTheme = useCallback(async (newTheme: "dark" | "light") => {
+    setIsMutating(true);
+    try {
+      setTheme(newTheme);
+      try {
+        localStorage.setItem("theme", newTheme);
+      } catch {
+        // ignore
+      }
+      await supabase.from("app_settings").upsert(
+        { key: "theme", value: newTheme, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
+  // ── Recalculate all pos balances from transactions ──
+  const recalculateBalances = useCallback(async () => {
+    setIsMutating(true);
+    try {
+      const activeCycle = cycles[0];
+      if (!activeCycle) return;
+
+      const cycleStart = new Date(activeCycle.start_date + "T00:00:00");
+
+      const updatedPos = posList.map((p) => {
+        // Get all transactions for this pos in the active cycle
+        const posTxs = transactions.filter((t) => {
+          const d = new Date(t.created_at);
+          return t.pos_id === p.id && d >= cycleStart;
+        });
+
+        const income = posTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const expense = posTxs.filter((t) => t.type !== "income").reduce((s, t) => s + t.amount, 0);
+
+        // For goal pos, we can't simply reset — we need accumulated balance
+        // For regular pos, balance = monthly_target + income - expense
+        const correctBalance = p.monthly_target + income - expense;
+
+        return { ...p, current_balance: correctBalance };
+      });
+
+      setPosList(updatedPos);
+
+      // Sync all corrected balances to Supabase
+      for (const p of updatedPos) {
+        const { error } = await supabase.from("pos").update({ current_balance: p.current_balance }).eq("id", p.id);
+        if (error) console.error(`❌ Gagal update saldo ${p.name}:`, error.message);
+      }
+
+      console.log("✅ Semua saldo pos berhasil disinkronisasi dari data transaksi.");
+    } finally {
+      setIsMutating(false);
+    }
+  }, [posList, transactions, cycles]);
+
   const value: AppState = {
     cycles, cycleIndex, setCycleIndex, shiftCycle,
     gajianDate, setGajianDate: updateGajianDate,
     posList, addPos, updatePos, deletePos,
-    transactions, addTransaction,
+    transactions, addTransaction, deleteTransaction,
     children: childrenList, addChild,
     childTransactions, addChildTransaction,
     cyclePosHistory, startNewCycle,
     debts, addDebt, updateDebt, deleteDebt, payDebt,
     logoSettings, updateLogoSettings,
+    theme, updateTheme,
     isLoading, dbConnected,
     isNavigating, setIsNavigating,
     isMutating, setIsMutating,
+    recalculateBalances,
   };
 
   if (authLoading) return null; // Or a loading spinner

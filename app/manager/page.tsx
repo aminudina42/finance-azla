@@ -12,7 +12,7 @@ function formatRp(n: number): string {
 }
 
 export default function ManagerPage() {
-  const { posList, addPos, updatePos, deletePos, gajianDate, startNewCycle, logoSettings, updateLogoSettings } = useApp();
+  const { posList, addPos, updatePos, deletePos, gajianDate, startNewCycle, logoSettings, updateLogoSettings, recalculateBalances, theme, updateTheme } = useApp();
   const [showEditModal, setShowEditModal] = useState(false);
 
   const handleUpdateType = async (type: "emoji" | "image") => {
@@ -71,6 +71,7 @@ export default function ManagerPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showNewCycleModal, setShowNewCycleModal] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string}>({ isOpen: false, title: "", message: "" });
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const openEdit = (p: { id: string; name: string; icon: string; sub: string; monthly_target: number; is_goal: boolean; goal_target: number }) => {
     setEditingId(p.id); setEditName(p.name); setEditSub(p.sub); setEditIcon(p.icon); setEditAmount(p.monthly_target);
@@ -109,6 +110,40 @@ export default function ManagerPage() {
             setShowNewCycleModal(true);
           }}>
             {showConfirm ? "✅ Siklus Dimulai!" : "💰 Gajian Tiba!"}
+          </button>
+        </div>
+
+        {/* Sync Balance Card */}
+        <div className="gajian-card">
+          <div className="gc-left">
+            <p>Data tidak sinkron?</p>
+            <h3>🔄 Sinkronisasi Saldo</h3>
+          </div>
+          <button
+            className="gc-btn"
+            style={{ background: isSyncing ? "var(--s3)" : "linear-gradient(135deg, var(--teal), #00a88c)", opacity: isSyncing ? 0.6 : 1 }}
+            disabled={isSyncing}
+            onClick={async () => {
+              setIsSyncing(true);
+              try {
+                await recalculateBalances();
+                setAlertConfig({
+                  isOpen: true,
+                  title: "✅ Berhasil!",
+                  message: "Semua saldo pos telah dihitung ulang dari data transaksi aktual dan disinkronisasi ke database."
+                });
+              } catch {
+                setAlertConfig({
+                  isOpen: true,
+                  title: "❌ Gagal",
+                  message: "Terjadi kesalahan saat sinkronisasi. Silakan coba lagi."
+                });
+              } finally {
+                setIsSyncing(false);
+              }
+            }}
+          >
+            {isSyncing ? "⏳ Menyinkron..." : "🔄 Sinkron Saldo"}
           </button>
         </div>
 
@@ -275,6 +310,37 @@ export default function ManagerPage() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Theme settings card */}
+        <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "15px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="gc-left">
+              <p>Pengaturan Tampilan</p>
+              <h3>🎨 Tema Aplikasi</h3>
+            </div>
+          </div>
+          
+          <div className="type-toggle" style={{ marginTop: "4px" }}>
+            <div
+              className={`type-opt ${theme === "dark" ? "active-out" : ""}`}
+              onClick={() => updateTheme("dark")}
+              style={{ padding: "10px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+            >
+              🌙 Mode Gelap
+            </div>
+            <div
+              className={`type-opt ${theme === "light" ? "active-in" : ""}`}
+              onClick={() => updateTheme("light")}
+              style={{ padding: "10px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+            >
+              ☀️ Mode Terang
+            </div>
+          </div>
+          
+          <div style={{ fontSize: "11px", color: "var(--muted)", lineHeight: "1.4", textAlign: "center" }}>
+            Pilih Mode Gelap untuk warna futuristik, atau Mode Terang untuk nuansa putih bersih yang minimalis.
           </div>
         </div>
 
