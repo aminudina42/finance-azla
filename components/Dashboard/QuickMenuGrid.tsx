@@ -17,8 +17,8 @@ export default function QuickMenuGrid() {
       </div>
 
       <div className="quick-grid">
-        {/* Tile 1: Saku Anak */}
-        <Link href="/saku" className="quick-card" aria-label="Menu Saku: Uang anak">
+        {/* Tile 1: Saku */}
+        <Link href="/saku" className="quick-card" aria-label="Menu Saku: Kantong dan tabungan">
           <span className="quick-icon blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3v3M8 5l2 2M16 5l-2 2" />
@@ -27,7 +27,7 @@ export default function QuickMenuGrid() {
             </svg>
           </span>
           <span className="quick-name">Saku</span>
-          <span className="quick-desc">Uang anak</span>
+          <span className="quick-desc">Kantong &amp; tabungan</span>
         </Link>
 
         {/* Tile 2: Struk */}

@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory } from "./types";
+import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType } from "./types";
 import GlobalLoader from "@/components/GlobalLoader";
 
 // ═══ Fallback Mock Data ═══
@@ -32,8 +32,8 @@ const FALLBACK_POS: Pos[] = [
 ];
 const FALLBACK_TX: Transaction[] = [];
 const FALLBACK_CHILDREN: Child[] = [
-  { id: "ch1", name: "Raka", icon: "👦", balance: 185000 },
-  { id: "ch2", name: "Nisa", icon: "👧", balance: 92000 },
+  { id: "ch1", name: "Raka", icon: "👦", balance: 185000, type: "standalone" },
+  { id: "ch2", name: "Nisa", icon: "👧", balance: 92000, type: "standalone" },
 ];
 const FALLBACK_CHILD_TX: ChildTransaction[] = [];
 const FALLBACK_DEBTS: Debt[] = [];
@@ -54,9 +54,13 @@ interface AppState {
   addTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, type?: "income" | "expense") => void;
   deleteTransaction: (txId: string) => void;
   children: Child[];
-  addChild: (name: string, icon: string, initialBalance: number) => void;
+  addSaku: (name: string, icon: string, initialBalance: number, type: "standalone" | "linked", linkedPosId?: string | null) => void;
+  updateSaku: (id: string, name: string, icon: string, type: "standalone" | "linked", linkedPosId?: string | null) => void;
+  deleteSaku: (id: string) => void;
   childTransactions: ChildTransaction[];
-  addChildTransaction: (childId: string, type: "in" | "out", amount: number, description: string) => void;
+  addChildTransaction: (childId: string, type: SakuTxType, amount: number, description: string, refCycleId?: string | null, refTransactionId?: string | null) => void;
+  addSakuBorrowTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, sakuId: string, sakuWithdrawAmount: number) => Promise<void>;
+  addSakuReturnTransaction: (sakuId: string, amount: number, description: string) => Promise<void>;
   cyclePosHistory: CyclePosHistory[];
   startNewCycle: (newBudgets?: Record<string, { monthly_target: number; goal_target: number }>) => void;
   // Debt management
@@ -221,11 +225,23 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           const txData = ((txRes.data as Transaction[]) ?? []).map((t) => ({
             ...t,
             type: t.type ?? "expense" as const,
+            saku_id: t.saku_id ?? null,
+            saku_withdraw_amount: t.saku_withdraw_amount ?? null,
           }));
           setCycles((cycRes.data as Cycle[]) ?? FALLBACK_CYCLES);
           setTransactions(txData);
-          setChildrenList((childRes.data as Child[]) ?? []);
-          setChildTransactions((ctxRes.data as ChildTransaction[]) ?? []);
+          // Backward compat for children — add type field if missing
+          const childData = ((childRes.data as Child[]) ?? []).map((c) => ({
+            ...c,
+            type: (c.type ?? "standalone") as "standalone" | "linked",
+            linked_pos_id: c.linked_pos_id ?? null,
+          }));
+          setChildrenList(childData);
+          setChildTransactions((ctxRes.data as ChildTransaction[]).map(ct => ({
+            ...ct,
+            ref_cycle_id: ct.ref_cycle_id ?? null,
+            ref_transaction_id: ct.ref_transaction_id ?? null,
+          })) ?? []);
           if (!debtRes.error) {
             const debtData = ((debtRes.data as Debt[]) ?? []).map((d) => ({
               ...d,
@@ -454,38 +470,166 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     [transactions, posList]
   );
 
-  // ── Child actions ──
-  const addChild = useCallback(async (name: string, icon: string, initialBalance: number) => {
+  // ── Saku actions (replaces child actions) ──
+  const addSaku = useCallback(async (name: string, icon: string, initialBalance: number, type: "standalone" | "linked" = "standalone", linkedPosId: string | null = null) => {
     setIsMutating(true);
     try {
-      const localChild: Child = { id: "ch" + Date.now(), name, icon, balance: initialBalance };
+      const localChild: Child = { id: "ch" + Date.now(), name, icon, balance: initialBalance, type, linked_pos_id: linkedPosId };
       setChildrenList((prev) => [...prev, localChild]);
 
-      const { data } = await supabase.from("children").insert({ name, icon, balance: initialBalance }).select().single();
-      if (data) setChildrenList((prev) => prev.map((c) => (c.id === localChild.id ? { ...data } as Child : c)));
+      const { data } = await supabase.from("children").insert({ name, icon, balance: initialBalance, type, linked_pos_id: linkedPosId }).select().single();
+      if (data) setChildrenList((prev) => prev.map((c) => (c.id === localChild.id ? { ...data, type: data.type ?? "standalone", linked_pos_id: data.linked_pos_id ?? null } as Child : c)));
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
+  const updateSaku = useCallback(async (id: string, name: string, icon: string, type: "standalone" | "linked", linkedPosId: string | null = null) => {
+    setIsMutating(true);
+    try {
+      setChildrenList((prev) => prev.map((c) => c.id === id ? { ...c, name, icon, type, linked_pos_id: linkedPosId } : c));
+      await supabase.from("children").update({ name, icon, type, linked_pos_id: linkedPosId }).eq("id", id);
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
+  const deleteSaku = useCallback(async (id: string) => {
+    setIsMutating(true);
+    try {
+      setChildrenList((prev) => prev.filter((c) => c.id !== id));
+      await supabase.from("children").delete().eq("id", id);
     } finally {
       setIsMutating(false);
     }
   }, []);
 
   const addChildTransaction = useCallback(
-    async (childId: string, type: "in" | "out", amount: number, description: string) => {
+    async (childId: string, type: SakuTxType, amount: number, description: string, refCycleId: string | null = null, refTransactionId: string | null = null) => {
       setIsMutating(true);
       try {
-        const icons = type === "in" ? ["💰", "🎁", "💸", "🏦"] : ["🍦", "🍔", "🖊️", "🛍️", "🎮"];
-        const icon = icons[Math.floor(Math.random() * icons.length)];
+        const iconMap: Record<SakuTxType, string[]> = {
+          in: ["💰", "🎁", "💸", "🏦"],
+          out: ["🍦", "🍔", "🖊️", "🛍️", "🎮"],
+          cycle_surplus: ["🔄"],
+          cycle_deficit: ["📉"],
+          withdraw_for_pos: ["🏧"],
+          return_to_saku: ["↩️"],
+        };
+        const iconList = iconMap[type] ?? ["💰"];
+        const icon = iconList[Math.floor(Math.random() * iconList.length)];
         const desc = description || (type === "in" ? "Pemasukan" : "Pengeluaran");
 
-        const localTx: ChildTransaction = { id: "ct" + Date.now(), child_id: childId, type, amount, description: desc, icon, created_at: new Date().toISOString() };
+        const localTx: ChildTransaction = {
+          id: "ct" + Date.now(), child_id: childId, type, amount, description: desc, icon,
+          created_at: new Date().toISOString(),
+          ref_cycle_id: refCycleId,
+          ref_transaction_id: refTransactionId,
+        };
         setChildTransactions((prev) => [localTx, ...prev]);
 
         const child = childrenList.find((c) => c.id === childId);
-        const newBal = (child?.balance ?? 0) + (type === "in" ? amount : -amount);
+        // Positive types add to balance, negative types subtract
+        const isPositive = type === "in" || type === "cycle_surplus" || type === "return_to_saku";
+        const newBal = (child?.balance ?? 0) + (isPositive ? amount : -amount);
         setChildrenList((prev) => prev.map((c) => (c.id === childId ? { ...c, balance: newBal } : c)));
 
         // Sync to Supabase
-        await supabase.from("child_transactions").insert({ child_id: childId, type, amount, description: desc, icon });
+        await supabase.from("child_transactions").insert({ child_id: childId, type, amount, description: desc, icon, ref_cycle_id: refCycleId, ref_transaction_id: refTransactionId });
         await supabase.from("children").update({ balance: newBal }).eq("id", childId);
+      } finally {
+        setIsMutating(false);
+      }
+    },
+    [childrenList]
+  );
+
+  // ── Saku Borrow: deduct from Saku AND record Pos transaction ──
+  const addSakuBorrowTransaction = useCallback(
+    async (amount: number, posId: string, userRole: "suami" | "istri", description: string, sakuId: string, sakuWithdrawAmount: number) => {
+      setIsMutating(true);
+      try {
+        const pos = posList.find((p) => p.id === posId);
+        const saku = childrenList.find((c) => c.id === sakuId);
+        if (!pos || !saku) return;
+
+        const userName = userRole === "suami" ? "Suami" : "Istri";
+        const authUserId = sessionUser?.id ?? "unknown";
+
+        // 1. Update Pos balance (expense as usual — can go negative)
+        const newPosBalance = pos.current_balance - amount;
+        setPosList((prev) => prev.map((p) => (p.id === posId ? { ...p, current_balance: newPosBalance } : p)));
+
+        // 2. Deduct from Saku
+        const newSakuBalance = saku.balance - sakuWithdrawAmount;
+        setChildrenList((prev) => prev.map((c) => (c.id === sakuId ? { ...c, balance: newSakuBalance } : c)));
+
+        // 3. Record Pos transaction (with saku reference)
+        const newTx: Transaction = {
+          id: "t" + Date.now(), amount, type: "expense",
+          pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
+          user_id: authUserId, user_name: userName, user_role: userRole,
+          description: description || `Pengeluaran ${pos.name} (tarik Saku)`,
+          created_at: new Date().toISOString(),
+          saku_id: sakuId,
+          saku_withdraw_amount: sakuWithdrawAmount,
+        };
+        setTransactions((prev) => [newTx, ...prev]);
+
+        // 4. Record Saku transaction
+        const sakuIcon = "🏧";
+        const sakuTx: ChildTransaction = {
+          id: "ct" + Date.now() + 1, child_id: sakuId, type: "withdraw_for_pos",
+          amount: sakuWithdrawAmount, description: `Pinjam untuk Pos ${pos.name}`,
+          icon: sakuIcon, created_at: new Date().toISOString(),
+          ref_cycle_id: null, ref_transaction_id: newTx.id,
+        };
+        setChildTransactions((prev) => [sakuTx, ...prev]);
+
+        // Sync to Supabase
+        const { data: txData } = await supabase.from("transactions").insert({
+          amount, type: "expense", pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
+          user_id: authUserId, user_name: userName, user_role: userRole,
+          description: newTx.description, saku_id: sakuId, saku_withdraw_amount: sakuWithdrawAmount,
+        }).select().single();
+        await supabase.from("pos").update({ current_balance: newPosBalance }).eq("id", posId);
+        await supabase.from("child_transactions").insert({
+          child_id: sakuId, type: "withdraw_for_pos", amount: sakuWithdrawAmount,
+          description: `Pinjam untuk Pos ${pos.name}`, icon: sakuIcon,
+          ref_transaction_id: txData?.id ?? null,
+        });
+        await supabase.from("children").update({ balance: newSakuBalance }).eq("id", sakuId);
+      } finally {
+        setIsMutating(false);
+      }
+    },
+    [posList, childrenList, sessionUser]
+  );
+
+  // ── Saku Return: add money back to Saku ("bayar balik") ──
+  const addSakuReturnTransaction = useCallback(
+    async (sakuId: string, amount: number, description: string) => {
+      setIsMutating(true);
+      try {
+        const saku = childrenList.find((c) => c.id === sakuId);
+        if (!saku) return;
+
+        const newSakuBalance = saku.balance + amount;
+        setChildrenList((prev) => prev.map((c) => (c.id === sakuId ? { ...c, balance: newSakuBalance } : c)));
+
+        const sakuTx: ChildTransaction = {
+          id: "ct" + Date.now(), child_id: sakuId, type: "return_to_saku",
+          amount, description: description || "Bayar balik ke Saku",
+          icon: "↩️", created_at: new Date().toISOString(),
+          ref_cycle_id: null, ref_transaction_id: null,
+        };
+        setChildTransactions((prev) => [sakuTx, ...prev]);
+
+        await supabase.from("child_transactions").insert({
+          child_id: sakuId, type: "return_to_saku", amount,
+          description: sakuTx.description, icon: "↩️",
+        });
+        await supabase.from("children").update({ balance: newSakuBalance }).eq("id", sakuId);
       } finally {
         setIsMutating(false);
       }
@@ -620,6 +764,32 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       const otherPos = workingPosList.filter((p) => p.name !== "Tabungan" && !p.is_goal);
       const leftover = otherPos.reduce((sum, p) => sum + Math.max(0, p.current_balance), 0);
 
+      // 1b. Handle Saku-Pos link: transfer surplus/deficit to linked Saku
+      const sakuTransfers: { sakuId: string; delta: number; cycleId: string }[] = [];
+      const updatedChildrenForCycle = [...childrenList];
+      for (const saku of updatedChildrenForCycle) {
+        if (saku.type !== "linked" || !saku.linked_pos_id) continue;
+        // Find all pos that link to this saku
+        const linkedPosList = workingPosList.filter((p) => {
+          // We check via child — one Saku can receive from many Pos
+          return saku.linked_pos_id === p.id;
+        });
+        const totalDelta = linkedPosList.reduce((sum, p) => sum + p.current_balance, 0);
+        if (totalDelta !== 0) {
+          sakuTransfers.push({ sakuId: saku.id, delta: totalDelta, cycleId: activeCycle?.id ?? "" });
+        }
+      }
+
+      // Apply Saku balance changes
+      const updatedChildren = childrenList.map((saku) => {
+        const transfer = sakuTransfers.find((t) => t.sakuId === saku.id);
+        if (!transfer) return saku;
+        return { ...saku, balance: saku.balance + transfer.delta };
+      });
+      if (sakuTransfers.length > 0) {
+        setChildrenList(updatedChildren);
+      }
+
       // 2. Reset non-goal pos to monthly_target, add leftover to Tabungan
       // Goal pos are NOT reset — they only accumulate
       const updatedPos = workingPosList.map((p) => {
@@ -657,14 +827,33 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         await supabase.from("pos").update({ current_balance: p.current_balance }).eq("id", p.id);
       }
       await supabase.from("cycles").update({ is_active: false }).neq("id", "none");
-      await supabase.from("cycles").insert({
+      const { data: newCycleData } = await supabase.from("cycles").insert({
         start_date: newCycle.start_date, end_date: newCycle.end_date,
         is_active: true, label: newCycle.label,
-      });
+      }).select().single();
+
+      // Sync Saku balance changes and create Saku transactions
+      for (const transfer of sakuTransfers) {
+        const updatedSaku = updatedChildren.find((c) => c.id === transfer.sakuId);
+        if (!updatedSaku) continue;
+        await supabase.from("children").update({ balance: updatedSaku.balance }).eq("id", transfer.sakuId);
+        const txType: SakuTxType = transfer.delta > 0 ? "cycle_surplus" : "cycle_deficit";
+        const absAmount = Math.abs(transfer.delta);
+        const refCycleId = newCycleData?.id ?? transfer.cycleId;
+        const desc = transfer.delta > 0
+          ? `Surplus siklus otomatis: +Rp ${absAmount.toLocaleString("id-ID")}`
+          : `Defisit siklus otomatis: -Rp ${absAmount.toLocaleString("id-ID")}`;
+        await supabase.from("child_transactions").insert({
+          child_id: transfer.sakuId, type: txType,
+          amount: absAmount, description: desc,
+          icon: transfer.delta > 0 ? "🔄" : "📉",
+          ref_cycle_id: refCycleId,
+        });
+      }
     } finally {
       setIsMutating(false);
     }
-  }, [posList, cycles]);
+  }, [posList, cycles, childrenList]);
 
   // Wrap setGajianDate to also persist to Supabase
   const updateGajianDate = useCallback(async (d: number) => {
@@ -781,8 +970,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     gajianDate, setGajianDate: updateGajianDate,
     posList, addPos, updatePos, deletePos,
     transactions, addTransaction, deleteTransaction,
-    children: childrenList, addChild,
+    children: childrenList, addSaku, updateSaku, deleteSaku,
     childTransactions, addChildTransaction,
+    addSakuBorrowTransaction, addSakuReturnTransaction,
     cyclePosHistory, startNewCycle,
     debts, addDebt, updateDebt, deleteDebt, payDebt,
     logoSettings, updateLogoSettings,

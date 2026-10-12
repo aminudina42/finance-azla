@@ -38,6 +38,9 @@ export interface Transaction {
   user_role: "suami" | "istri";
   description: string;
   created_at: string;
+  // Saku borrow fields
+  saku_id?: string | null;
+  saku_withdraw_amount?: number | null;
 }
 
 export interface Cycle {
@@ -53,16 +56,24 @@ export interface Child {
   name: string;
   icon: string;
   balance: number;
+  // Saku v2 fields
+  type: "standalone" | "linked";
+  linked_pos_id?: string | null;
 }
+
+export type SakuTxType = "in" | "out" | "cycle_surplus" | "cycle_deficit" | "withdraw_for_pos" | "return_to_saku";
 
 export interface ChildTransaction {
   id: string;
   child_id: string;
-  type: "in" | "out";
+  type: SakuTxType;
   amount: number;
   description: string;
   icon: string;
   created_at: string;
+  // Saku v2 reference fields
+  ref_cycle_id?: string | null;
+  ref_transaction_id?: string | null;
 }
 
 export interface CyclePosHistory {
@@ -153,7 +164,7 @@ export interface Database {
       };
       children: {
         Row: Child;
-        Insert: Omit<Child, "id"> & { id?: string };
+        Insert: Omit<Child, "id"> & { id?: string; type?: "standalone" | "linked"; linked_pos_id?: string | null };
         Update: Partial<Child>;
       };
       child_transactions: {
@@ -161,6 +172,8 @@ export interface Database {
         Insert: Omit<ChildTransaction, "id" | "created_at"> & {
           id?: string;
           created_at?: string;
+          ref_cycle_id?: string | null;
+          ref_transaction_id?: string | null;
         };
         Update: Partial<ChildTransaction>;
       };
