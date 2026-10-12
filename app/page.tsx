@@ -6,6 +6,7 @@ import type { Pos } from "@/lib/types";
 import CyclePickerModal from "@/components/Modals/CyclePickerModal";
 import GajianModal from "@/components/Modals/GajianModal";
 import EditPosModal from "@/components/Modals/EditPosModal";
+import AllFeaturesModal from "@/components/Modals/AllFeaturesModal";
 import GeneralHistory from "@/components/GeneralHistory";
 import AppHeader from "@/components/Dashboard/AppHeader";
 import BudgetSummaryCard from "@/components/Dashboard/BudgetSummaryCard";
@@ -37,6 +38,7 @@ export default function Home() {
 
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showGajianModal, setShowGajianModal] = useState(false);
+  const [showAllFeaturesModal, setShowAllFeaturesModal] = useState(false);
   const [editingPos, setEditingPos] = useState<Pos | null>(null);
   const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -225,7 +227,7 @@ export default function Home() {
       )}
 
       {/* 3. Menu Cepat */}
-      <QuickMenuGrid />
+      <QuickMenuGrid onOpenAllFeatures={() => setShowAllFeaturesModal(true)} />
 
       {/* 4. Tab Pos Keuangan & History */}
       <ContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
@@ -288,6 +290,11 @@ export default function Home() {
         onClose={() => setShowGajianModal(false)}
         currentDate={gajianDate}
         onSave={(d) => setGajianDate(d)}
+      />
+
+      <AllFeaturesModal
+        isOpen={showAllFeaturesModal}
+        onClose={() => setShowAllFeaturesModal(false)}
       />
 
       {editingPos && (

@@ -3,17 +3,26 @@
 import React from "react";
 import Link from "next/link";
 
-export default function QuickMenuGrid() {
+interface QuickMenuGridProps {
+  onOpenAllFeatures?: () => void;
+}
+
+export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps) {
   return (
     <section className="quick-section" aria-label="Menu Cepat">
       <div className="section-head">
         <h2>Menu Cepat</h2>
-        <Link href="/manager" className="more" aria-label="Akses pengaturan dan fitur lainnya">
+        <button
+          type="button"
+          onClick={onOpenAllFeatures}
+          className="more"
+          aria-label="Akses semua fitur aplikasi"
+        >
           <span>Akses fitur lainnya</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="m9 18 6-6-6-6" />
           </svg>
-        </Link>
+        </button>
       </div>
 
       <div className="quick-grid">

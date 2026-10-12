@@ -723,6 +723,9 @@
     white-space: nowrap;
     text-decoration: none;
     transition: color .18s;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
   }
 
   .more:hover {
