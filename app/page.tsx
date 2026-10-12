@@ -1,37 +1,21 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { useApp } from "@/lib/store";
+import type { Pos } from "@/lib/types";
 import CyclePickerModal from "@/components/Modals/CyclePickerModal";
 import GajianModal from "@/components/Modals/GajianModal";
+import EditPosModal from "@/components/Modals/EditPosModal";
 import GeneralHistory from "@/components/GeneralHistory";
+import AppHeader from "@/components/Dashboard/AppHeader";
+import BudgetSummaryCard from "@/components/Dashboard/BudgetSummaryCard";
+import QuickMenuGrid from "@/components/Dashboard/QuickMenuGrid";
+import ContentTabs from "@/components/Dashboard/ContentTabs";
+import PosCard from "@/components/Dashboard/PosCard";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
   return prefix + "Rp " + Math.abs(n).toLocaleString("id-ID");
-}
-
-function getEnvColor(balance: number, target: number, isGoal: boolean): string {
-  if (isGoal) return "goal";
-  if (balance < 0) return "r";
-  const pct = balance / target;
-  if (pct <= 0.25) return "y";
-  return "g";
-}
-
-function getPctLabel(balance: number, target: number, name: string, isGoal: boolean, goalTarget: number): string {
-  if (isGoal && goalTarget > 0) {
-    const pct = Math.round((balance / goalTarget) * 100);
-    return `🎯 ${pct}% dari target ${formatRp(goalTarget)}`;
-  }
-  if (name === "Tabungan") {
-    const diff = balance - target;
-    return diff >= 0 ? `Akumulasi +${formatRp(diff)}` : `${formatRp(balance)} tersisa`;
-  }
-  if (balance < 0) return "⚠️ Overbudget!";
-  const pct = Math.round((balance / target) * 100);
-  return `${pct}% tersisa`;
 }
 
 export default function Home() {
@@ -39,10 +23,10 @@ export default function Home() {
     cycles,
     cycleIndex,
     setCycleIndex,
-    shiftCycle,
     gajianDate,
     setGajianDate,
     posList,
+    updatePos,
     debts,
     dbConnected,
     isLoading,
@@ -53,32 +37,39 @@ export default function Home() {
 
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showGajianModal, setShowGajianModal] = useState(false);
+  const [editingPos, setEditingPos] = useState<Pos | null>(null);
   const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2500);
+  };
 
   const selectedCycle = cycles[cycleIndex];
 
   const displayPosList = useMemo(() => {
     if (!selectedCycle || cycleIndex === 0) return posList;
 
-    const historyForCycle = cyclePosHistory.filter(h => h.cycle_id === selectedCycle.id);
+    const historyForCycle = cyclePosHistory.filter((h) => h.cycle_id === selectedCycle.id);
     const cycleStart = new Date(selectedCycle.start_date + "T00:00:00");
     const cycleEnd = new Date(selectedCycle.end_date + "T23:59:59");
 
-    return posList.map(p => {
-      const hist = historyForCycle.find(h => h.pos_id === p.id);
+    return posList.map((p) => {
+      const hist = historyForCycle.find((h) => h.pos_id === p.id);
       const target = hist ? hist.monthly_target : p.monthly_target;
       const goalTarget = hist ? hist.goal_target : p.goal_target;
-      
-      const txs = transactions.filter(t => {
+
+      const txs = transactions.filter((t) => {
         const d = new Date(t.created_at);
         return t.pos_id === p.id && d >= cycleStart && d <= cycleEnd;
       });
-      
-      const incomes = txs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-      const expenses = txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-      
-      // Untuk siklus lalu, kita hitung saldo dengan menganggap saldo awal = target bulanan
-      // Ini memberikan gambaran yang akurat tentang sisa budget/penggunaan di bulan tsb
+
+      const incomes = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+      const expenses = txs.filter((t) => t.type !== "income").reduce((s, t) => s + t.amount, 0);
+
       const computedBalance = target + incomes - expenses;
 
       return {
@@ -90,14 +81,19 @@ export default function Home() {
     });
   }, [cycleIndex, selectedCycle, posList, cyclePosHistory, transactions]);
 
-  const totalBudget = displayPosList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.monthly_target, 0);
-  const sisaBudget = displayPosList.filter((p) => !p.is_goal).reduce((sum, p) => sum + p.current_balance, 0);
+  const totalBudget = displayPosList
+    .filter((p) => !p.is_goal)
+    .reduce((sum, p) => sum + p.monthly_target, 0);
+
+  const sisaBudget = displayPosList
+    .filter((p) => !p.is_goal)
+    .reduce((sum, p) => sum + p.current_balance, 0);
 
   // Calculate day in cycle
   const startDate = new Date(selectedCycle?.start_date || new Date());
   const endDate = new Date(selectedCycle?.end_date || new Date());
   const today = new Date();
-  
+
   let dayInCycleStr = "";
   if (cycleIndex === 0) {
     const dayInCycle = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
@@ -111,262 +107,170 @@ export default function Home() {
   const todayDate = today.getDate();
   const upcomingDebts = debts.filter((d) => {
     if (d.remaining_amount <= 0) return false;
-    const daysUntilDue = d.due_date >= todayDate
-      ? d.due_date - todayDate
-      : 30 - todayDate + d.due_date; // wrap to next month
+    const daysUntilDue =
+      d.due_date >= todayDate
+        ? d.due_date - todayDate
+        : 30 - todayDate + d.due_date; // wrap to next month
     return daysUntilDue <= 7;
   });
 
   if (isLoading) {
-    const isImage = logoSettings?.type === "image" && logoSettings?.image;
     return (
-      <main id="pg-dash" className="page active" style={{ justifyContent: "center", alignItems: "center" }}>
-        <div style={{ textAlign: "center", color: "var(--muted)" }}>
+      <main className="dash-main" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div style={{ textAlign: "center", color: "var(--text-secondary)" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-            {isImage ? (
-              <div
-                style={{
-                  width: "64px",
-                  height: "64px",
-                  borderRadius: "16px",
-                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  border: "1px solid var(--border)",
-                  flexShrink: 0
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={logoSettings.image}
-                  alt="Logo"
-                  crossOrigin="anonymous"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "4px"
-                  }}
-                />
-              </div>
-            ) : (
-              <div
-                style={{
-                  width: "64px",
-                  height: "64px",
-                  borderRadius: "16px",
-                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "32px",
-                  color: "#fff",
-                  border: "1px solid var(--border)"
-                }}
-              >
-                {logoSettings?.emoji || "💳"}
-              </div>
-            )}
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                borderRadius: "20px",
+                background: "#ffffff",
+                boxShadow: "0 8px 24px rgba(40, 127, 240, 0.12)",
+                border: "1px solid var(--border)",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <svg viewBox="0 0 48 48" fill="none" style={{ width: "36px", height: "36px" }}>
+                <path d="M10 13.5 31 6l2 5-20 7" stroke="#287ff0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 16h28a4 4 0 0 1 4 4v18H9a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4Z" fill="#287ff0" />
+                <path d="M29 23h12v10H29a5 5 0 0 1 0-10Z" fill="#75b8ff" />
+                <circle cx="31" cy="28" r="1.8" fill="#fff" />
+              </svg>
+            </div>
           </div>
-          <div style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "18px", fontWeight: 800 }}>Memuat data...</div>
+          <div style={{ fontSize: "16px", fontWeight: 750, color: "var(--navy)" }}>Memuat Dompet Azla...</div>
         </div>
       </main>
     );
   }
 
-  const isImage = logoSettings?.type === "image" && logoSettings?.image;
-
   return (
-    <main id="pg-dash" className="page active">
-      <div className="dash-top">
-        <div className="dash-top-left">
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {isImage ? (
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "9px",
-                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  border: "1px solid var(--border)",
-                  flexShrink: 0
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={logoSettings.image}
-                  alt="Logo"
-                  crossOrigin="anonymous"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "2px"
-                  }}
-                />
-              </div>
-            ) : (
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "9px",
-                  background: logoSettings?.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "18px",
-                  color: "#fff",
-                  border: "1px solid var(--border)",
-                  flexShrink: 0
-                }}
-              >
-                {logoSettings?.emoji || "💳"}
-              </div>
-            )}
-            <h1>Dompet Azla</h1>
-          </div>
-          <p style={{ marginTop: "6px" }}>Selamat datang kembali!</p>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", marginTop: "6px", padding: "3px 8px", borderRadius: "6px", background: dbConnected ? "rgba(0,201,167,.12)" : "rgba(255,179,64,.12)", border: `1px solid ${dbConnected ? "rgba(0,201,167,.25)" : "rgba(255,179,64,.25)"}`, fontSize: "9px", fontWeight: 700, color: dbConnected ? "var(--teal)" : "var(--amber)", letterSpacing: ".5px", textTransform: "uppercase" }}>
-            {dbConnected ? "🟢 Supabase" : "🟡 Offline"}
-          </div>
-        </div>
+    <main className="dash-main" id="pg-dash">
+      {/* Sky SVG backdrop */}
+      <div className="sky" aria-hidden="true">
+        <svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMin slice">
+          <defs>
+            <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+              <stop stopColor="#bfe5ff" stopOpacity=".9" />
+              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M0 170C80 150 85 108 165 124 220 70 290 98 323 140 390 102 438 117 478 155 548 99 625 119 665 155 725 86 808 100 840 144 900 91 960 113 1000 151V300H0Z"
+            fill="url(#skyG)"
+          />
+          <g fill="#fff" opacity=".58">
+            <ellipse cx="755" cy="142" rx="82" ry="35" />
+            <ellipse cx="809" cy="125" rx="61" ry="48" />
+            <ellipse cx="867" cy="153" rx="83" ry="33" />
+            <ellipse cx="922" cy="111" rx="55" ry="44" />
+          </g>
+          <path d="M610 222Q725 174 810 215T1000 205V300H610Z" fill="#dcefff" opacity=".65" />
+          <path
+            d="m790 218 18-65 13 34 12-54 18 85m19 3 19-50 12 25 11-40 20 64"
+            fill="#c6e5ff"
+            opacity=".8"
+          />
+        </svg>
       </div>
 
-      {/* Cycle nav */}
-      <div className="cycle-nav">
-        <div className="cyc-arr" onClick={() => shiftCycle(1)}>‹</div>
-        <div className="cyc-btn" onClick={() => setShowCycleModal(true)}>
-          {cycles[cycleIndex].label}
-        </div>
-        <div className="cyc-arr" onClick={() => shiftCycle(-1)}>›</div>
-      </div>
+      {/* 1. Header Aplikasi */}
+      <AppHeader
+        cycleLabel={selectedCycle?.label || ""}
+        onOpenCyclePicker={() => setShowCycleModal(true)}
+        dbConnected={dbConnected}
+        logoSettings={logoSettings}
+        onNotificationClick={() => showToast("Tidak ada notifikasi baru")}
+      />
 
-      {/* Budget hero */}
-      <div>
-        <div className="budget-hero">
-          <div className="bh-label">Sisa Budget Siklus Ini</div>
-          <div className="bh-amount">{formatRp(sisaBudget)}</div>
-          <div className="bh-meta">
-            <span>💼 Total {formatRp(totalBudget)}</span>
-            <span>📅 {dayInCycleStr}</span>
-          </div>
-        </div>
-      </div>
+      {/* 2. Kartu Ringkasan Sisa Budget */}
+      <BudgetSummaryCard
+        sisaBudget={sisaBudget}
+        totalBudget={totalBudget}
+        dayInCycleStr={dayInCycleStr}
+        onOpenGajianModal={() => setShowGajianModal(true)}
+      />
 
-      {/* Debt due date warning */}
+      {/* 2.1 Peringatan Jatuh Tempo Hutang Terdekat */}
       {upcomingDebts.length > 0 && (
-        <div className="debt-warning">
-          <div className="dw-title">⏰ Jatuh Tempo Terdekat</div>
+        <section className="debt-warning" aria-label="Peringatan jatuh tempo hutang">
+          <div className="dw-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }} aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>Jatuh Tempo Terdekat</span>
+          </div>
           {upcomingDebts.map((d) => {
-            const daysLeft = d.due_date >= todayDate
-              ? d.due_date - todayDate
-              : 30 - todayDate + d.due_date;
+            const daysLeft =
+              d.due_date >= todayDate
+                ? d.due_date - todayDate
+                : 30 - todayDate + d.due_date;
             return (
               <div className="dw-item" key={d.id}>
-                <span>{d.icon} {d.name}</span>
+                <span>
+                  {d.icon} {d.name}
+                </span>
                 <span className="dw-due">
                   {daysLeft === 0 ? "HARI INI!" : `${daysLeft} hari lagi`}
-                  {" · "}{formatRp(d.monthly_payment)}
+                  {" · "}
+                  {formatRp(d.monthly_payment)}
                 </span>
               </div>
             );
           })}
-        </div>
+        </section>
       )}
 
-      {/* Gajian setting */}
-      <div className="gajian-row">
-        <span>
-          Gajian tiap tgl <strong>{gajianDate}</strong>
-        </span>
-        <div className="gajian-chip" onClick={() => setShowGajianModal(true)}>
-          ⚙️ Atur Tgl Gajian
-        </div>
-      </div>
+      {/* 3. Menu Cepat */}
+      <QuickMenuGrid />
 
-      {/* Tab Toggle: Pos / History */}
-      <div className="env-wrap">
-        <div className="dash-tabs">
-          <div
-            className={`dash-tab ${activeTab === "pos" ? "active" : ""}`}
-            onClick={() => setActiveTab("pos")}
-          >
-            💰 Pos
-          </div>
-          <div
-            className={`dash-tab ${activeTab === "history" ? "active" : ""}`}
-            onClick={() => setActiveTab("history")}
-          >
-            📋 History
-          </div>
-        </div>
+      {/* 4. Tab Pos Keuangan & History */}
+      <ContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {activeTab === "pos" ? (
-          <>
-            <div className="sec-label">Pos Keuangan</div>
-            <div className="env-grid">
-              {displayPosList.map((pos) => {
-                const isGoal = pos.is_goal;
-                const color = getEnvColor(pos.current_balance, pos.monthly_target, isGoal);
-                const goalProgress = isGoal && pos.goal_target > 0
-                  ? Math.min(100, Math.max(0, (pos.current_balance / pos.goal_target) * 100))
-                  : null;
-                const fillWidth = goalProgress !== null
-                  ? goalProgress
-                  : pos.current_balance < 0
-                    ? 100
-                    : Math.min(100, Math.max(0, (pos.current_balance / pos.monthly_target) * 100));
-                const isTabungan = pos.name === "Tabungan";
-                const pctLabel = getPctLabel(pos.current_balance, pos.monthly_target, pos.name, isGoal, pos.goal_target);
-
-                if (isTabungan || isGoal) {
-                  return (
-                    <Link key={pos.id} href={`/pos/${pos.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                      <div className={`ec wide ${color}`}>
-                        <span className="ec-icon">{pos.icon}</span>
-                        <div className="ec-left">
-                          <div className="ec-name">
-                            {pos.name}
-                            {isGoal && <span className="goal-badge">🎯 GOAL</span>}
-                          </div>
-                          <div className="ec-amt">{formatRp(pos.current_balance)}</div>
-                          <div className="ec-bar">
-                            <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>
-                          </div>
-                          <div className="ec-pct">{pctLabel}</div>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                }
-
-                return (
-                  <Link key={pos.id} href={`/pos/${pos.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                    <div className={`ec ${color}`}>
-                      <span className="ec-icon">{pos.icon}</span>
-                      <div className="ec-name">{pos.name}</div>
-                      <div className="ec-amt">{formatRp(pos.current_balance)}</div>
-                      <div className="ec-bar">
-                        <div className="ec-fill" style={{ width: `${fillWidth}%` }}></div>
-                      </div>
-                      <div className="ec-pct">{pctLabel}</div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </>
-        ) : (
+      {/* 5. Konten Sesuai Tab Aktif */}
+      {activeTab === "pos" ? (
+        <section className="pos-grid" id="pos-content" aria-label="Daftar pos keuangan">
+          {displayPosList.map((pos) => (
+            <PosCard
+              key={pos.id}
+              pos={pos}
+              onOpenMenu={(p) => setEditingPos(p)}
+            />
+          ))}
+        </section>
+      ) : (
+        <section id="history-content" className="history-wrap" aria-label="Riwayat transaksi">
           <GeneralHistory />
-        )}
-      </div>
+        </section>
+      )}
+
+      {/* Toast popup */}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            zIndex: 400,
+            left: "50%",
+            bottom: "95px",
+            transform: "translateX(-50%)",
+            padding: "10px 18px",
+            background: "var(--navy)",
+            color: "#ffffff",
+            borderRadius: "12px",
+            fontSize: "13px",
+            fontWeight: 600,
+            boxShadow: "0 10px 24px rgba(16, 45, 85, 0.2)",
+            whiteSpace: "nowrap",
+            animation: "fadeIn .2s ease",
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
 
       {/* Modals */}
       <CyclePickerModal
@@ -377,12 +281,30 @@ export default function Home() {
         selectedCycleIndex={cycleIndex}
         onPickCycle={(i) => setCycleIndex(i)}
       />
+
       <GajianModal
         isOpen={showGajianModal}
         onClose={() => setShowGajianModal(false)}
         currentDate={gajianDate}
         onSave={(d) => setGajianDate(d)}
       />
+
+      {editingPos && (
+        <EditPosModal
+          isOpen={Boolean(editingPos)}
+          onClose={() => setEditingPos(null)}
+          posName={editingPos.name}
+          posEmoji={editingPos.icon}
+          posSub={editingPos.sub}
+          posAmount={editingPos.monthly_target}
+          posIsGoal={editingPos.is_goal}
+          posGoalTarget={editingPos.goal_target}
+          onSave={(name, emoji, sub, amount, isGoal, goalTarget) => {
+            updatePos(editingPos.id, name, emoji, sub, amount, isGoal, goalTarget);
+            setEditingPos(null);
+          }}
+        />
+      )}
     </main>
   );
 }

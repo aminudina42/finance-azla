@@ -16,7 +16,7 @@ const fraunces = Fraunces({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0c0c10",
+  themeColor: "#f7fbff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -24,13 +24,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Dompet Pintar v3",
-  description: "Manajemen keuangan keluarga cerdas",
+  title: "Dompet Azla — Manajemen Keuangan Cerdas",
+  description: "Manajemen keuangan keluarga cerdas dengan envelope budgeting",
   manifest: "/manifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Dompet Pintar",
+    statusBarStyle: "default",
+    title: "Dompet Azla",
   },
 };
 
