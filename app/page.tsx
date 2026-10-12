@@ -33,8 +33,6 @@ export default function Home() {
     cyclePosHistory,
     transactions,
     logoSettings,
-    theme,
-    updateTheme,
   } = useApp();
 
   const [showCycleModal, setShowCycleModal] = useState(false);
@@ -185,8 +183,6 @@ export default function Home() {
         dbConnected={dbConnected}
         logoSettings={logoSettings}
         onNotificationClick={() => showToast("Tidak ada notifikasi baru")}
-        theme={theme}
-        onToggleTheme={() => updateTheme(theme === "dark" ? "light" : "dark")}
       />
 
       {/* 2. Kartu Ringkasan Sisa Budget */}

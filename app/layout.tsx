@@ -50,12 +50,8 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var cached = localStorage.getItem('theme');
-                  if (cached === 'light' || cached === 'dark') {
-                    document.documentElement.setAttribute('data-theme', cached);
-                  } else {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                  }
+                  document.documentElement.setAttribute('data-theme', 'light');
+                  localStorage.setItem('theme', 'light');
                 } catch (e) {}
               })();
             `,
