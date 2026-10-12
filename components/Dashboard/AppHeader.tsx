@@ -13,6 +13,8 @@ interface AppHeaderProps {
     image: string;
   };
   onNotificationClick?: () => void;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
 }
 
 export default function AppHeader({
@@ -21,6 +23,8 @@ export default function AppHeader({
   dbConnected = true,
   logoSettings,
   onNotificationClick,
+  theme,
+  onToggleTheme,
 }: AppHeaderProps) {
   const isCustomImage = logoSettings?.type === "image" && logoSettings?.image;
   const isCustomEmoji = logoSettings?.type === "emoji" && logoSettings?.emoji && logoSettings.emoji !== "💳";
@@ -84,25 +88,55 @@ export default function AppHeader({
         </button>
       </div>
 
-      {/* Notification Button */}
-      <button
-        type="button"
-        className="notification"
-        aria-label="Notifikasi"
-        onClick={onNotificationClick}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      {/* Header Actions: Theme toggle & Notification */}
+      <div className="header-actions">
+        {onToggleTheme && (
+          <button
+            type="button"
+            className="theme-btn"
+            aria-label={theme === "dark" ? "Ganti ke mode terang" : "Ganti ke mode gelap"}
+            title={theme === "dark" ? "Mode Terang" : "Mode Gelap"}
+            onClick={onToggleTheme}
+          >
+            {theme === "dark" ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="notification"
+          aria-label="Notifikasi"
+          onClick={onNotificationClick}
         >
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-        </svg>
-        <span className="dot" aria-hidden="true"></span>
-      </button>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+          </svg>
+          <span className="dot" aria-hidden="true"></span>
+        </button>
+      </div>
     </header>
   );
 }
