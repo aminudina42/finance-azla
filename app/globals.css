@@ -801,6 +801,21 @@
     color: #119f98;
   }
 
+  .quick-icon.indigo-bg {
+    background: #eaf0ff;
+    color: #3b82f6;
+  }
+
+  .quick-icon.purple-bg {
+    background: #f3e8ff;
+    color: #9333ea;
+  }
+
+  .quick-icon.amber-bg {
+    background: #fef3c7;
+    color: #d97706;
+  }
+
   [data-theme="dark"] .quick-icon.blue {
     background: rgba(40, 127, 240, 0.16);
     color: #5da4ff;
@@ -819,6 +834,21 @@
   [data-theme="dark"] .quick-icon.teal-bg {
     background: rgba(17, 159, 152, 0.16);
     color: #2dd4bf;
+  }
+
+  [data-theme="dark"] .quick-icon.indigo-bg {
+    background: rgba(59, 130, 246, 0.16);
+    color: #60a5fa;
+  }
+
+  [data-theme="dark"] .quick-icon.purple-bg {
+    background: rgba(147, 51, 234, 0.16);
+    color: #c084fc;
+  }
+
+  [data-theme="dark"] .quick-icon.amber-bg {
+    background: rgba(217, 119, 6, 0.16);
+    color: #fbbf24;
   }
 
   .quick-name {

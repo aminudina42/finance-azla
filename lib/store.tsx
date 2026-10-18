@@ -97,6 +97,9 @@ interface AppState {
   needsFirstCycleSetup: boolean;
   isWaitingForPayday: boolean;
   createFirstCycle: (mode: "now" | "wait", availableBudget?: number) => Promise<void>;
+  // Quick Menu customization
+  quickMenuItems: string[];
+  updateQuickMenuItems: (items: string[]) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -211,6 +214,21 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     };
   });
 
+  const [quickMenuItems, setQuickMenuItems] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("quickMenuItems");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return ["saku", "struk", "hutang", "dompet"];
+  });
+
   // ── Load from Supabase on mount ──
   useEffect(() => {
     async function loadData() {
@@ -311,6 +329,23 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
               localStorage.setItem("logoSettings", JSON.stringify(freshLogo));
             } catch {
               // ignore storage errors
+            }
+
+            const qmVal = settingsMap.get("quick_menu_items");
+            if (qmVal) {
+              try {
+                const parsed = JSON.parse(qmVal);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setQuickMenuItems(parsed);
+                  try {
+                    localStorage.setItem("quickMenuItems", JSON.stringify(parsed));
+                  } catch {
+                    // ignore
+                  }
+                }
+              } catch {
+                // ignore
+              }
             }
           }
         }
@@ -1176,6 +1211,27 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, []);
 
+  const updateQuickMenuItems = useCallback(async (items: string[]) => {
+    setIsMutating(true);
+    try {
+      const validItems = items.slice(0, 4);
+      setQuickMenuItems(validItems);
+      try {
+        localStorage.setItem("quickMenuItems", JSON.stringify(validItems));
+      } catch {
+        // ignore
+      }
+      await supabase.from("app_settings").upsert(
+        { key: "quick_menu_items", value: JSON.stringify(validItems), updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+    } catch (err) {
+      console.error("Gagal simpan quick_menu_items:", err);
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
   // ── Recalculate all pos balances from transactions ──
   const recalculateBalances = useCallback(async () => {
     setIsMutating(true);
@@ -1482,6 +1538,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     sessionUser, logout,
     updateMember, removeMember, leaveFamily, refreshMember,
     needsFirstCycleSetup, isWaitingForPayday, createFirstCycle,
+    quickMenuItems, updateQuickMenuItems,
   };
 
   if (authLoading) return null; // Or a loading spinner
