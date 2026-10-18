@@ -44,6 +44,7 @@ export default function PageHeader({
         position: "sticky",
         top: 0,
         zIndex: 25,
+        touchAction: "pan-y",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
