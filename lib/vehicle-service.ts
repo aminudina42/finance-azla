@@ -6,6 +6,7 @@ import type {
   VehicleService,
   VehicleServiceItem,
   VehicleNotification,
+  StatusKeluarga,
 } from "@/lib/types";
 
 export interface CreateVehicleInput {
@@ -30,7 +31,7 @@ export interface RecordTaxPaymentInput {
   finance_pos_id: string;
   user_id: string;
   user_name: string;
-  user_role: "suami" | "istri";
+  user_role: StatusKeluarga;
   receipt_url?: string;
   notes?: string;
 }
@@ -47,7 +48,7 @@ export interface RecordServiceInput {
   finance_pos_id: string;
   user_id: string;
   user_name: string;
-  user_role: "suami" | "istri";
+  user_role: StatusKeluarga;
   receipt_url?: string;
   notes?: string;
   items?: Array<{

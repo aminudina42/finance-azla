@@ -33,7 +33,7 @@ export interface Member {
 export interface User {
   id: string;
   name: string;
-  role: "suami" | "istri";
+  role: StatusKeluarga;
 }
 
 export interface Pos {
@@ -59,7 +59,7 @@ export interface Transaction {
   pos_icon: string;
   user_id: string;
   user_name: string;
-  user_role: "suami" | "istri";
+  user_role: StatusKeluarga;
   description: string;
   created_at: string;
   // Saku borrow fields

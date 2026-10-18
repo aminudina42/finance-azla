@@ -198,7 +198,7 @@ export default function GeneralHistory() {
                   <div className="hi-info">
                     <div className="hi-desc">{tx.description}</div>
                     <div className="hi-meta">
-                      {tx.pos_icon} {tx.pos_name} · {tx.user_role === "suami" ? "👨‍💼" : "👩"} {tx.user_name}
+                      {tx.pos_icon} {tx.pos_name} · {tx.user_role === "suami" ? "👨‍💼" : tx.user_role === "istri" ? "👩" : "🧒"} {tx.user_name}
                       {isIncome && (
                         <span style={{ color: "var(--teal)", marginLeft: "6px", fontWeight: 700 }}>
                           MASUK

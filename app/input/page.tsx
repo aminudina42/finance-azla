@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
+import type { StatusKeluarga } from "@/lib/types";
 import SakuBorrowModal from "@/components/Modals/SakuBorrowModal";
 import PageHeader from "@/components/PageHeader";
 
@@ -11,11 +12,10 @@ function formatRp(n: number): string {
 }
 
 export default function InputPage() {
-  const { posList, addTransaction, addSakuBorrowTransaction, children } = useApp();
+  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember } = useApp();
   const searchParams = useSearchParams();
 
   const [txType, setTxType] = useState<"expense" | "income">("expense");
-  const [user, setUser] = useState<"suami" | "istri">("suami");
   const [nominal, setNominal] = useState("");
   const [posId, setPosId] = useState("");
   const [keterangan, setKeterangan] = useState("");
@@ -24,6 +24,10 @@ export default function InputPage() {
 
   // Saku borrow state
   const [showSakuBorrow, setShowSakuBorrow] = useState(false);
+
+  // Status dan nama pencatat otomatis sesuai profil keluarga
+  const userRole: StatusKeluarga = currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri");
+  const userName = currentMember?.display_name || (userRole === "suami" ? "Suami" : userRole === "istri" ? "Istri" : "Anak");
 
   // Auto-select pos from URL query param
   useEffect(() => {
@@ -42,7 +46,7 @@ export default function InputPage() {
     if (!amount || !posId || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await addTransaction(amount, posId, user, keterangan, txType);
+      await addTransaction(amount, posId, userRole, keterangan, txType, userName);
       setSaved(true);
       setTimeout(() => {
         setSaved(false);
@@ -59,7 +63,7 @@ export default function InputPage() {
     if (!amount || !posId || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await addSakuBorrowTransaction(amount, posId, user, keterangan, sakuId, sakuWithdrawAmount);
+      await addSakuBorrowTransaction(amount, posId, userRole, keterangan, sakuId, sakuWithdrawAmount, userName);
       setSaved(true);
       setTimeout(() => {
         setSaved(false);
@@ -154,55 +158,59 @@ export default function InputPage() {
             </div>
           </div>
 
-          {/* User selector */}
-          <div>
-            <div style={{ fontSize: "12px", fontWeight: 750, color: "var(--navy)", marginBottom: "8px" }}>
-              Dicatat oleh
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              <button
-                type="button"
-                onClick={() => setUser("suami")}
+          {/* Info Pencatat Otomatis Sesuai Profil Keluarga */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 14px",
+              borderRadius: "14px",
+              background: "#f8fbff",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div
                 style={{
-                  padding: "10px 14px",
-                  borderRadius: "12px",
-                  border: `1.5px solid ${user === "suami" ? "var(--primary)" : "var(--border)"}`,
-                  background: user === "suami" ? "var(--primary-soft)" : "var(--surface)",
-                  color: user === "suami" ? "var(--primary)" : "var(--navy)",
-                  fontWeight: 750,
-                  fontSize: "13px",
-                  cursor: "pointer",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "10px",
+                  background: "var(--surface)",
+                  border: "1.5px solid var(--border)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "6px",
-                  transition: "all 0.16s ease",
+                  fontSize: "18px",
+                  boxShadow: "0 2px 6px rgba(16, 45, 85, 0.04)",
+                  flexShrink: 0,
                 }}
               >
-                👨‍💼 Suami
-              </button>
-              <button
-                type="button"
-                onClick={() => setUser("istri")}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: "12px",
-                  border: `1.5px solid ${user === "istri" ? "var(--primary)" : "var(--border)"}`,
-                  background: user === "istri" ? "var(--primary-soft)" : "var(--surface)",
-                  color: user === "istri" ? "var(--primary)" : "var(--navy)",
-                  fontWeight: 750,
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                  transition: "all 0.16s ease",
-                }}
-              >
-                👩 Istri
-              </button>
+                {userRole === "suami" ? "👨‍💼" : userRole === "istri" ? "👩" : "🧒"}
+              </div>
+              <div>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 650 }}>
+                  Dicatat otomatis sebagai
+                </div>
+                <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--navy)" }}>
+                  {userName}
+                </div>
+              </div>
             </div>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 750,
+                padding: "3.5px 10px",
+                borderRadius: "8px",
+                background: "var(--primary-soft)",
+                color: "var(--primary)",
+                textTransform: "capitalize",
+                letterSpacing: "0.2px",
+              }}
+            >
+              {userRole}
+            </span>
           </div>
 
           {/* Nominal */}

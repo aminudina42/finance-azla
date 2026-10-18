@@ -93,6 +93,15 @@ ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS keluarga_id UUID REFERENCES p
 ALTER TABLE public.receipts ADD COLUMN IF NOT EXISTS keluarga_id UUID REFERENCES public.keluarga(id) ON DELETE CASCADE;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS keluarga_id UUID REFERENCES public.keluarga(id) ON DELETE CASCADE;
 
+-- Sesuaikan constraint user_role pada transactions agar mendukung peran suami, istri, dan anak
+DO $$
+BEGIN
+  ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_user_role_check;
+  ALTER TABLE public.transactions ADD CONSTRAINT transactions_user_role_check CHECK (user_role IN ('suami', 'istri', 'anak'));
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
 -- 5. MIGRASI DATA LAMA: PASANGKAN DATA TANPA KELUARGA_ID KE DEFAULT KELUARGA
 DO $$
 DECLARE
@@ -428,7 +437,7 @@ BEGIN
 
   -- Profil user pembuat
   IF v_user_id IS NOT NULL THEN
-    SELECT display_name INTO v_user_name FROM public.members WHERE id = v_user_id;
+    SELECT display_name, COALESCE(status_keluarga, 'suami') INTO v_user_name, v_user_role FROM public.members WHERE id = v_user_id;
     IF v_user_name IS NULL THEN
       SELECT name, role INTO v_user_name, v_user_role FROM public.users WHERE id = v_user_id;
     END IF;
@@ -569,7 +578,7 @@ BEGIN
 
   -- Profil user pembuat
   IF v_user_id IS NOT NULL THEN
-    SELECT display_name INTO v_user_name FROM public.members WHERE id = v_user_id;
+    SELECT display_name, COALESCE(status_keluarga, 'suami') INTO v_user_name, v_user_role FROM public.members WHERE id = v_user_id;
     IF v_user_name IS NULL THEN
       SELECT name, role INTO v_user_name, v_user_role FROM public.users WHERE id = v_user_id;
     END IF;

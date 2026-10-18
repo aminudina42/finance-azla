@@ -51,7 +51,7 @@ interface AppState {
   updatePos: (id: string, name: string, icon: string, sub: string, amount: number, isGoal?: boolean, goalTarget?: number) => void;
   deletePos: (id: string) => void;
   transactions: Transaction[];
-  addTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, type?: "income" | "expense") => void;
+  addTransaction: (amount: number, posId: string, userRole?: StatusKeluarga, description?: string, type?: "income" | "expense", userName?: string) => Promise<void> | void;
   deleteTransaction: (txId: string) => void;
   children: Child[];
   addSaku: (name: string, icon: string, initialBalance: number, type: "standalone" | "linked", linkedPosId?: string | null) => void;
@@ -59,7 +59,7 @@ interface AppState {
   deleteSaku: (id: string) => void;
   childTransactions: ChildTransaction[];
   addChildTransaction: (childId: string, type: SakuTxType, amount: number, description: string, refCycleId?: string | null, refTransactionId?: string | null) => void;
-  addSakuBorrowTransaction: (amount: number, posId: string, userRole: "suami" | "istri", description: string, sakuId: string, sakuWithdrawAmount: number) => Promise<void>;
+  addSakuBorrowTransaction: (amount: number, posId: string, userRole?: StatusKeluarga, description?: string, sakuId?: string, sakuWithdrawAmount?: number, userName?: string) => Promise<void>;
   addSakuReturnTransaction: (sakuId: string, amount: number, description: string) => Promise<void>;
   cyclePosHistory: CyclePosHistory[];
   startNewCycle: (newBudgets?: Record<string, { monthly_target: number; goal_target: number }>) => void;
@@ -469,19 +469,28 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
 
   // ── Transaction actions (supports income & expense) ──
   const addTransaction = useCallback(
-    async (amount: number, posId: string, userRole: "suami" | "istri", description: string, type: "income" | "expense" = "expense") => {
+    async (
+      amount: number,
+      posId: string,
+      userRole?: StatusKeluarga,
+      description?: string,
+      type: "income" | "expense" = "expense",
+      userName?: string
+    ) => {
       setIsMutating(true);
       try {
         const pos = posList.find((p) => p.id === posId);
         if (!pos) return;
-        const userName = userRole === "suami" ? "Suami" : "Istri";
+        const effectiveRole: StatusKeluarga = userRole || currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri");
+        const effectiveName = userName || currentMember?.display_name || (effectiveRole === "suami" ? "Suami" : effectiveRole === "istri" ? "Istri" : "Anak");
         const authUserId = sessionUser?.id ?? "unknown";
 
         const newTx: Transaction = {
           id: "t" + Date.now(), amount, type, pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-          user_id: authUserId, user_name: userName, user_role: userRole,
+          user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
           description: description || (type === "income" ? `Pemasukan ${pos.name}` : `Pengeluaran ${pos.name}`),
           created_at: new Date().toISOString(),
+          keluarga_id: currentKeluarga?.id,
         };
         setTransactions((prev) => [newTx, ...prev]);
 
@@ -494,8 +503,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         // Sync to Supabase
         const { error: txErr } = await supabase.from("transactions").insert({
           amount, type, pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-          user_id: authUserId, user_name: userName, user_role: userRole,
+          user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
           description: newTx.description,
+          keluarga_id: currentKeluarga?.id,
         });
         if (txErr) console.error("❌ Gagal simpan transaksi:", txErr.message, txErr.details, txErr.hint);
 
@@ -505,7 +515,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         setIsMutating(false);
       }
     },
-    [posList, sessionUser]
+    [posList, sessionUser, currentMember, currentKeluarga]
   );
 
   // ── Delete Transaction ──
@@ -615,14 +625,23 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
 
   // ── Saku Borrow: deduct from Saku AND record Pos transaction ──
   const addSakuBorrowTransaction = useCallback(
-    async (amount: number, posId: string, userRole: "suami" | "istri", description: string, sakuId: string, sakuWithdrawAmount: number) => {
+    async (
+      amount: number,
+      posId: string,
+      userRole?: StatusKeluarga,
+      description?: string,
+      sakuId?: string,
+      sakuWithdrawAmount?: number,
+      userName?: string
+    ) => {
       setIsMutating(true);
       try {
         const pos = posList.find((p) => p.id === posId);
         const saku = childrenList.find((c) => c.id === sakuId);
-        if (!pos || !saku) return;
+        if (!pos || !saku || !sakuId || sakuWithdrawAmount === undefined) return;
 
-        const userName = userRole === "suami" ? "Suami" : "Istri";
+        const effectiveRole: StatusKeluarga = userRole || currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri");
+        const effectiveName = userName || currentMember?.display_name || (effectiveRole === "suami" ? "Suami" : effectiveRole === "istri" ? "Istri" : "Anak");
         const authUserId = sessionUser?.id ?? "unknown";
 
         // 1. Update Pos balance (expense as usual — can go negative)
@@ -637,11 +656,12 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         const newTx: Transaction = {
           id: "t" + Date.now(), amount, type: "expense",
           pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-          user_id: authUserId, user_name: userName, user_role: userRole,
+          user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
           description: description || `Pengeluaran ${pos.name} (tarik Saku)`,
           created_at: new Date().toISOString(),
           saku_id: sakuId,
           saku_withdraw_amount: sakuWithdrawAmount,
+          keluarga_id: currentKeluarga?.id,
         };
         setTransactions((prev) => [newTx, ...prev]);
 
@@ -652,27 +672,30 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           amount: sakuWithdrawAmount, description: `Pinjam untuk Pos ${pos.name}`,
           icon: sakuIcon, created_at: new Date().toISOString(),
           ref_cycle_id: null, ref_transaction_id: newTx.id,
+          keluarga_id: currentKeluarga?.id,
         };
         setChildTransactions((prev) => [sakuTx, ...prev]);
 
         // Sync to Supabase
         const { data: txData } = await supabase.from("transactions").insert({
           amount, type: "expense", pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-          user_id: authUserId, user_name: userName, user_role: userRole,
+          user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
           description: newTx.description, saku_id: sakuId, saku_withdraw_amount: sakuWithdrawAmount,
+          keluarga_id: currentKeluarga?.id,
         }).select().single();
         await supabase.from("pos").update({ current_balance: newPosBalance }).eq("id", posId);
         await supabase.from("child_transactions").insert({
           child_id: sakuId, type: "withdraw_for_pos", amount: sakuWithdrawAmount,
           description: `Pinjam untuk Pos ${pos.name}`, icon: sakuIcon,
           ref_transaction_id: txData?.id ?? null,
+          keluarga_id: currentKeluarga?.id,
         });
         await supabase.from("children").update({ balance: newSakuBalance }).eq("id", sakuId);
       } finally {
         setIsMutating(false);
       }
     },
-    [posList, childrenList, sessionUser]
+    [posList, childrenList, sessionUser, currentMember, currentKeluarga]
   );
 
   // ── Saku Return: add money back to Saku ("bayar balik") ──
@@ -767,12 +790,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
 
       // Record as expense transaction
       const authUserId = sessionUser?.id ?? "unknown";
+      const effectiveRole: StatusKeluarga = currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri");
+      const effectiveName = currentMember?.display_name || (effectiveRole === "suami" ? "Suami" : effectiveRole === "istri" ? "Istri" : "Anak");
+
       const newTx: Transaction = {
         id: "t" + Date.now(), amount, type: "expense",
         pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-        user_id: authUserId, user_name: "Suami", user_role: "suami",
+        user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
         description: `Bayar cicilan: ${debt.name}`,
         created_at: new Date().toISOString(),
+        keluarga_id: currentKeluarga?.id,
       };
       setTransactions((prev) => [newTx, ...prev]);
 
@@ -781,14 +808,15 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       await supabase.from("pos").update({ current_balance: newBalance }).eq("id", posId);
       const { error: debtTxErr } = await supabase.from("transactions").insert({
         amount, type: "expense", pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-        user_id: authUserId, user_name: "Suami", user_role: "suami",
+        user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
         description: newTx.description,
+        keluarga_id: currentKeluarga?.id,
       });
       if (debtTxErr) console.error("❌ Gagal simpan transaksi cicilan:", debtTxErr.message, debtTxErr.details, debtTxErr.hint);
     } finally {
       setIsMutating(false);
     }
-  }, [debts, posList, sessionUser]);
+  }, [debts, posList, sessionUser, currentMember, currentKeluarga]);
 
   // ── Gajian Tiba! — Start New Cycle ──
   const startNewCycle = useCallback(async (newBudgets?: Record<string, { monthly_target: number; goal_target: number }>) => {

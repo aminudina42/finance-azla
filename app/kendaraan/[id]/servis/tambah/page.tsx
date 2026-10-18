@@ -25,7 +25,7 @@ interface ItemRow {
 export default function TambahServisWizardPage({ params }: PageProps) {
   const router = useRouter();
   const { id } = use(params);
-  const { posList, setIsMutating } = useApp();
+  const { posList, setIsMutating, currentMember, sessionUser } = useApp();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,9 +181,9 @@ export default function TambahServisWizardPage({ params }: PageProps) {
         odometer_km: parseInt(odometerStr.replace(/\D/g, ""), 10) || 0,
         workshop_name: workshopName.trim() || undefined,
         finance_pos_id: selectedPosId,
-        user_id: "00000000-0000-0000-0000-000000000000",
-        user_name: "Suami",
-        user_role: "suami",
+        user_id: sessionUser?.id || "00000000-0000-0000-0000-000000000000",
+        user_name: currentMember?.display_name || "Suami",
+        user_role: currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri"),
         notes: notes.trim() || undefined,
         items: costMode === "itemized"
           ? items.map((i) => ({
