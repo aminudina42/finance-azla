@@ -8,6 +8,25 @@ export type Json =
 
 // ═══ Database Row Types ═══
 
+export interface Keluarga {
+  id: string;
+  nama_keluarga: string;
+  invite_code: string;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Member {
+  id: string;
+  keluarga_id: string;
+  display_name: string;
+  role: "admin" | "member";
+  avatar_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -16,6 +35,7 @@ export interface User {
 
 export interface Pos {
   id: string;
+  keluarga_id?: string;
   name: string;
   icon: string;
   sub: string;
@@ -28,6 +48,7 @@ export interface Pos {
 
 export interface Transaction {
   id: string;
+  keluarga_id?: string;
   amount: number;
   type: "income" | "expense";
   pos_id: string;
@@ -45,6 +66,7 @@ export interface Transaction {
 
 export interface Cycle {
   id: string;
+  keluarga_id?: string;
   start_date: string;
   end_date: string;
   is_active: boolean;
@@ -53,6 +75,7 @@ export interface Cycle {
 
 export interface Child {
   id: string;
+  keluarga_id?: string;
   name: string;
   icon: string;
   balance: number;
@@ -65,6 +88,7 @@ export type SakuTxType = "in" | "out" | "cycle_surplus" | "cycle_deficit" | "wit
 
 export interface ChildTransaction {
   id: string;
+  keluarga_id?: string;
   child_id: string;
   type: SakuTxType;
   amount: number;
@@ -78,6 +102,7 @@ export interface ChildTransaction {
 
 export interface CyclePosHistory {
   id: string;
+  keluarga_id?: string;
   cycle_id: string;
   pos_id: string;
   monthly_target: number;
@@ -87,6 +112,7 @@ export interface CyclePosHistory {
 
 export interface Debt {
   id: string;
+  keluarga_id?: string;
   name: string;
   icon: string;
   total_amount: number;
@@ -101,6 +127,7 @@ export interface Debt {
 
 export interface Store {
   id: string;
+  keluarga_id?: string;
   user_id: string;
   name: string;
   address: string;
@@ -113,6 +140,7 @@ export interface Store {
 
 export interface Receipt {
   id: string;
+  keluarga_id?: string;
   store_id: string;
   user_id: string;
   receipt_number: string;
@@ -135,6 +163,7 @@ export interface ReceiptItem {
 
 export interface Vehicle {
   id: string;
+  keluarga_id?: string;
   user_id?: string | null;
   plate_number: string;
   vehicle_type: "Motor" | "Mobil";

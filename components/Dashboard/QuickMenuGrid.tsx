@@ -64,7 +64,7 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
         </Link>
 
         {/* Tile 4: Dompet */}
-        <Link href="/manager" className="quick-card" aria-label="Menu Dompet: Atur pos & siklus">
+        <Link href="/dompet" className="quick-card" aria-label="Menu Dompet: Kelola pos & amplop">
           <span className="quick-icon teal-bg">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="m4 7.5 12-4.5 2 3-13 4" />
@@ -74,7 +74,7 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
             </svg>
           </span>
           <span className="quick-name">Dompet</span>
-          <span className="quick-desc">Atur pos &amp; siklus</span>
+          <span className="quick-desc">Kelola pos &amp; amplop</span>
         </Link>
       </div>
     </section>

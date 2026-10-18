@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createVehicle } from "@/lib/vehicle-service";
 import { normalizePlateNumber } from "@/lib/vehicle-utils";
 import { useApp } from "@/lib/store";
+import DateInput from "@/components/Kendaraan/DateInput";
 
 export default function TambahKendaraanPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function TambahKendaraanPage() {
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [nextTaxDueDate, setNextTaxDueDate] = useState("");
+  const [lastOdometer, setLastOdometer] = useState("");
   const [notes, setNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,12 +47,14 @@ export default function TambahKendaraanPage() {
     setIsMutating(true);
 
     try {
+      const parsedOdo = lastOdometer ? parseInt(lastOdometer.replace(/\D/g, ""), 10) || 0 : 0;
       const { data, error } = await createVehicle({
         plate_number: cleanPlate,
         vehicle_type: vehicleType,
         brand: brand.trim(),
         model: model.trim(),
         next_tax_due_date: nextTaxDueDate,
+        last_odometer: parsedOdo,
         notes: notes.trim() || undefined,
         service_reminder_interval_months: 1,
         service_reminder_enabled: true,
@@ -294,23 +298,52 @@ export default function TambahKendaraanPage() {
               <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
                 Tanggal Pajak Berikutnya <span style={{ color: "#ef4444" }}>*</span>
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={nextTaxDueDate}
-                onChange={(e) => setNextTaxDueDate(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "44px",
-                  padding: "0 14px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  fontSize: "13.5px",
-                  color: "var(--text)",
-                  boxSizing: "border-box",
-                  outline: "none",
-                }}
+                onChange={setNextTaxDueDate}
+                placeholder="DD/MM/YYYY (contoh: 22/10/2026)"
               />
+            </div>
+
+            {/* Kilometer Terakhir (opsional) */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
+                Kilometer Terakhir <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 500 }}>(opsional)</span>
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="number"
+                  placeholder="Contoh: 12500"
+                  value={lastOdometer}
+                  onChange={(e) => setLastOdometer(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 46px 0 14px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg)",
+                    fontSize: "14px",
+                    fontWeight: 650,
+                    color: "var(--text)",
+                    boxSizing: "border-box",
+                    outline: "none",
+                  }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    right: "14px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    color: "var(--muted)",
+                  }}
+                >
+                  km
+                </span>
+              </div>
             </div>
 
             {/* Catatan (opsional) */}

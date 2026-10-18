@@ -47,6 +47,49 @@ export function formatDateIndo(dateStr?: string | null): string {
 }
 
 /**
+ * Convert ISO "YYYY-MM-DD" to "DD/MM/YYYY"
+ */
+export function formatISOToDDMMYYYY(iso?: string | null): string {
+  if (!iso) return "";
+  const parts = iso.split("T")[0].split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+  return "";
+}
+
+/**
+ * Convert "DD/MM/YYYY" or "DDMMYYYY" to ISO "YYYY-MM-DD"
+ */
+export function parseDDMMYYYYToISO(dmy?: string | null): string | null {
+  if (!dmy) return null;
+  const clean = dmy.replace(/\D/g, "");
+  if (clean.length !== 8) return null;
+
+  const d = parseInt(clean.slice(0, 2), 10);
+  const m = parseInt(clean.slice(2, 4), 10);
+  const y = parseInt(clean.slice(4, 8), 10);
+
+  if (m < 1 || m > 12) return null;
+  if (d < 1 || d > 31) return null;
+  if (y < 1900 || y > 2100) return null;
+
+  const daysInMonth = new Date(y, m, 0).getDate();
+  if (d > daysInMonth) return null;
+
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * Format date for display as "DD/MM/YYYY": e.g. "22/10/2026"
+ */
+export function formatDateDDMMYYYY(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  return formatISOToDDMMYYYY(dateStr) || "—";
+}
+
+/**
  * Normalizes vehicle license plate: trims spaces, uppercase, removes multi-space
  */
 export function normalizePlateNumber(plate: string): string {

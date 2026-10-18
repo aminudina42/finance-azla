@@ -42,6 +42,8 @@ export default function RootLayout({
   return (
     <html
       lang="id"
+      data-theme="light"
+      suppressHydrationWarning
       className={`${dmSans.variable} ${fraunces.variable} font-sans antialiased`}
     >
       <head>

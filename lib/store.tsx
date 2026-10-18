@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType } from "./types";
+import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType, Keluarga, Member } from "./types";
 import GlobalLoader from "@/components/GlobalLoader";
 
 // ═══ Fallback Mock Data ═══
@@ -85,6 +85,14 @@ interface AppState {
   isMutating: boolean;
   setIsMutating: (b: boolean) => void;
   recalculateBalances: () => Promise<void>;
+  currentKeluarga: Keluarga | null;
+  currentMember: Member | null;
+  sessionUser: any;
+  logout: () => Promise<void>;
+  updateMember: (memberId: string, displayName: string, role: "admin" | "member") => Promise<{ success: boolean; error?: string }>;
+  removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
+  leaveFamily: () => Promise<{ success: boolean; error?: string }>;
+  refreshMember: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -101,6 +109,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const pathname = usePathname();
   const [authLoading, setAuthLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState<any>(null);
+  const [currentKeluarga, setCurrentKeluarga] = useState<Keluarga | null>(null);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -302,7 +312,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       if (!session && pathname !== "/login") router.replace("/login");
       if (session && pathname === "/login") router.replace("/");
 
-      // Ensure auth user exists in the `users` table (FK requirement for transactions)
+      // Ensure auth user exists in the `users` table & sync member profile
       if (session?.user) {
         const u = session.user;
         const displayName = u.user_metadata?.name || u.email?.split("@")[0] || "User";
@@ -310,6 +320,31 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           { id: u.id, name: displayName, role: "suami" },
           { onConflict: "id" }
         );
+
+        try {
+          const { data: memberData } = await supabase
+            .from("members")
+            .select("*, keluarga:keluarga(*)")
+            .eq("id", u.id)
+            .maybeSingle();
+
+          if (memberData) {
+            setCurrentMember(memberData as unknown as Member);
+            if (memberData.keluarga) {
+              setCurrentKeluarga(memberData.keluarga as unknown as Keluarga);
+            }
+            if (pathname === "/onboarding" || pathname === "/login") {
+              router.replace("/");
+            }
+          } else {
+            // User baru (Google/Email) yang belum punya keluarga diarahkan ke onboarding
+            if (pathname !== "/onboarding" && pathname !== "/login") {
+              router.replace("/onboarding");
+            }
+          }
+        } catch (err) {
+          console.warn("Could not load member/keluarga info:", err);
+        }
       }
     });
 
@@ -319,10 +354,44 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       if (session && pathname === "/login") router.replace("/");
     });
 
+    // Realtime member changes channel (e.g. kicked from family, promoted/demoted)
+    let memberChannel: any = null;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) {
+        memberChannel = supabase
+          .channel(`member-live-${session.user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "members",
+              filter: `id=eq.${session.user.id}`,
+            },
+            (payload) => {
+              if (payload.eventType === "DELETE") {
+                setCurrentMember(null);
+                setCurrentKeluarga(null);
+                if (window.location.pathname !== "/onboarding" && window.location.pathname !== "/login") {
+                  router.replace("/onboarding?reason=removed");
+                }
+              } else if (payload.eventType === "UPDATE") {
+                const updated = payload.new as Member;
+                setCurrentMember((prev) => (prev ? { ...prev, ...updated } : updated));
+              }
+            }
+          )
+          .subscribe();
+      }
+    });
+
     loadData();
 
     return () => {
       subscription.unsubscribe();
+      if (memberChannel) {
+        supabase.removeChannel(memberChannel);
+      }
     };
   }, [pathname, router]);
 
@@ -965,6 +1034,224 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, [posList, transactions, cycles]);
 
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setSessionUser(null);
+      setCurrentMember(null);
+      setCurrentKeluarga(null);
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Gagal logout:", err);
+      window.location.href = "/login";
+    }
+  }, []);
+
+  const refreshMember = useCallback(async () => {
+    if (!sessionUser?.id) return;
+    try {
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("*, keluarga:keluarga(*)")
+        .eq("id", sessionUser.id)
+        .maybeSingle();
+
+      if (memberData) {
+        setCurrentMember(memberData as unknown as Member);
+        if (memberData.keluarga) {
+          setCurrentKeluarga(memberData.keluarga as unknown as Keluarga);
+        }
+      } else {
+        setCurrentMember(null);
+        setCurrentKeluarga(null);
+        if (pathname !== "/onboarding" && pathname !== "/login") {
+          router.replace("/onboarding?reason=removed");
+        }
+      }
+    } catch (err) {
+      console.error("Gagal refresh member:", err);
+    }
+  }, [sessionUser?.id, pathname, router]);
+
+  const updateMember = useCallback(async (
+    memberId: string,
+    displayName: string,
+    role: "admin" | "member"
+  ): Promise<{ success: boolean; error?: string }> => {
+    setIsMutating(true);
+    try {
+      const trimmedName = displayName.trim();
+      if (!trimmedName) {
+        return { success: false, error: "Nama panggilan tidak boleh kosong." };
+      }
+
+      // Check sole admin rule if demoting an admin to member
+      if (role === "member") {
+        const { data: adminList } = await supabase
+          .from("members")
+          .select("id")
+          .eq("keluarga_id", currentKeluarga?.id)
+          .eq("role", "admin");
+
+        const targetIsAdmin = adminList?.some((a) => a.id === memberId);
+        if (targetIsAdmin && (adminList?.length || 0) <= 1) {
+          return {
+            success: false,
+            error: "Keluarga harus memiliki minimal satu Admin. Tunjuk anggota lain sebagai Admin terlebih dahulu.",
+          };
+        }
+      }
+
+      // Try RPC first
+      const { error: rpcError } = await supabase.rpc("update_family_member", {
+        p_member_id: memberId,
+        p_display_name: trimmedName,
+        p_role: role,
+      });
+
+      if (rpcError) {
+        console.warn("RPC update_family_member fallback to direct update:", rpcError.message);
+        const { error: directError } = await supabase
+          .from("members")
+          .update({
+            display_name: trimmedName,
+            role,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", memberId);
+
+        if (directError) {
+          return { success: false, error: directError.message };
+        }
+      }
+
+      // Update currentMember in state if updating self
+      if (currentMember?.id === memberId) {
+        setCurrentMember((prev) =>
+          prev ? { ...prev, display_name: trimmedName, role } : null
+        );
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Gagal memperbarui anggota." };
+    } finally {
+      setIsMutating(false);
+    }
+  }, [currentKeluarga?.id, currentMember?.id]);
+
+  const removeMember = useCallback(async (
+    memberId: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setIsMutating(true);
+    try {
+      if (sessionUser?.id === memberId) {
+        return {
+          success: false,
+          error: "Untuk meninggalkan keluarga sendiri, silakan gunakan tombol 'Keluar dari Keluarga'.",
+        };
+      }
+
+      // Check if target is sole admin
+      const { data: memberData } = await supabase
+        .from("members")
+        .select("role, keluarga_id")
+        .eq("id", memberId)
+        .maybeSingle();
+
+      if (memberData?.role === "admin") {
+        const { data: adminList } = await supabase
+          .from("members")
+          .select("id")
+          .eq("keluarga_id", memberData.keluarga_id)
+          .eq("role", "admin");
+
+        if ((adminList?.length || 0) <= 1) {
+          return {
+            success: false,
+            error: "Tidak dapat mengeluarkan satu-satunya Admin keluarga. Tunjuk anggota lain sebagai Admin terlebih dahulu.",
+          };
+        }
+      }
+
+      // Try RPC first
+      const { error: rpcError } = await supabase.rpc("remove_family_member", {
+        p_member_id: memberId,
+      });
+
+      if (rpcError) {
+        console.warn("RPC remove_family_member fallback to direct delete:", rpcError.message);
+        const { error: directError } = await supabase
+          .from("members")
+          .delete()
+          .eq("id", memberId);
+
+        if (directError) {
+          return { success: false, error: directError.message };
+        }
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Gagal mengeluarkan anggota." };
+    } finally {
+      setIsMutating(false);
+    }
+  }, [sessionUser?.id]);
+
+  const leaveFamily = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!sessionUser?.id || !currentKeluarga?.id) {
+      return { success: false, error: "Sesi tidak valid." };
+    }
+
+    setIsMutating(true);
+    try {
+      // Check if current user is admin and if there are other members
+      if (currentMember?.role === "admin") {
+        const { data: membersInFamily } = await supabase
+          .from("members")
+          .select("id, role")
+          .eq("keluarga_id", currentKeluarga.id);
+
+        const totalCount = membersInFamily?.length || 0;
+        const adminCount = membersInFamily?.filter((m) => m.role === "admin").length || 0;
+
+        if (totalCount > 1 && adminCount <= 1) {
+          return {
+            success: false,
+            error: "Anda adalah satu-satunya Admin. Tunjuk anggota lain sebagai Admin terlebih dahulu sebelum keluar dari keluarga.",
+          };
+        }
+      }
+
+      // Try RPC first
+      const { error: rpcError } = await supabase.rpc("leave_family");
+
+      if (rpcError) {
+        console.warn("RPC leave_family fallback to direct delete:", rpcError.message);
+        const { error: directError } = await supabase
+          .from("members")
+          .delete()
+          .eq("id", sessionUser.id);
+
+        if (directError) {
+          return { success: false, error: directError.message };
+        }
+      }
+
+      // Clear family state & redirect to onboarding
+      setCurrentMember(null);
+      setCurrentKeluarga(null);
+      router.replace("/onboarding?reason=left");
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Gagal keluar dari keluarga." };
+    } finally {
+      setIsMutating(false);
+    }
+  }, [sessionUser?.id, currentKeluarga?.id, currentMember?.role, router]);
+
   const value: AppState = {
     cycles, cycleIndex, setCycleIndex, shiftCycle,
     gajianDate, setGajianDate: updateGajianDate,
@@ -981,6 +1268,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     isNavigating, setIsNavigating,
     isMutating, setIsMutating,
     recalculateBalances,
+    currentKeluarga, currentMember,
+    sessionUser, logout,
+    updateMember, removeMember, leaveFamily, refreshMember,
   };
 
   if (authLoading) return null; // Or a loading spinner

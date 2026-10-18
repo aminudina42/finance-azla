@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 export default function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/onboarding") return null;
 
   return (
     <nav className="bnav">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import type { Pos } from "@/lib/types";
 import CyclePickerModal from "@/components/Modals/CyclePickerModal";
@@ -20,6 +21,7 @@ function formatRp(n: number): string {
 }
 
 export default function Home() {
+  const router = useRouter();
   const {
     cycles,
     cycleIndex,
@@ -184,7 +186,7 @@ export default function Home() {
         onOpenCyclePicker={() => setShowCycleModal(true)}
         dbConnected={dbConnected}
         logoSettings={logoSettings}
-        onNotificationClick={() => showToast("Tidak ada notifikasi baru")}
+        onNotificationClick={() => router.push("/notifikasi")}
       />
 
       {/* 2. Kartu Ringkasan Sisa Budget */}

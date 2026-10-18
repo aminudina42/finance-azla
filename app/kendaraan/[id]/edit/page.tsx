@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getVehicleById, updateVehicle } from "@/lib/vehicle-service";
 import { normalizePlateNumber } from "@/lib/vehicle-utils";
 import { useApp } from "@/lib/store";
+import DateInput from "@/components/Kendaraan/DateInput";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -24,6 +25,7 @@ export default function EditKendaraanPage({ params }: PageProps) {
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [nextTaxDueDate, setNextTaxDueDate] = useState("");
+  const [lastOdometer, setLastOdometer] = useState("");
   const [notes, setNotes] = useState("");
 
   const loadData = useCallback(async () => {
@@ -38,6 +40,7 @@ export default function EditKendaraanPage({ params }: PageProps) {
     setBrand(v.brand);
     setModel(v.model);
     setNextTaxDueDate(v.next_tax_due_date ? v.next_tax_due_date.split("T")[0] : "");
+    setLastOdometer(v.last_odometer !== undefined && v.last_odometer !== null ? String(v.last_odometer) : "");
     setNotes(v.notes || "");
     setLoading(false);
   }, [id, router]);
@@ -72,12 +75,14 @@ export default function EditKendaraanPage({ params }: PageProps) {
     setIsMutating(true);
 
     try {
+      const parsedOdo = lastOdometer ? parseInt(lastOdometer.replace(/\D/g, ""), 10) || 0 : 0;
       const { error } = await updateVehicle(id, {
         plate_number: cleanPlate,
         vehicle_type: vehicleType,
         brand: brand.trim(),
         model: model.trim(),
         next_tax_due_date: nextTaxDueDate,
+        last_odometer: parsedOdo,
         notes: notes.trim() || null,
       });
 
@@ -298,23 +303,52 @@ export default function EditKendaraanPage({ params }: PageProps) {
               <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
                 Tanggal Pajak Berikutnya <span style={{ color: "#ef4444" }}>*</span>
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={nextTaxDueDate}
-                onChange={(e) => setNextTaxDueDate(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "44px",
-                  padding: "0 14px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  fontSize: "13.5px",
-                  color: "var(--text)",
-                  boxSizing: "border-box",
-                  outline: "none",
-                }}
+                onChange={setNextTaxDueDate}
+                placeholder="DD/MM/YYYY (contoh: 22/10/2026)"
               />
+            </div>
+
+            {/* Kilometer Terakhir (opsional) */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
+                Kilometer Terakhir <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 500 }}>(opsional)</span>
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="number"
+                  placeholder="Contoh: 12500"
+                  value={lastOdometer}
+                  onChange={(e) => setLastOdometer(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 46px 0 14px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg)",
+                    fontSize: "14px",
+                    fontWeight: 650,
+                    color: "var(--text)",
+                    boxSizing: "border-box",
+                    outline: "none",
+                  }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    right: "14px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    color: "var(--muted)",
+                  }}
+                >
+                  km
+                </span>
+              </div>
             </div>
 
             {/* Catatan (opsional) */}

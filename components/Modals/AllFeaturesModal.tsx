@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
+import AlertModal from "@/components/Modals/AlertModal";
+import { useApp } from "@/lib/store";
 
 interface AllFeaturesModalProps {
   isOpen: boolean;
@@ -22,6 +24,19 @@ export default function AllFeaturesModal({
   onClose,
 }: AllFeaturesModalProps) {
   const router = useRouter();
+  const { sessionUser, currentMember, currentKeluarga, logout } = useApp();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Gagal logout:", err);
+      setIsLoggingOut(false);
+    }
+  };
 
   const mainFeatures: MainFeature[] = [
     {
@@ -71,7 +86,7 @@ export default function AllFeaturesModal({
     {
       id: "dompet",
       name: "Dompet",
-      path: "/manager",
+      path: "/dompet",
       iconBg: "#e6faf5",
       icon: (
         <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
@@ -220,7 +235,116 @@ export default function AllFeaturesModal({
             </div>
           ))}
         </div>
+
+        {/* Account Strip & Quick Logout with Characterful Styling */}
+        <div
+          style={{
+            marginTop: "22px",
+            paddingTop: "14px",
+            borderTop: "1px dashed var(--border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            {sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.picture ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={sessionUser.user_metadata.avatar_url || sessionUser.user_metadata.picture}
+                alt="Avatar"
+                crossOrigin="anonymous"
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "50%",
+                  border: "1.5px solid #ffffff",
+                  boxShadow: "0 2px 6px rgba(16,45,85,0.12)",
+                  objectFit: "cover",
+                  flexShrink: 0
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, var(--navy), #2563eb)",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  flexShrink: 0
+                }}
+              >
+                {(currentMember?.display_name || sessionUser?.email || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: "12.5px",
+                  fontWeight: 750,
+                  color: "var(--navy)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                }}
+              >
+                {currentMember?.display_name || sessionUser?.user_metadata?.full_name || "Pengguna"}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--muted)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                }}
+              >
+                {currentKeluarga?.nama_keluarga || "Keluarga Azla"}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowLogoutConfirm(true)}
+            style={{
+              padding: "7px 12px",
+              borderRadius: "8px",
+              background: "#fff1f2",
+              border: "1px solid #fecdd3",
+              color: "#be123c",
+              fontSize: "11.5px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              flexShrink: 0,
+              transition: "all 0.15s ease"
+            }}
+          >
+            <span>🚪</span>
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
+
+      <AlertModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        title="Akhiri Sesi Dompet Azla?"
+        message={`Apakah Anda yakin ingin keluar dari akun ${sessionUser?.email || "ini"}? Anda dapat masuk kembali dengan akun Google Anda kapan saja.`}
+        confirmText={isLoggingOut ? "Mengakhiri Sesi..." : "Ya, Keluar Akun"}
+        cancelText="Batal"
+        confirmColor="#f04467"
+        onConfirm={handleLogout}
+      />
     </Modal>
   );
 }

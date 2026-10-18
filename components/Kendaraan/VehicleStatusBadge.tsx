@@ -12,7 +12,7 @@ export default function VehicleStatusBadge({ type, status }: VehicleStatusBadgeP
   let bg = "#f1f5f9";
   let color = "#475569";
   let dotColor = "#94a3b8";
-  let label = status;
+  let label: string = status;
 
   if (type === "tax") {
     if (status === "Belum Bayar") {

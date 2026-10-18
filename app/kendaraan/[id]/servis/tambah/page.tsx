@@ -7,6 +7,7 @@ import type { Vehicle } from "@/lib/types";
 import { getVehicleById, recordVehicleService } from "@/lib/vehicle-service";
 import { formatRp, formatDateIndo } from "@/lib/vehicle-utils";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
+import DateInput from "@/components/Kendaraan/DateInput";
 import { useApp } from "@/lib/store";
 
 interface PageProps {
@@ -195,7 +196,7 @@ export default function TambahServisWizardPage({ params }: PageProps) {
       });
 
       if (!res.success) {
-        throw new Error(res.error?.message || "Gagal menyimpan riwayat servis.");
+        throw new Error((res.error as any)?.message || "Gagal menyimpan riwayat servis.");
       }
 
       setSavedServiceId(res.serviceId || null);
@@ -369,22 +370,10 @@ export default function TambahServisWizardPage({ params }: PageProps) {
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
                   Tanggal Servis <span style={{ color: "#ef4444" }}>*</span>
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={serviceDate}
-                  onChange={(e) => setServiceDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: "44px",
-                    padding: "0 14px",
-                    borderRadius: "10px",
-                    border: "1px solid var(--border)",
-                    background: "var(--bg)",
-                    fontSize: "13.5px",
-                    color: "var(--text)",
-                    boxSizing: "border-box",
-                    outline: "none",
-                  }}
+                  onChange={setServiceDate}
+                  placeholder="DD/MM/YYYY (contoh: 22/10/2026)"
                 />
               </div>
 

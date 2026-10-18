@@ -3,12 +3,16 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
-  const errors: string[] = [];
+export async function POST(request: Request) {
+  // Hanya izinkan saat development atau jika menyertakan secret header yang cocok
+  const authHeader = request.headers.get("x-setup-secret");
+  const setupSecret = process.env.SETUP_SECRET;
 
-  // 1. Create tables via raw SQL using rpc
-  // Note: Tables must be created via Supabase SQL Editor first.
-  // This route seeds initial data if tables are empty.
+  if (process.env.NODE_ENV === "production" && (!setupSecret || authHeader !== setupSecret)) {
+    return NextResponse.json({ message: "Akses ditolak: Endpoint setup dinonaktifkan di production." }, { status: 403 });
+  }
+
+  const errors: string[] = [];
 
   // Check if pos table has data
   const { data: existingPos } = await supabase.from("pos").select("id").limit(1);

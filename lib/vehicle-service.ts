@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { PostgrestError } from "@supabase/supabase-js";
 import type {
   Vehicle,
   VehicleTaxPayment,
@@ -13,6 +14,7 @@ export interface CreateVehicleInput {
   brand: string;
   model: string;
   next_tax_due_date: string;
+  last_odometer?: number;
   notes?: string;
   service_reminder_interval_months?: 1 | 2;
   service_reminder_enabled?: boolean;
@@ -87,11 +89,14 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
   return data;
 }
 
-export async function createVehicle(input: CreateVehicleInput, userId?: string): Promise<{ data: Vehicle | null; error: any }> {
+export async function createVehicle(
+  input: CreateVehicleInput,
+  userId?: string
+): Promise<{ data: Vehicle | null; error: PostgrestError | null }> {
   const payload = {
     ...input,
     user_id: userId || null,
-    last_odometer: 0,
+    last_odometer: typeof input.last_odometer === "number" && !isNaN(input.last_odometer) ? input.last_odometer : 0,
     service_reminder_interval_months: input.service_reminder_interval_months || 1,
     service_reminder_enabled: input.service_reminder_enabled ?? true,
     tax_reminder_enabled: input.tax_reminder_enabled ?? true,
@@ -106,7 +111,10 @@ export async function createVehicle(input: CreateVehicleInput, userId?: string):
   return { data, error };
 }
 
-export async function updateVehicle(id: string, updates: Partial<Vehicle>): Promise<{ data: Vehicle | null; error: any }> {
+export async function updateVehicle(
+  id: string,
+  updates: Partial<Vehicle>
+): Promise<{ data: Vehicle | null; error: PostgrestError | null }> {
   const { data, error } = await supabase
     .from("vehicles")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -117,7 +125,9 @@ export async function updateVehicle(id: string, updates: Partial<Vehicle>): Prom
   return { data, error };
 }
 
-export async function archiveVehicle(id: string): Promise<{ success: boolean; error: any }> {
+export async function archiveVehicle(
+  id: string
+): Promise<{ success: boolean; error: PostgrestError | null }> {
   const { error } = await supabase
     .from("vehicles")
     .update({ archived_at: new Date().toISOString() })
@@ -142,7 +152,7 @@ export async function getVehicleTaxPayments(vehicleId: string): Promise<VehicleT
   return data || [];
 }
 
-export async function recordVehicleTaxPayment(input: RecordTaxPaymentInput): Promise<{ success: boolean; error?: any }> {
+export async function recordVehicleTaxPayment(input: RecordTaxPaymentInput): Promise<{ success: boolean; error?: unknown }> {
   // 1. Try atomic RPC first
   const { data: rpcData, error: rpcError } = await supabase.rpc("record_vehicle_tax_tx", {
     p_vehicle_id: input.vehicle_id,
@@ -214,7 +224,7 @@ export async function recordVehicleTaxPayment(input: RecordTaxPaymentInput): Pro
     await supabase.from("vehicles").update({ next_tax_due_date: input.next_due_date }).eq("id", input.vehicle_id);
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Fallback tax record error:", err);
     return { success: false, error: err };
   }
@@ -258,7 +268,7 @@ export async function getVehicleServiceById(serviceId: string): Promise<{
   return { service, items: items || [] };
 }
 
-export async function recordVehicleService(input: RecordServiceInput): Promise<{ success: boolean; serviceId?: string; error?: any }> {
+export async function recordVehicleService(input: RecordServiceInput): Promise<{ success: boolean; serviceId?: string; error?: unknown }> {
   // 1. Try atomic RPC first
   const { data: rpcData, error: rpcError } = await supabase.rpc("record_vehicle_service_tx", {
     p_vehicle_id: input.vehicle_id,
@@ -365,7 +375,7 @@ export async function recordVehicleService(input: RecordServiceInput): Promise<{
     }).eq("id", input.vehicle_id);
 
     return { success: true, serviceId: newService?.id };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Fallback service record error:", err);
     return { success: false, error: err };
   }

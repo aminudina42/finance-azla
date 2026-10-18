@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Vehicle } from "@/lib/types";
 import { getVehicleById, recordVehicleTaxPayment } from "@/lib/vehicle-service";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
+import DateInput from "@/components/Kendaraan/DateInput";
 import { useApp } from "@/lib/store";
 
 interface PageProps {
@@ -121,7 +122,7 @@ export default function BayarPajakPage({ params }: PageProps) {
       });
 
       if (!res.success) {
-        throw new Error(res.error?.message || "Gagal mencatat pembayaran pajak.");
+        throw new Error((res.error as any)?.message || "Gagal mencatat pembayaran pajak.");
       }
 
       router.push(`/kendaraan/${id}/pajak/riwayat`);
@@ -253,22 +254,10 @@ export default function BayarPajakPage({ params }: PageProps) {
               <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
                 Tanggal Pembayaran <span style={{ color: "#ef4444" }}>*</span>
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "44px",
-                  padding: "0 14px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  fontSize: "13.5px",
-                  color: "var(--text)",
-                  boxSizing: "border-box",
-                  outline: "none",
-                }}
+                onChange={setPaymentDate}
+                placeholder="DD/MM/YYYY (contoh: 22/10/2026)"
               />
             </div>
 
@@ -277,22 +266,10 @@ export default function BayarPajakPage({ params }: PageProps) {
               <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
                 Tanggal Pajak Berikutnya <span style={{ color: "#ef4444" }}>*</span>
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={nextDueDate}
-                onChange={(e) => setNextDueDate(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "44px",
-                  padding: "0 14px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  fontSize: "13.5px",
-                  color: "var(--text)",
-                  boxSizing: "border-box",
-                  outline: "none",
-                }}
+                onChange={setNextDueDate}
+                placeholder="DD/MM/YYYY (contoh: 22/10/2027)"
               />
             </div>
 
