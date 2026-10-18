@@ -12,8 +12,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default async function AppleIcon() {
   let type = 'emoji'
-  let emoji = '💳'
-  let bg = 'linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)'
+  let emoji = '🏠'
+  let bg = 'linear-gradient(135deg, #4392f9 0%, #1769d2 100%)'
   let image = ''
 
   try {
@@ -25,8 +25,8 @@ export default async function AppleIcon() {
     if (data) {
       const settings = new Map(data.map(item => [item.key, item.value]))
       type = settings.get("website_logo_type") || 'emoji'
-      emoji = settings.get("website_logo_emoji") || '💳'
-      bg = settings.get("website_logo_bg") || 'linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)'
+      emoji = settings.get("website_logo_emoji") || '🏠'
+      bg = settings.get("website_logo_bg") || 'linear-gradient(135deg, #4392f9 0%, #1769d2 100%)'
       image = settings.get("website_logo_image") || ''
     }
   } catch (e) {

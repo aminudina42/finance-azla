@@ -24,13 +24,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Dompet Azla — Manajemen Keuangan Cerdas",
+  title: "Catat Keluarga — Manajemen Keuangan Cerdas",
   description: "Manajemen keuangan keluarga cerdas dengan envelope budgeting",
   manifest: "/manifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Dompet Azla",
+    title: "Catat Keluarga",
   },
 };
 

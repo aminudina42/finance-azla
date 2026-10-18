@@ -20,10 +20,24 @@ CREATE TABLE IF NOT EXISTS public.members (
   keluarga_id UUID NOT NULL REFERENCES public.keluarga(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  status_keluarga TEXT DEFAULT 'suami' CHECK (status_keluarga IN ('suami', 'istri', 'anak')),
   avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Kolom status_keluarga jika tabel sudah ada sebelumnya
+DO $$
+BEGIN
+  ALTER TABLE public.members ADD COLUMN IF NOT EXISTS status_keluarga TEXT DEFAULT 'suami';
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'members_status_keluarga_check'
+  ) THEN
+    ALTER TABLE public.members ADD CONSTRAINT members_status_keluarga_check CHECK (status_keluarga IN ('suami', 'istri', 'anak'));
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_members_keluarga ON public.members(keluarga_id);
 
@@ -257,6 +271,7 @@ DECLARE
   ];
 BEGIN
   FOREACH tbl IN ARRAY tbls LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "%s_family_all" ON public.%I;', tbl, tbl);
     EXECUTE format('DROP POLICY IF EXISTS "%s_family_policy" ON public.%I;', tbl, tbl);
     EXECUTE format('DROP POLICY IF EXISTS "%s_family_select" ON public.%I;', tbl, tbl);
     EXECUTE format('DROP POLICY IF EXISTS "%s_family_insert" ON public.%I;', tbl, tbl);
@@ -819,11 +834,14 @@ BEGIN
 END;
 $$;
 
--- 17. RPC KELOLA ANGGOTA: UPDATE NAMA PANGGILAN & PERAN
+-- 17. RPC KELOLA ANGGOTA: UPDATE NAMA PANGGILAN, PERAN, & STATUS KELUARGA
+DROP FUNCTION IF EXISTS public.update_family_member(UUID, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.update_family_member(UUID, TEXT, TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.update_family_member(
   p_member_id UUID,
   p_display_name TEXT,
-  p_role TEXT
+  p_role TEXT,
+  p_status_keluarga TEXT DEFAULT 'suami'
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -839,6 +857,7 @@ DECLARE
   v_admin_count INT;
   v_clean_name TEXT;
   v_clean_role TEXT;
+  v_clean_status TEXT;
 BEGIN
   v_caller_id := auth.uid();
   IF v_caller_id IS NULL THEN
@@ -853,6 +872,11 @@ BEGIN
   v_clean_role := LOWER(TRIM(p_role));
   IF v_clean_role NOT IN ('admin', 'member') THEN
     RAISE EXCEPTION 'Peran tidak valid. Pilihan: admin atau member.';
+  END IF;
+
+  v_clean_status := LOWER(TRIM(COALESCE(p_status_keluarga, 'suami')));
+  IF v_clean_status NOT IN ('suami', 'istri', 'anak') THEN
+    v_clean_status := 'suami';
   END IF;
 
   -- Cek profil pemanggil
@@ -895,7 +919,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- Validasi perubahan nama: Admin boleh ubah nama siapa saja, member hanya boleh ubah nama sendiri
+  -- Validasi perubahan nama atau status: Admin boleh ubah siapa saja, member hanya boleh ubah profil sendiri
   IF v_caller_id <> p_member_id AND v_caller_role <> 'admin' THEN
     RAISE EXCEPTION 'Anda hanya dapat mengubah profil Anda sendiri.';
   END IF;
@@ -904,24 +928,28 @@ BEGIN
   UPDATE public.members
   SET display_name = v_clean_name,
       role = v_clean_role,
+      status_keluarga = v_clean_status,
       updated_at = NOW()
   WHERE id = p_member_id;
 
   -- Update tabel users jika ada
   UPDATE public.users
-  SET name = v_clean_name
+  SET name = v_clean_name,
+      role = CASE WHEN v_clean_status = 'istri' THEN 'istri' ELSE 'suami' END
   WHERE id = p_member_id;
 
   RETURN jsonb_build_object(
     'success', true,
     'member_id', p_member_id,
     'display_name', v_clean_name,
-    'role', v_clean_role
+    'role', v_clean_role,
+    'status_keluarga', v_clean_status
   );
 END;
 $$;
 
 -- 18. RPC KELOLA ANGGOTA: KELUARKAN ANGGOTA DARI KELUARGA
+DROP FUNCTION IF EXISTS public.remove_family_member(UUID);
 CREATE OR REPLACE FUNCTION public.remove_family_member(
   p_member_id UUID
 )
@@ -989,6 +1017,7 @@ END;
 $$;
 
 -- 19. RPC KELOLA ANGGOTA: KELUAR DARI KELUARGA SENDIRI (LEAVE FAMILY)
+DROP FUNCTION IF EXISTS public.leave_family();
 CREATE OR REPLACE FUNCTION public.leave_family()
 RETURNS JSONB
 LANGUAGE plpgsql

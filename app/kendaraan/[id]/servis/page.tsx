@@ -7,6 +7,7 @@ import type { Vehicle, VehicleService } from "@/lib/types";
 import { getVehicleById, getVehicleServices } from "@/lib/vehicle-service";
 import { formatDateIndo, formatRp } from "@/lib/vehicle-utils";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
+import PageHeader from "@/components/PageHeader";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -58,69 +59,33 @@ export default function RiwayatServisListPage({ params }: PageProps) {
   }
 
   return (
-    <main className="page active" style={{ paddingBottom: "90px" }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 20px 12px",
-          background: "var(--bg)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button
-            type="button"
-            onClick={() => router.push(`/kendaraan/${id}`)}
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      {/* Header Standardized */}
+      <PageHeader
+        title="Riwayat Servis"
+        subtitle="Log perawatan dan pemeliharaan mesin"
+        onBack={() => router.push(`/kendaraan/${id}`)}
+        action={
+          <Link
+            href={`/kendaraan/${id}/servis/tambah`}
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              color: "var(--navy)",
-              cursor: "pointer",
-            }}
-            aria-label="Kembali"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1
-            style={{
-              fontSize: "18px",
-              fontWeight: 800,
-              color: "var(--navy)",
-              margin: 0,
-              letterSpacing: "-0.3px",
+              padding: "7px 13px",
+              borderRadius: "10px",
+              background: "var(--primary)",
+              color: "#ffffff",
+              fontSize: "12px",
+              fontWeight: 700,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
             }}
           >
-            Riwayat Servis
-          </h1>
-        </div>
-
-        <Link
-          href={`/kendaraan/${id}/servis/tambah`}
-          style={{
-            padding: "6px 12px",
-            borderRadius: "10px",
-            background: "var(--primary)",
-            color: "#ffffff",
-            fontSize: "12px",
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
-        >
-          + Servis
-        </Link>
-      </div>
+            ＋ Servis
+          </Link>
+        }
+      />
 
       <div style={{ padding: "0 20px" }}>
         {/* Compact Header Card */}
@@ -275,7 +240,7 @@ export default function RiwayatServisListPage({ params }: PageProps) {
                   </div>
 
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--navy)", marginBottom: "4px" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--navy)", marginBottom: "4px", fontVariantNumeric: "tabular-nums" }}>
                       {formatRp(s.total_cost)}
                     </div>
                     <span

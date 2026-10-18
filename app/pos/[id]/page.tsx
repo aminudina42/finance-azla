@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useApp } from "@/lib/store";
 import type { Transaction } from "@/lib/types";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
+import PageHeader from "@/components/PageHeader";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -147,30 +148,106 @@ export default function PosDetailPage() {
       : `${Math.round(fillWidth)}% tersisa`;
 
   return (
-    <main id="pg-pos-detail" className="page active">
-      {/* Back button */}
-      <Link href="/" className="pos-detail-back">
-        ‹ Kembali
-      </Link>
+    <main id="pg-pos-detail" className="page active" style={{ paddingBottom: "110px" }}>
+      <PageHeader
+        title={pos.name}
+        subtitle={pos.sub || "Amplop Keuangan"}
+        backHref="/"
+        badge={
+          pos.is_goal ? (
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: 750,
+                padding: "2px 8px",
+                borderRadius: "6px",
+                background: "rgba(22, 168, 154, 0.12)",
+                color: "var(--teal)",
+                letterSpacing: "0.5px",
+              }}
+            >
+              🎯 GOAL
+            </span>
+          ) : undefined
+        }
+      />
 
-      {/* Header */}
-      <div className="pos-detail-header">
-        <div className="pdh-top">
-          <div className="pdh-icon">{pos.icon}</div>
-          <div>
-            <div className="pdh-name">{pos.name}</div>
-            <div className="pdh-sub">{pos.sub}</div>
+      {/* Hero Card */}
+      <div style={{ padding: "16px 20px 0" }}>
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            background: "linear-gradient(115deg, #ffffff 0%, #f7fbff 72%, #eaf6ff 100%)",
+            border: "1.5px solid #c7e5fb",
+            borderRadius: "20px",
+            boxShadow: "0 10px 24px rgba(38, 111, 183, 0.08)",
+            padding: "20px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+            <div
+              style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "14px",
+                background: "#f1f8fd",
+                border: "1px solid var(--border)",
+                display: "grid",
+                placeItems: "center",
+                fontSize: "22px",
+                flexShrink: 0,
+              }}
+            >
+              {pos.icon}
+            </div>
+            <div>
+              <div style={{ fontSize: "11px", fontWeight: 750, color: "var(--text-secondary)", letterSpacing: "0.6px", textTransform: "uppercase" }}>
+                Saldo Amplop Tersedia
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>
+                {pos.name}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className={`pdh-balance ${balanceClass}`}>
-          {formatRp(displayBalance)}
-        </div>
-        <div className="pdh-bar">
-          <div className="pdh-fill" style={{ width: `${fillWidth}%` }} />
-        </div>
-        <div className="pdh-meta">
-          <span>{targetLabel}</span>
-          <span>{pctLabel}</span>
+
+          <div
+            style={{
+              fontSize: "clamp(28px, 6.5vw, 38px)",
+              fontWeight: 850,
+              letterSpacing: "-1px",
+              color: displayBalance < 0 ? "var(--danger)" : "var(--navy)",
+              fontVariantNumeric: "tabular-nums",
+              lineHeight: 1.15,
+              margin: "4px 0 14px",
+            }}
+          >
+            {formatRp(displayBalance)}
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: "7px", borderRadius: "99px", background: "var(--track)", overflow: "hidden", marginBottom: "8px" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${fillWidth}%`,
+                background: displayBalance < 0
+                  ? "var(--danger)"
+                  : isGoal
+                    ? "var(--teal)"
+                    : displayBalance / displayTarget <= 0.25
+                      ? "var(--warning)"
+                      : "var(--primary)",
+                borderRadius: "99px",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>
+            <span>{targetLabel}</span>
+            <span style={{ color: displayBalance < 0 ? "var(--danger)" : "var(--navy)" }}>{pctLabel}</span>
+          </div>
         </div>
       </div>
 

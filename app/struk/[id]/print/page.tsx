@@ -88,13 +88,40 @@ export default function PrintStrukPage() {
   return (
     <div style={{ background: "#f5f5f5", minHeight: "100vh", padding: "20px" }}>
       <div className="struk-no-print" style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-        <button onClick={() => router.back()}
-          style={{ padding: "10px 16px", cursor: "pointer", background: "#f0f0f0", border: "1px solid #ccc", borderRadius: "6px", fontSize: "13px" }}>
+        <button
+          onClick={() => router.back()}
+          style={{
+            padding: "9px 16px",
+            cursor: "pointer",
+            background: "#ffffff",
+            border: "1.5px solid var(--border)",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: 650,
+            color: "var(--navy)",
+            boxShadow: "0 2px 6px rgba(16, 45, 85, 0.04)",
+          }}
+        >
           ← Kembali
         </button>
-        <button onClick={() => window.print()}
-          style={{ padding: "10px 16px", cursor: "pointer", background: "#25D366", color: "#fff", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: 700 }}>
-          🖨️ Cetak Lagi
+        <button
+          onClick={() => window.print()}
+          style={{
+            padding: "9px 18px",
+            cursor: "pointer",
+            background: "var(--primary)",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: 700,
+            boxShadow: "0 2px 10px rgba(40, 127, 240, 0.25)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <span>🖨️</span> Cetak Struk
         </button>
       </div>
 

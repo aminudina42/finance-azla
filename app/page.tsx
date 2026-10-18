@@ -134,17 +134,18 @@ export default function Home() {
                 border: "1px solid var(--border)",
                 display: "grid",
                 placeItems: "center",
+                overflow: "hidden",
               }}
             >
-              <svg viewBox="0 0 48 48" fill="none" style={{ width: "36px", height: "36px" }}>
-                <path d="M10 13.5 31 6l2 5-20 7" stroke="#287ff0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M9 16h28a4 4 0 0 1 4 4v18H9a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4Z" fill="#287ff0" />
-                <path d="M29 23h12v10H29a5 5 0 0 1 0-10Z" fill="#75b8ff" />
-                <circle cx="31" cy="28" r="1.8" fill="#fff" />
-              </svg>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo-icon.png"
+                alt="Catat Keluarga"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
             </div>
           </div>
-          <div style={{ fontSize: "16px", fontWeight: 750, color: "var(--navy)" }}>Memuat Dompet Azla...</div>
+          <div style={{ fontSize: "16px", fontWeight: 750, color: "var(--navy)" }}>Memuat Catat Keluarga...</div>
         </div>
       </main>
     );

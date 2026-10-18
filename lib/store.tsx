@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType, Keluarga, Member } from "./types";
+import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga } from "./types";
 import GlobalLoader from "@/components/GlobalLoader";
 
 // ═══ Fallback Mock Data ═══
@@ -89,7 +89,7 @@ interface AppState {
   currentMember: Member | null;
   sessionUser: any;
   logout: () => Promise<void>;
-  updateMember: (memberId: string, displayName: string, role: "admin" | "member") => Promise<{ success: boolean; error?: string }>;
+  updateMember: (memberId: string, displayName: string, role: "admin" | "member", statusKeluarga?: StatusKeluarga) => Promise<{ success: boolean; error?: string }>;
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
   leaveFamily: () => Promise<{ success: boolean; error?: string }>;
   refreshMember: () => Promise<void>;
@@ -1077,7 +1077,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const updateMember = useCallback(async (
     memberId: string,
     displayName: string,
-    role: "admin" | "member"
+    role: "admin" | "member",
+    statusKeluarga?: StatusKeluarga
   ): Promise<{ success: boolean; error?: string }> => {
     setIsMutating(true);
     try {
@@ -1085,6 +1086,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       if (!trimmedName) {
         return { success: false, error: "Nama panggilan tidak boleh kosong." };
       }
+
+      const finalStatus = statusKeluarga || "suami";
 
       // Check sole admin rule if demoting an admin to member
       if (role === "member") {
@@ -1108,6 +1111,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         p_member_id: memberId,
         p_display_name: trimmedName,
         p_role: role,
+        p_status_keluarga: finalStatus,
       });
 
       if (rpcError) {
@@ -1117,6 +1121,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           .update({
             display_name: trimmedName,
             role,
+            status_keluarga: finalStatus,
             updated_at: new Date().toISOString(),
           })
           .eq("id", memberId);
@@ -1126,10 +1131,19 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         }
       }
 
+      // Update users table for legacy backward compatibility
+      await supabase
+        .from("users")
+        .update({
+          name: trimmedName,
+          role: finalStatus === "istri" ? "istri" : "suami",
+        })
+        .eq("id", memberId);
+
       // Update currentMember in state if updating self
       if (currentMember?.id === memberId) {
         setCurrentMember((prev) =>
-          prev ? { ...prev, display_name: trimmedName, role } : null
+          prev ? { ...prev, display_name: trimmedName, role, status_keluarga: finalStatus } : null
         );
       }
 

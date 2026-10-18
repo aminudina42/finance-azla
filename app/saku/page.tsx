@@ -5,6 +5,7 @@ import { useApp } from "@/lib/store";
 import SakuTxModal from "@/components/Modals/SakuTxModal";
 import AddSakuModal from "@/components/Modals/AddSakuModal";
 import EditSakuModal from "@/components/Modals/EditSakuModal";
+import PageHeader from "@/components/PageHeader";
 import type { Child, SakuTxType } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -70,30 +71,58 @@ export default function SakuPage() {
   const isNegative = (selectedSaku?.balance ?? 0) < 0;
 
   return (
-    <main id="pg-saku" className="page active">
-      <div className="ph">
-        <h2>💰 Saku</h2>
-        <p>Tabungan & kantong keuangan pribadi</p>
-      </div>
+    <main id="pg-saku" className="page active" style={{ paddingBottom: "110px" }}>
+      <PageHeader
+        title="Saku"
+        subtitle="Tabungan & kantong keuangan pribadi"
+        backHref="/"
+        action={
+          <button
+            type="button"
+            onClick={() => setShowAddSaku(true)}
+            style={{
+              padding: "7px 12px",
+              borderRadius: "10px",
+              background: "var(--primary)",
+              color: "#ffffff",
+              border: "none",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              boxShadow: "0 3px 10px rgba(40, 127, 240, 0.25)",
+            }}
+          >
+            <span>＋</span> Saku Baru
+          </button>
+        }
+      />
 
-      {/* Saku chips */}
-      <div className="child-selector">
+      {/* Saku chips selector */}
+      <div className="child-selector" style={{ padding: "14px 20px 6px" }}>
         {children.map((saku) => (
           <div
             key={saku.id}
             className={`child-chip ${saku.id === selectedSakuId ? "active" : ""}`}
             onClick={() => setSelectedSakuId(saku.id)}
+            style={{
+              borderRadius: "12px",
+              cursor: "pointer",
+              transition: "all 0.16s ease",
+            }}
           >
             <span className="child-chip-icon">{saku.icon}</span>
             <span className="child-chip-name">{saku.name}</span>
             {saku.type === "linked" && (
-              <span style={{ fontSize: "9px", color: "var(--purple)", marginLeft: "2px" }}>🔗</span>
+              <span style={{ fontSize: "10px", color: "var(--primary)", marginLeft: "2px" }}>🔗</span>
             )}
           </div>
         ))}
         <div
           className="child-chip"
-          style={{ borderStyle: "dashed" }}
+          style={{ borderStyle: "dashed", borderRadius: "12px", cursor: "pointer" }}
           onClick={() => setShowAddSaku(true)}
         >
           <span className="child-chip-icon">＋</span>
@@ -103,50 +132,51 @@ export default function SakuPage() {
 
       {/* Empty state */}
       {children.length === 0 && (
-        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
-          <div style={{ fontSize: "48px", marginBottom: "12px" }}>💰</div>
-          <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--text)", marginBottom: "6px" }}>Belum ada Saku</div>
-          <div style={{ fontSize: "13px" }}>
-            Tap <strong>＋ Tambah</strong> untuk membuat saku pertama Anda.
+        <div style={{ textAlign: "center", padding: "50px 20px", color: "var(--muted)" }}>
+          <div style={{ fontSize: "44px", marginBottom: "12px" }}>💰</div>
+          <div style={{ fontSize: "16px", fontWeight: 750, color: "var(--navy)", marginBottom: "6px" }}>Belum Ada Saku</div>
+          <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+            Tap <strong>＋ Saku Baru</strong> untuk membuat kantong simpanan atau tabungan pribadi.
           </div>
         </div>
       )}
 
       {selectedSaku && (
-        <div style={{ padding: "14px 20px 0" }}>
+        <div style={{ padding: "10px 20px 0" }}>
 
           {/* Negative balance warning */}
           {isNegative && (
             <div style={{
-              padding: "10px 14px",
-              background: "rgba(255,79,109,.1)",
-              border: "1px solid rgba(255,79,109,.3)",
-              borderRadius: "12px",
-              marginBottom: "12px",
+              padding: "12px 14px",
+              background: "rgba(240, 68, 103, 0.08)",
+              border: "1.5px solid rgba(240, 68, 103, 0.25)",
+              borderRadius: "14px",
+              marginBottom: "14px",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "10px",
             }}>
-              <span style={{ fontSize: "18px" }}>⚠️</span>
+              <span style={{ fontSize: "20px" }}>⚠️</span>
               <div>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--red)" }}>SALDO NEGATIF</div>
-                <div style={{ fontSize: "11px", color: "var(--muted)" }}>
-                  Saldo Saku ini negatif. Harap kembalikan saldo secepatnya.
+                <div style={{ fontSize: "12px", fontWeight: 750, color: "var(--danger)" }}>SALDO NEGATIF</div>
+                <div style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>
+                  Saldo Saku ini defisit. Kembalikan saldo dari pos atau pemasukan.
                 </div>
               </div>
               <button
                 onClick={handleReturnToSaku}
                 style={{
                   marginLeft: "auto",
-                  padding: "6px 12px",
-                  borderRadius: "8px",
+                  padding: "7px 12px",
+                  borderRadius: "10px",
                   border: "none",
-                  background: "var(--red)",
+                  background: "var(--danger)",
                   color: "#fff",
                   fontWeight: 700,
                   fontSize: "12px",
                   cursor: "pointer",
                   flexShrink: 0,
+                  boxShadow: "0 2px 8px rgba(240, 68, 103, 0.3)",
                 }}
               >
                 ↩️ Bayar
@@ -154,10 +184,50 @@ export default function SakuPage() {
             </div>
           )}
 
-          {/* Hero card */}
-          <div className="saku-hero">
-            <div className="sh-label">Saldo Saku</div>
-            <div className="sh-name">{selectedSaku.icon} {selectedSaku.name}</div>
+          {/* Hero card matching BudgetSummaryCard */}
+          <div
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              background: "linear-gradient(115deg, #ffffff 0%, #f7fbff 72%, #eaf6ff 100%)",
+              border: "1.5px solid #c7e5fb",
+              borderRadius: "20px",
+              boxShadow: "0 10px 24px rgba(38, 111, 183, 0.08)",
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative", zIndex: 1 }}>
+              <div>
+                <div style={{ fontSize: "11.5px", fontWeight: 750, color: "var(--text-secondary)", letterSpacing: "0.6px", textTransform: "uppercase" }}>
+                  Saldo Saku Aktif
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                  <span style={{ fontSize: "22px" }}>{selectedSaku.icon}</span>
+                  <span style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)" }}>{selectedSaku.name}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditSaku(selectedSaku)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text-secondary)",
+                  fontSize: "11.5px",
+                  fontWeight: 650,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                ✏️ Edit
+              </button>
+            </div>
 
             {/* Linked Pos badge */}
             {linkedPos && (
@@ -166,56 +236,94 @@ export default function SakuPage() {
                 alignItems: "center",
                 gap: "6px",
                 padding: "4px 10px",
-                background: "rgba(139,114,255,.15)",
+                background: "rgba(40, 127, 240, 0.1)",
                 borderRadius: "20px",
-                border: "1px solid rgba(139,114,255,.3)",
-                fontSize: "11px",
-                color: "var(--purple)",
-                fontWeight: 600,
-                marginBottom: "10px",
+                border: "1px solid rgba(40, 127, 240, 0.2)",
+                fontSize: "11.5px",
+                color: "var(--primary)",
+                fontWeight: 650,
+                width: "fit-content",
+                position: "relative",
+                zIndex: 1,
               }}>
-                🔗 Terhubung: {linkedPos.icon} {linkedPos.name}
+                🔗 Terhubung ke: {linkedPos.icon} {linkedPos.name}
               </div>
             )}
 
-            <div className="sh-bal" style={{ color: isNegative ? "var(--red)" : undefined }}>
-              {formatRp(selectedSaku.balance)}
-            </div>
-            <div className="sh-actions">
-              <button className="sh-btn out" onClick={() => openSakuTx("out")}>➖ Pengeluaran</button>
-              <button className="sh-btn in" onClick={() => openSakuTx("in")}>➕ Pemasukan</button>
-            </div>
-            <button
-              onClick={() => setEditSaku(selectedSaku)}
+            <div
               style={{
-                marginTop: "10px",
-                padding: "6px 16px",
-                borderRadius: "8px",
-                border: "1px solid var(--s3)",
-                background: "transparent",
-                color: "var(--muted)",
-                fontSize: "12px",
-                cursor: "pointer",
+                fontSize: "clamp(26px, 6vw, 36px)",
+                fontWeight: 850,
+                letterSpacing: "-1px",
+                color: isNegative ? "var(--danger)" : "var(--navy)",
+                position: "relative",
+                zIndex: 1,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
-              ✏️ Edit Saku
-            </button>
+              {formatRp(selectedSaku.balance)}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", paddingTop: "8px", borderTop: "1px solid #d8eaf8", position: "relative", zIndex: 1 }}>
+              <button
+                onClick={() => openSakuTx("out")}
+                style={{
+                  padding: "10px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(240, 68, 103, 0.2)",
+                  background: "rgba(240, 68, 103, 0.08)",
+                  color: "var(--danger)",
+                  fontWeight: 750,
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  transition: "background 0.15s ease",
+                }}
+              >
+                <span>➖</span> Pengeluaran
+              </button>
+              <button
+                onClick={() => openSakuTx("in")}
+                style={{
+                  padding: "10px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(22, 168, 154, 0.2)",
+                  background: "rgba(22, 168, 154, 0.08)",
+                  color: "var(--teal)",
+                  fontWeight: 750,
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  transition: "background 0.15s ease",
+                }}
+              >
+                <span>➕</span> Pemasukan
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Ringkasan bulan ini */}
       {selectedSaku && (
-        <div className="saku-section">
-          <div className="sec-label">Ringkasan Bulan Ini</div>
+        <div style={{ padding: "20px 20px 0" }}>
+          <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--navy)", marginBottom: "12px", letterSpacing: "-0.2px" }}>
+            Ringkasan Bulan Ini
+          </h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
-            <div style={{ background: "rgba(255,79,109,.08)", border: "1px solid rgba(255,79,109,.2)", borderRadius: "12px", padding: "14px" }}>
-              <div style={{ fontSize: "11px", color: "var(--red)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", marginBottom: "4px" }}>Keluar</div>
-              <div style={{ fontFamily: "'Fraunces',serif", fontSize: "20px", fontWeight: 900, color: "var(--red)" }}>{formatRp(totalOut)}</div>
+            <div style={{ background: "rgba(240, 68, 103, 0.06)", border: "1px solid rgba(240, 68, 103, 0.2)", borderRadius: "14px", padding: "14px" }}>
+              <div style={{ fontSize: "11px", color: "var(--danger)", fontWeight: 750, textTransform: "uppercase", letterSpacing: ".8px", marginBottom: "4px" }}>Keluar</div>
+              <div style={{ fontSize: "18px", fontWeight: 850, color: "var(--danger)", fontVariantNumeric: "tabular-nums" }}>{formatRp(totalOut)}</div>
             </div>
-            <div style={{ background: "rgba(0,201,167,.08)", border: "1px solid rgba(0,201,167,.2)", borderRadius: "12px", padding: "14px" }}>
-              <div style={{ fontSize: "11px", color: "var(--teal)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", marginBottom: "4px" }}>Masuk</div>
-              <div style={{ fontFamily: "'Fraunces',serif", fontSize: "20px", fontWeight: 900, color: "var(--teal)" }}>{formatRp(totalIn)}</div>
+            <div style={{ background: "rgba(22, 168, 154, 0.06)", border: "1px solid rgba(22, 168, 154, 0.2)", borderRadius: "14px", padding: "14px" }}>
+              <div style={{ fontSize: "11px", color: "var(--teal)", fontWeight: 750, textTransform: "uppercase", letterSpacing: ".8px", marginBottom: "4px" }}>Masuk</div>
+              <div style={{ fontSize: "18px", fontWeight: 850, color: "var(--teal)", fontVariantNumeric: "tabular-nums" }}>{formatRp(totalIn)}</div>
             </div>
           </div>
         </div>
@@ -223,39 +331,74 @@ export default function SakuPage() {
 
       {/* Riwayat transaksi */}
       {selectedSaku && (
-        <div className="saku-section">
-          <div className="sec-label">Riwayat Transaksi</div>
+        <div style={{ padding: "8px 20px 0" }}>
+          <h3 style={{ fontSize: "15px", fontWeight: 800, color: "var(--navy)", marginBottom: "12px", letterSpacing: "-0.2px" }}>
+            Riwayat Transaksi
+          </h3>
           {sakuTxs.length === 0 && (
-            <p style={{ color: "var(--muted)", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>
-              Belum ada transaksi.
-            </p>
+            <div style={{ textAlign: "center", padding: "30px 20px", background: "#ffffff", borderRadius: "14px", border: "1px dashed var(--border)", color: "var(--text-secondary)", fontSize: "13px" }}>
+              Belum ada riwayat transaksi pada saku ini.
+            </div>
           )}
           {sakuTxs.map((tx) => {
-            const meta = TX_TYPE_LABELS[tx.type] ?? { label: tx.type, color: "var(--muted)", sign: "" };
+            const meta = TX_TYPE_LABELS[tx.type] ?? { label: tx.type, color: "var(--text-secondary)", sign: "" };
             const isPositive = ["in","cycle_surplus","return_to_saku"].includes(tx.type);
             const dateStr = new Date(tx.created_at).toLocaleDateString("id-ID", {
               day: "numeric", month: "short", year: "numeric",
             });
             return (
-              <div className="sk-item" key={tx.id}>
-                <div className={`sk-dot ${isPositive ? "in" : "out"}`}>{tx.icon}</div>
-                <div className="sk-info">
-                  <div className="sk-desc">{tx.description}</div>
-                  <div className="sk-date" style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                    <span>{dateStr}</span>
-                    <span style={{
-                      fontSize: "10px",
-                      padding: "1px 6px",
-                      borderRadius: "6px",
-                      background: `${meta.color}22`,
-                      color: meta.color,
-                      fontWeight: 700,
-                    }}>
-                      {meta.label}
-                    </span>
+              <div
+                key={tx.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  background: "#ffffff",
+                  border: "1px solid var(--border)",
+                  borderRadius: "14px",
+                  padding: "12px 14px",
+                  marginBottom: "8px",
+                  boxShadow: "0 2px 6px rgba(16, 45, 85, 0.03)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      background: isPositive ? "rgba(22, 168, 154, 0.1)" : "rgba(240, 68, 103, 0.1)",
+                      color: isPositive ? "var(--teal)" : "var(--danger)",
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: "14px",
+                      fontWeight: 750,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isPositive ? "↓" : "↑"}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--navy)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {tx.description || "Transaksi Saku"}
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "2px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{dateStr}</span>
+                      <span style={{
+                        fontSize: "9.5px",
+                        padding: "1px 6px",
+                        borderRadius: "5px",
+                        background: `${meta.color}18`,
+                        color: meta.color,
+                        fontWeight: 750,
+                      }}>
+                        {meta.label}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div style={{ color: meta.color, fontFamily: "'Fraunces',serif", fontSize: "15px", fontWeight: 900, textAlign: "right" }}>
+                <div style={{ color: meta.color, fontSize: "14.5px", fontWeight: 800, textAlign: "right", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
                   {meta.sign}{formatRp(tx.amount)}
                 </div>
               </div>

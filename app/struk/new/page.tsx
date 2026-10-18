@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useApp } from "@/lib/store";
 import ThermalReceipt from "@/components/ThermalReceipt";
+import PageHeader from "@/components/PageHeader";
 import type { ReceiptItem } from "@/lib/types";
 
 function generateReceiptNumber() {
@@ -234,15 +235,13 @@ export default function NewStrukPage() {
   };
 
   return (
-    <main className="page active" style={{ paddingBottom: "100px" }}>
-      {/* Header */}
-      <div className="ph ph-border" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <button onClick={() => { setIsNavigating(true); router.back(); }} className="ib" style={{ fontSize: "18px" }}>←</button>
-        <div>
-          <h2>✏️ Buat Struk</h2>
-          <p>Isi data toko dan barang, lalu simpan</p>
-        </div>
-      </div>
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      {/* Header Standardized */}
+      <PageHeader
+        title="Buat Struk Baru"
+        subtitle="Isi data toko dan barang belanja, lalu simpan"
+        onBack={() => { setIsNavigating(true); router.back(); }}
+      />
 
       <div className="struk-body">
 
@@ -315,7 +314,7 @@ export default function NewStrukPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "14px", animation: "pageIn .2s ease both" }}>
               <div className="fg">
                 <div className="fl">Nama Merchant / Pemilik</div>
-                <input type="text" className="fi" placeholder="Contoh: AZLA STORE"
+                <input type="text" className="fi" placeholder="Contoh: CATAT STORE"
                   value={qrisName} onChange={e => setQrisName(e.target.value)} />
               </div>
               

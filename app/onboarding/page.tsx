@@ -219,7 +219,7 @@ function OnboardingContent() {
               fontWeight: 800,
             }}
           >
-            Selamat Datang di Dompet Azla
+            Selamat Datang di Catat Keluarga
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px" }}>
             Mulai kelola pos keuangan keluarga bersama pasangan
@@ -372,7 +372,7 @@ function OnboardingContent() {
                 className="fi"
                 value={namaKeluarga}
                 onChange={(e) => setNamaKeluarga(e.target.value)}
-                placeholder="Contoh: Keluarga Azla"
+                placeholder="Contoh: Keluarga Kami"
                 required
                 style={{
                   background: "#f8fbff",
@@ -471,7 +471,7 @@ function OnboardingContent() {
                 className="fi"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                placeholder="AZLA-XXXXXX"
+                placeholder="CK-XXXXXX"
                 required
                 style={{
                   background: "#f8fbff",

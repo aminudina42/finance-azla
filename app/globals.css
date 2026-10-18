@@ -4,7 +4,7 @@
   --font-sans: var(--font-dm-sans), sans-serif;
   --font-fraunces: var(--font-fraunces), serif;
 
-  /* Dompet Azla Light Color Palette */
+  /* Catat Keluarga Light Color Palette */
   --color-da-bg: #f7fbff;
   --color-da-surface: #ffffff;
   --color-da-soft: #f1f8fd;
@@ -22,7 +22,7 @@
   --color-da-danger: #f04467;
   --color-da-track: #e5edf5;
 
-  /* Dompet Pintar Color Palette */
+  /* Catat Keluarga Accent Color Palette */
   --color-dp-bg: var(--bg);
   --color-dp-s1: var(--s1);
   --color-dp-s2: var(--s2);
@@ -41,7 +41,7 @@
 
 @layer base {
   :root, [data-theme="light"] {
-    /* === Dompet Azla Light Theme Tokens === */
+    /* === Catat Keluarga Light Theme Tokens === */
     --bg: #f7fbff;
     --bg-desktop: #f1f8fd;
     --surface: #ffffff;
@@ -343,7 +343,7 @@
     }
   }
 
-  /* ══ DOMPET AZLA DASHBOARD REDESIGN ══ */
+  /* ══ CATAT KELUARGA DASHBOARD REDESIGN ══ */
   .dash-main {
     position: relative;
     padding: 20px 18px 140px;

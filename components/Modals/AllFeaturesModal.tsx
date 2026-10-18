@@ -271,13 +271,15 @@ export default function AllFeaturesModal({
                   width: "34px",
                   height: "34px",
                   borderRadius: "50%",
-                  background: "linear-gradient(135deg, var(--navy), #2563eb)",
+                  background: "var(--primary, #287ff0)",
                   display: "grid",
                   placeItems: "center",
-                  color: "#fff",
+                  color: "#ffffff",
                   fontSize: "13px",
                   fontWeight: 800,
-                  flexShrink: 0
+                  flexShrink: 0,
+                  border: "1.5px solid #ffffff",
+                  boxShadow: "0 2px 6px rgba(40, 127, 240, 0.20)"
                 }}
               >
                 {(currentMember?.display_name || sessionUser?.email || "U").charAt(0).toUpperCase()}
@@ -305,7 +307,7 @@ export default function AllFeaturesModal({
                   textOverflow: "ellipsis"
                 }}
               >
-                {currentKeluarga?.nama_keluarga || "Keluarga Azla"}
+                {currentKeluarga?.nama_keluarga || "Keluarga Kami"}
               </div>
             </div>
           </div>
@@ -338,7 +340,7 @@ export default function AllFeaturesModal({
       <AlertModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
-        title="Akhiri Sesi Dompet Azla?"
+        title="Akhiri Sesi Catat Keluarga?"
         message={`Apakah Anda yakin ingin keluar dari akun ${sessionUser?.email || "ini"}? Anda dapat masuk kembali dengan akun Google Anda kapan saja.`}
         confirmText={isLoggingOut ? "Mengakhiri Sesi..." : "Ya, Keluar Akun"}
         cancelText="Batal"

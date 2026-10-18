@@ -17,11 +17,14 @@ export interface Keluarga {
   updated_at: string;
 }
 
+export type StatusKeluarga = "suami" | "istri" | "anak";
+
 export interface Member {
   id: string;
   keluarga_id: string;
   display_name: string;
   role: "admin" | "member";
+  status_keluarga?: StatusKeluarga | null;
   avatar_url?: string | null;
   created_at: string;
   updated_at: string;

@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
-import type { Member } from "@/lib/types";
+import type { Member, StatusKeluarga } from "@/lib/types";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import AlertModal from "@/components/Modals/AlertModal";
 import EditMemberModal from "@/components/Modals/EditMemberModal";
+import PageHeader from "@/components/PageHeader";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -135,8 +136,13 @@ export default function ManagerPage() {
     };
   }, [currentKeluarga?.id]);
 
-  const handleSaveMember = async (memberId: string, displayName: string, role: "admin" | "member") => {
-    const res = await updateMember(memberId, displayName, role);
+  const handleSaveMember = async (
+    memberId: string,
+    displayName: string,
+    role: "admin" | "member",
+    statusKeluarga: StatusKeluarga
+  ) => {
+    const res = await updateMember(memberId, displayName, role, statusKeluarga);
     if (!res.success) {
       throw new Error(res.error || "Gagal memperbarui profil anggota.");
     }
@@ -158,7 +164,7 @@ export default function ManagerPage() {
     }
   };
 
-  const inviteCode = currentKeluarga?.invite_code || "AZLA-DEFAULT";
+  const inviteCode = currentKeluarga?.invite_code || "CK-DEFAULT";
 
   const handleCopyInviteCode = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -174,6 +180,7 @@ export default function ManagerPage() {
       keluarga_id: currentKeluarga?.id || "",
       display_name: currentMember?.display_name || "Anda (Suami)",
       role: "admin",
+      status_keluarga: "suami",
       created_at: "",
       updated_at: "",
     },
@@ -182,6 +189,7 @@ export default function ManagerPage() {
       keluarga_id: currentKeluarga?.id || "",
       display_name: "Istri",
       role: "member",
+      status_keluarga: "istri",
       created_at: "",
       updated_at: "",
     },
@@ -189,10 +197,11 @@ export default function ManagerPage() {
 
   return (
     <main id="pg-manager" className="page active" style={{ paddingBottom: "110px" }}>
-      <div className="ph ph-border">
-        <h2>⚙️ Pengaturan &amp; Keluarga</h2>
-        <p>Kelola profil rumah tangga, siklus, dan preferensi aplikasi</p>
-      </div>
+      <PageHeader
+        title="Pengaturan & Keluarga"
+        subtitle="Kelola profil rumah tangga, siklus, dan preferensi aplikasi"
+        backHref="/"
+      />
       <div className="mgr-body">
         {/* 1. Mulai Siklus Baru */}
         <div className="gajian-card">
@@ -227,7 +236,7 @@ export default function ManagerPage() {
                 </span>
               </p>
               <h3 style={{ fontSize: "18px", marginTop: "2px" }}>
-                {currentKeluarga?.nama_keluarga || "Keluarga Azla"}
+                {currentKeluarga?.nama_keluarga || "Keluarga Kami"}
               </h3>
             </div>
           </div>
@@ -276,22 +285,39 @@ export default function ManagerPage() {
                 onClick={handleCopyInviteCode}
                 style={{
                   padding: "10px 16px",
-                  borderRadius: "8px",
-                  background: copied ? "var(--teal)" : "linear-gradient(135deg, var(--navy), #2563eb)",
-                  color: "#fff",
+                  borderRadius: "10px",
+                  background: copied ? "var(--success, #16a89a)" : "var(--primary, #287ff0)",
+                  color: "#ffffff",
                   border: "none",
                   fontWeight: 700,
                   fontSize: "13px",
                   cursor: "pointer",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                  transition: "all 0.2s ease",
+                  boxShadow: copied
+                    ? "0 2px 8px rgba(22, 168, 154, 0.25)"
+                    : "0 2px 8px rgba(40, 127, 240, 0.25)",
+                  transition: "all 0.18s ease",
                   whiteSpace: "nowrap"
                 }}
               >
-                {copied ? "Tersalin! ✅" : "Salin 📋"}
+                {copied ? (
+                  <>
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Tersalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    <span>Salin Kode</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -367,23 +393,30 @@ export default function ManagerPage() {
                         width: "38px",
                         height: "38px",
                         borderRadius: "50%",
-                        background: isTargetAdmin
-                          ? "linear-gradient(135deg, #102d55, #2563eb)"
-                          : "linear-gradient(135deg, #059669, #10b981)",
+                        background: isTargetAdmin ? "var(--primary, #287ff0)" : "var(--teal, #16a89a)",
                         display: "grid",
                         placeItems: "center",
-                        color: "#fff",
-                        fontSize: "15px",
+                        color: "#ffffff",
+                        fontSize: m.status_keluarga ? "18px" : "15px",
                         fontWeight: 800,
                         flexShrink: 0,
-                        boxShadow: "0 2px 6px rgba(16,45,85,0.12)"
+                        border: "2px solid #ffffff",
+                        boxShadow: isTargetAdmin
+                          ? "0 2px 8px rgba(40, 127, 240, 0.20)"
+                          : "0 2px 8px rgba(22, 168, 154, 0.20)"
                       }}
                     >
-                      {m.display_name.charAt(0).toUpperCase()}
+                      {m.status_keluarga === "suami"
+                        ? "👨‍💼"
+                        : m.status_keluarga === "istri"
+                        ? "👩"
+                        : m.status_keluarga === "anak"
+                        ? "🧒"
+                        : m.display_name.charAt(0).toUpperCase()}
                     </div>
 
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                         <span
                           style={{
                             fontSize: "13.5px",
@@ -396,6 +429,28 @@ export default function ManagerPage() {
                         >
                           {m.display_name}
                         </span>
+                        {m.status_keluarga && (
+                          <span
+                            style={{
+                              fontSize: "9.5px",
+                              fontWeight: 750,
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                              background: m.status_keluarga === "suami"
+                                ? "rgba(40,127,240,0.12)"
+                                : m.status_keluarga === "istri"
+                                ? "rgba(22,168,154,0.12)"
+                                : "rgba(244,163,59,0.14)",
+                              color: m.status_keluarga === "suami"
+                                ? "#287ff0"
+                                : m.status_keluarga === "istri"
+                                ? "#16a89a"
+                                : "#d97706"
+                            }}
+                          >
+                            {m.status_keluarga === "suami" ? "👨‍💼 Suami" : m.status_keluarga === "istri" ? "👩 Istri" : "🧒 Anak"}
+                          </span>
+                        )}
                         {isSelf && (
                           <span
                             style={{
@@ -501,13 +556,14 @@ export default function ManagerPage() {
               width: "60px",
               height: "60px",
               borderRadius: "14px",
-              background: logoSettings.bg || "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
+              background: logoSettings.bg || "var(--primary, #287ff0)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: "30px",
               overflow: "hidden",
-              border: "1px solid var(--border)",
+              border: "1.5px solid var(--border)",
+              boxShadow: "0 2px 8px rgba(16, 45, 85, 0.06)",
               flexShrink: 0
             }}>
               {logoSettings.type === "image" && logoSettings.image ? (
@@ -601,14 +657,13 @@ export default function ManagerPage() {
               <div className="fl" style={{ fontSize: "9px" }}>Pilih Preset Background (Berlaku untuk Emoji & Gambar Transparan)</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "2px" }}>
                 {[
-                  "linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)",
-                  "linear-gradient(135deg, #00c9a7 0%, #8b72ff 100%)",
-                  "linear-gradient(135deg, #ffb340 0%, #ff4f6d 100%)",
-                  "linear-gradient(135deg, #13131a 0%, #2e2e3e 100%)",
-                  "#8b72ff",
-                  "#ff72b8",
-                  "#00c9a7",
-                  "#ffb340",
+                  "#287ff0", // Catat Keluarga Primary Blue
+                  "#102d55", // Deep Navy
+                  "#16a89a", // Teal
+                  "#f4a33b", // Amber
+                  "#eaf5fc", // Soft Blue
+                  "#ffffff", // White Surface
+                  "#17375f", // Slate Text
                   "transparent",
                 ].map((presetBg) => (
                   <div
@@ -665,7 +720,7 @@ export default function ManagerPage() {
               style={{
                 padding: "8px 16px",
                 borderRadius: "10px",
-                background: "linear-gradient(135deg, var(--teal), #00a88c)",
+                background: "var(--teal, #16a89a)",
                 color: "#ffffff",
                 textDecoration: "none",
                 fontWeight: 700,
@@ -673,7 +728,7 @@ export default function ManagerPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                boxShadow: "0 2px 8px rgba(0,201,167,0.2)"
+                boxShadow: "0 2px 8px rgba(22, 168, 154, 0.25)"
               }}
             >
               Buka Dompet →
@@ -787,14 +842,15 @@ export default function ManagerPage() {
                     width: "44px",
                     height: "44px",
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg, var(--navy), #2563eb)",
+                    background: "var(--primary, #287ff0)",
                     display: "grid",
                     placeItems: "center",
-                    color: "#fff",
-                    fontSize: "16px",
+                    color: "#ffffff",
+                    fontSize: "17px",
                     fontWeight: 800,
                     flexShrink: 0,
-                    boxShadow: "0 2px 8px rgba(16,45,85,0.14)"
+                    border: "2px solid #ffffff",
+                    boxShadow: "0 2px 8px rgba(40, 127, 240, 0.20)"
                   }}
                 >
                   {(currentMember?.display_name || sessionUser?.email || "U").charAt(0).toUpperCase()}
@@ -812,7 +868,7 @@ export default function ManagerPage() {
                     textOverflow: "ellipsis"
                   }}
                 >
-                  {currentMember?.display_name || sessionUser?.user_metadata?.full_name || sessionUser?.email?.split("@")[0] || "Pengguna Dompet"}
+                  {currentMember?.display_name || sessionUser?.user_metadata?.full_name || sessionUser?.email?.split("@")[0] || "Anggota Catat Keluarga"}
                 </div>
                 <div
                   style={{
@@ -844,7 +900,7 @@ export default function ManagerPage() {
                 {currentMember?.role === "admin" ? "👑 Admin" : "👤 Anggota"}
               </span>
               <span style={{ fontSize: "10.5px", color: "var(--muted)", fontWeight: 600 }}>
-                {currentKeluarga?.nama_keluarga || "Keluarga Azla"}
+                {currentKeluarga?.nama_keluarga || "Keluarga Kami"}
               </span>
             </div>
           </div>
@@ -912,7 +968,7 @@ export default function ManagerPage() {
       <AlertModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
-        title="Akhiri Sesi Dompet Azla?"
+        title="Akhiri Sesi Catat Keluarga?"
         message={`Apakah Anda yakin ingin keluar dari akun ${sessionUser?.email || "ini"}? Anda dapat masuk kembali dengan akun Google Anda kapan saja.`}
         confirmText={isLoggingOut ? "Mengakhiri Sesi..." : "Ya, Keluar Akun"}
         cancelText="Tetap Masuk"

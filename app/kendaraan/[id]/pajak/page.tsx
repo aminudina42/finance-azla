@@ -6,6 +6,7 @@ import type { Vehicle } from "@/lib/types";
 import { getVehicleById, recordVehicleTaxPayment } from "@/lib/vehicle-service";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
 import DateInput from "@/components/Kendaraan/DateInput";
+import PageHeader from "@/components/PageHeader";
 import { useApp } from "@/lib/store";
 
 interface PageProps {
@@ -145,52 +146,13 @@ export default function BayarPajakPage({ params }: PageProps) {
   }
 
   return (
-    <main className="page active" style={{ paddingBottom: "90px" }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "16px 20px 12px",
-          background: "var(--bg)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => router.back()}
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            color: "var(--navy)",
-            cursor: "pointer",
-          }}
-          aria-label="Kembali"
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1
-          style={{
-            fontSize: "18px",
-            fontWeight: 800,
-            color: "var(--navy)",
-            margin: 0,
-            letterSpacing: "-0.3px",
-          }}
-        >
-          Bayar Pajak
-        </h1>
-      </div>
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      {/* Header Standardized */}
+      <PageHeader
+        title="Bayar Pajak"
+        subtitle="Catat pembayaran dan perpanjangan STNK/pajak"
+        onBack={() => router.back()}
+      />
 
       <div style={{ padding: "0 20px" }}>
         {/* Compact Vehicle Card */}

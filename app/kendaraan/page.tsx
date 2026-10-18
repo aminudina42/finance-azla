@@ -7,6 +7,7 @@ import type { Vehicle } from "@/lib/types";
 import { getVehicles } from "@/lib/vehicle-service";
 import { calculateTaxStatus, calculateServiceStatus } from "@/lib/vehicle-utils";
 import VehicleCard from "@/components/Kendaraan/VehicleCard";
+import PageHeader from "@/components/PageHeader";
 
 export default function KendaraanPage() {
   const router = useRouter();
@@ -82,87 +83,34 @@ export default function KendaraanPage() {
   }, [vehicles, searchQuery, activeFilter]);
 
   return (
-    <main className="page active" style={{ paddingBottom: "90px" }}>
-      {/* Top Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 20px 12px",
-          background: "var(--bg)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      {/* Top Header Standardized */}
+      <PageHeader
+        title="Kendaraan"
+        subtitle={`Kendaraan keluarga · ${vehicles.length} kendaraan`}
+        backHref="/"
+        action={
+          <Link
+            href="/kendaraan/tambah"
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              color: "var(--navy)",
-              cursor: "pointer",
+              padding: "7px 12px",
+              borderRadius: "10px",
+              background: "var(--primary)",
+              color: "#ffffff",
+              fontSize: "12px",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              boxShadow: "0 3px 10px rgba(40, 127, 240, 0.25)",
+              textDecoration: "none",
             }}
-            aria-label="Kembali ke Beranda"
+            aria-label="Tambah Kendaraan"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div>
-            <h1
-              style={{
-                fontSize: "18px",
-                fontWeight: 800,
-                color: "var(--navy)",
-                margin: 0,
-                letterSpacing: "-0.3px",
-              }}
-            >
-              Kendaraan
-            </h1>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--text-secondary)",
-                margin: 0,
-                fontWeight: 500,
-              }}
-            >
-              Kendaraan keluarga · {vehicles.length} kendaraan
-            </p>
-          </div>
-        </div>
-
-        <Link
-          href="/kendaraan/tambah"
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "50%",
-            background: "var(--primary)",
-            color: "#ffffff",
-            display: "grid",
-            placeItems: "center",
-            boxShadow: "0 4px 12px rgba(40, 127, 240, 0.3)",
-            textDecoration: "none",
-          }}
-          aria-label="Tambah Kendaraan"
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </Link>
-      </div>
+            <span>＋</span> Tambah
+          </Link>
+        }
+      />
 
       <div style={{ padding: "0 20px" }}>
         {/* Stat Summary Cards */}

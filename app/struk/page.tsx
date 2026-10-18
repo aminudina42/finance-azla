@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Receipt } from "@/lib/types";
 import { useApp } from "@/lib/store";
+import PageHeader from "@/components/PageHeader";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -158,12 +159,35 @@ export default function StrukListPage() {
   const totalNominal = filteredReceipts.reduce((s, r) => s + (r.total || 0), 0);
 
   return (
-    <main id="pg-struk" className="page active">
-      {/* ── Header ── */}
-      <div className="ph ph-border">
-        <h2>🧾 Struk Dinamis</h2>
-        <p>Buat dan kelola struk transaksi digital</p>
-      </div>
+    <main id="pg-struk" className="page active" style={{ paddingBottom: "110px" }}>
+      {/* ── Standardized Header ── */}
+      <PageHeader
+        title="Struk Dinamis"
+        subtitle="Buat dan kelola struk transaksi digital"
+        backHref="/"
+        action={
+          <button
+            type="button"
+            onClick={() => { setIsNavigating(true); router.push("/struk/new"); }}
+            style={{
+              padding: "7px 12px",
+              borderRadius: "10px",
+              background: "var(--primary)",
+              color: "#ffffff",
+              border: "none",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              boxShadow: "0 3px 10px rgba(40, 127, 240, 0.25)",
+            }}
+          >
+            <span>＋</span> Buat Struk
+          </button>
+        }
+      />
 
       <div className="struk-body">
 
@@ -172,7 +196,7 @@ export default function StrukListPage() {
           <span className="struk-new-icon">＋</span>
           <div>
             <div className="struk-new-title">Buat Struk Baru</div>
-            <div className="struk-new-sub">Input item, cetak & bagikan ke WA</div>
+            <div className="struk-new-sub">Input item belanja, cetak thermal & bagikan ke WA</div>
           </div>
         </button>
 
@@ -182,11 +206,11 @@ export default function StrukListPage() {
             {/* Filter Selector */}
             <div style={{
               display: "flex",
-              gap: "8px",
-              background: "var(--s1)",
+              gap: "6px",
+              background: "#f1f8fd",
               border: "1px solid var(--border)",
               padding: "4px",
-              borderRadius: "var(--r)",
+              borderRadius: "14px",
               justifyContent: "space-between",
               alignItems: "center",
               marginTop: "4px"
@@ -202,13 +226,14 @@ export default function StrukListPage() {
                       flex: 1,
                       padding: "8px 12px",
                       fontSize: "12px",
-                      fontWeight: 700,
-                      borderRadius: "var(--r-sm)",
+                      fontWeight: 750,
+                      borderRadius: "10px",
                       border: "none",
-                      background: isActive ? "linear-gradient(135deg, var(--teal), #00a88c)" : "transparent",
-                      color: isActive ? "#fff" : "var(--muted)",
+                      background: isActive ? "var(--surface)" : "transparent",
+                      color: isActive ? "var(--primary)" : "var(--text-secondary)",
                       cursor: "pointer",
-                      transition: "all 0.2s ease",
+                      boxShadow: isActive ? "0 2px 8px rgba(40, 127, 240, 0.12)" : "none",
+                      transition: "all 0.16s ease",
                       textAlign: "center"
                     }}
                   >

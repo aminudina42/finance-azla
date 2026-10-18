@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
-import type { Member } from "@/lib/types";
+import type { Member, StatusKeluarga } from "@/lib/types";
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -11,7 +11,7 @@ interface EditMemberModalProps {
   isAdmin: boolean;
   isSelf: boolean;
   isSoleAdmin: boolean;
-  onSave: (memberId: string, displayName: string, role: "admin" | "member") => Promise<void>;
+  onSave: (memberId: string, displayName: string, role: "admin" | "member", statusKeluarga: StatusKeluarga) => Promise<void>;
   onRemove: (memberId: string) => Promise<void>;
   onLeaveFamily?: () => Promise<void>;
 }
@@ -29,6 +29,7 @@ export default function EditMemberModal({
 }: EditMemberModalProps) {
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
+  const [statusKeluarga, setStatusKeluarga] = useState<StatusKeluarga>("suami");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -39,6 +40,7 @@ export default function EditMemberModal({
     if (member) {
       setDisplayName(member.display_name || "");
       setRole(member.role || "member");
+      setStatusKeluarga(member.status_keluarga || (member.role === "admin" ? "suami" : "istri"));
       setErrorMsg("");
       setConfirmDeleteOpen(false);
       setConfirmLeaveOpen(false);
@@ -64,7 +66,7 @@ export default function EditMemberModal({
 
     setIsSubmitting(true);
     try {
-      await onSave(member.id, trimmed, role);
+      await onSave(member.id, trimmed, role, statusKeluarga);
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || "Gagal menyimpan perubahan anggota.");
@@ -139,22 +141,45 @@ export default function EditMemberModal({
               width: "44px",
               height: "44px",
               borderRadius: "50%",
-              background: role === "admin" ? "linear-gradient(135deg, #102d55, #2563eb)" : "linear-gradient(135deg, #059669, #10b981)",
+              background: role === "admin" ? "var(--primary, #287ff0)" : "var(--teal, #16a89a)",
               display: "grid",
               placeItems: "center",
               color: "#ffffff",
-              fontSize: "17px",
+              fontSize: "20px",
               fontWeight: 800,
-              boxShadow: "0 2px 6px rgba(16, 45, 85, 0.12)",
+              border: "2px solid #ffffff",
+              boxShadow: role === "admin"
+                ? "0 2px 8px rgba(40, 127, 240, 0.20)"
+                : "0 2px 8px rgba(22, 168, 154, 0.20)",
               flexShrink: 0
             }}
           >
-            {(displayName || member.display_name || "A").charAt(0).toUpperCase()}
+            {statusKeluarga === "suami" ? "👨‍💼" : statusKeluarga === "istri" ? "👩" : "🧒"}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
               <span style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>
                 {displayName || member.display_name}
+              </span>
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 750,
+                  padding: "1px 6px",
+                  borderRadius: "4px",
+                  background: statusKeluarga === "suami"
+                    ? "rgba(40,127,240,0.12)"
+                    : statusKeluarga === "istri"
+                    ? "rgba(22,168,154,0.12)"
+                    : "rgba(244,163,59,0.14)",
+                  color: statusKeluarga === "suami"
+                    ? "#287ff0"
+                    : statusKeluarga === "istri"
+                    ? "#16a89a"
+                    : "#d97706"
+                }}
+              >
+                {statusKeluarga === "suami" ? "Suami" : statusKeluarga === "istri" ? "Istri" : "Anak"}
               </span>
               {isSelf && (
                 <span style={{
@@ -221,7 +246,120 @@ export default function EditMemberModal({
             </div>
           </div>
 
-          {/* Field 2: Peran (Role Selector) */}
+          {/* Field 2: Status di Keluarga (Suami, Istri, Anak) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label className="fl" style={{ fontSize: "11px", fontWeight: 750, color: "var(--navy)", margin: 0 }}>
+                Status di Keluarga
+              </label>
+              <span style={{ fontSize: "10.5px", color: "var(--muted)", fontWeight: 600 }}>
+                Hubungan Rumah Tangga
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+              {/* Option Suami */}
+              <div
+                onClick={() => {
+                  if (isAdmin || isSelf) setStatusKeluarga("suami");
+                }}
+                style={{
+                  border: statusKeluarga === "suami" ? "2px solid #287ff0" : "1.5px solid var(--border)",
+                  background: statusKeluarga === "suami" ? "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)" : "var(--surface)",
+                  borderRadius: "12px",
+                  padding: "10px 8px",
+                  cursor: isAdmin || isSelf ? "pointer" : "not-allowed",
+                  opacity: isAdmin || isSelf ? 1 : 0.6,
+                  transition: "all 0.18s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  gap: "4px"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                  <span style={{ fontSize: "18px" }}>👨‍💼</span>
+                  {statusKeluarga === "suami" && <span style={{ fontSize: "11px", color: "#287ff0", fontWeight: 800 }}>✓</span>}
+                </div>
+                <div style={{ fontSize: "12.5px", fontWeight: 750, color: "var(--navy)", marginTop: "2px" }}>
+                  Suami
+                </div>
+                <div style={{ fontSize: "9.5px", color: "var(--text-secondary)", lineHeight: "1.2" }}>
+                  Kepala Keluarga
+                </div>
+              </div>
+
+              {/* Option Istri */}
+              <div
+                onClick={() => {
+                  if (isAdmin || isSelf) setStatusKeluarga("istri");
+                }}
+                style={{
+                  border: statusKeluarga === "istri" ? "2px solid #16a89a" : "1.5px solid var(--border)",
+                  background: statusKeluarga === "istri" ? "linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)" : "var(--surface)",
+                  borderRadius: "12px",
+                  padding: "10px 8px",
+                  cursor: isAdmin || isSelf ? "pointer" : "not-allowed",
+                  opacity: isAdmin || isSelf ? 1 : 0.6,
+                  transition: "all 0.18s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  gap: "4px"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                  <span style={{ fontSize: "18px" }}>👩</span>
+                  {statusKeluarga === "istri" && <span style={{ fontSize: "11px", color: "#16a89a", fontWeight: 800 }}>✓</span>}
+                </div>
+                <div style={{ fontSize: "12.5px", fontWeight: 750, color: "var(--navy)", marginTop: "2px" }}>
+                  Istri
+                </div>
+                <div style={{ fontSize: "9.5px", color: "var(--text-secondary)", lineHeight: "1.2" }}>
+                  Ibu Rumah Tangga
+                </div>
+              </div>
+
+              {/* Option Anak */}
+              <div
+                onClick={() => {
+                  if (isAdmin || isSelf) setStatusKeluarga("anak");
+                }}
+                style={{
+                  border: statusKeluarga === "anak" ? "2px solid #f4a33b" : "1.5px solid var(--border)",
+                  background: statusKeluarga === "anak" ? "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)" : "var(--surface)",
+                  borderRadius: "12px",
+                  padding: "10px 8px",
+                  cursor: isAdmin || isSelf ? "pointer" : "not-allowed",
+                  opacity: isAdmin || isSelf ? 1 : 0.6,
+                  transition: "all 0.18s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  gap: "4px"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                  <span style={{ fontSize: "18px" }}>🧒</span>
+                  {statusKeluarga === "anak" && <span style={{ fontSize: "11px", color: "#f4a33b", fontWeight: 800 }}>✓</span>}
+                </div>
+                <div style={{ fontSize: "12.5px", fontWeight: 750, color: "var(--navy)", marginTop: "2px" }}>
+                  Anak
+                </div>
+                <div style={{ fontSize: "9.5px", color: "var(--text-secondary)", lineHeight: "1.2" }}>
+                  Putra / Putri
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "1px" }}>
+              Status ini digunakan untuk label catatan transaksi, struk, dan pembukuan keluarga.
+            </div>
+          </div>
+
+          {/* Field 3: Peran & Wewenang Akun (Role Selector) */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <label className="fl" style={{ fontSize: "11px", fontWeight: 750, color: "var(--navy)", margin: 0 }}>
               Peran &amp; Wewenang Akun
@@ -339,13 +477,13 @@ export default function EditMemberModal({
               style={{
                 padding: "10px 22px",
                 borderRadius: "10px",
-                background: "linear-gradient(135deg, var(--navy), #2563eb)",
+                background: "var(--primary, #287ff0)",
                 border: "none",
                 color: "#ffffff",
                 fontWeight: 750,
                 fontSize: "13px",
                 cursor: isSubmitting ? "not-allowed" : "pointer",
-                boxShadow: "0 3px 10px rgba(37,99,235,0.25)"
+                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)"
               }}
             >
               {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}

@@ -7,6 +7,7 @@ import type { Vehicle, VehicleTaxPayment } from "@/lib/types";
 import { getVehicleById, getVehicleTaxPayments } from "@/lib/vehicle-service";
 import { formatDateIndo, formatRp } from "@/lib/vehicle-utils";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
+import PageHeader from "@/components/PageHeader";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -52,69 +53,33 @@ export default function RiwayatPajakPage({ params }: PageProps) {
   }
 
   return (
-    <main className="page active" style={{ paddingBottom: "90px" }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 20px 12px",
-          background: "var(--bg)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button
-            type="button"
-            onClick={() => router.push(`/kendaraan/${id}`)}
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      {/* Header Standardized */}
+      <PageHeader
+        title="Riwayat Pajak"
+        subtitle="Daftar pembayaran pajak dan STNK"
+        onBack={() => router.push(`/kendaraan/${id}`)}
+        action={
+          <Link
+            href={`/kendaraan/${id}/pajak`}
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              color: "var(--navy)",
-              cursor: "pointer",
-            }}
-            aria-label="Kembali"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1
-            style={{
-              fontSize: "18px",
-              fontWeight: 800,
-              color: "var(--navy)",
-              margin: 0,
-              letterSpacing: "-0.3px",
+              padding: "7px 13px",
+              borderRadius: "10px",
+              background: "var(--primary)",
+              color: "#ffffff",
+              fontSize: "12px",
+              fontWeight: 700,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
             }}
           >
-            Riwayat Pajak
-          </h1>
-        </div>
-
-        <Link
-          href={`/kendaraan/${id}/pajak`}
-          style={{
-            padding: "6px 12px",
-            borderRadius: "10px",
-            background: "var(--primary)",
-            color: "#ffffff",
-            fontSize: "12px",
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
-        >
-          + Bayar
-        </Link>
-      </div>
+            ＋ Bayar
+          </Link>
+        }
+      />
 
       <div style={{ padding: "0 20px" }}>
         {/* Compact Header Card */}
@@ -187,7 +152,7 @@ export default function RiwayatPajakPage({ params }: PageProps) {
                       Lunas
                     </span>
                   </div>
-                  <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--navy)" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 800, color: "var(--navy)", fontVariantNumeric: "tabular-nums" }}>
                     {formatRp(p.amount)}
                   </span>
                 </div>

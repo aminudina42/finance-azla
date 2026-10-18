@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useApp } from "@/lib/store";
 import EditPosModal from "@/components/Modals/EditPosModal";
 import AlertModal from "@/components/Modals/AlertModal";
+import PageHeader from "@/components/PageHeader";
 import type { Pos } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -122,47 +123,34 @@ export default function DompetPage() {
         </svg>
       </div>
 
-      {/* Header Halaman */}
-      <div className="ph ph-border" style={{ position: "relative", zIndex: 1, background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(12px)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Link
-            href="/"
+      {/* Header Halaman Standardized */}
+      <PageHeader
+        title="Dompet & Pos"
+        subtitle="Atur jatah dan amplop keuangan keluarga"
+        backHref="/"
+        action={
+          <button
+            type="button"
+            onClick={openAdd}
             style={{
-              display: "grid",
-              placeItems: "center",
-              width: "36px",
-              height: "36px",
+              padding: "7px 12px",
               borderRadius: "10px",
-              background: "#ffffff",
-              border: "1px solid var(--border)",
-              color: "var(--navy)",
-              boxShadow: "0 2px 8px rgba(38, 111, 183, 0.06)",
-              transition: "transform 0.15s ease",
+              background: "var(--primary)",
+              color: "#ffffff",
+              border: "none",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              boxShadow: "0 3px 10px rgba(40, 127, 240, 0.25)",
             }}
-            aria-label="Kembali ke Beranda"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ width: "18px", height: "18px" }}
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </Link>
-          <div>
-            <h2 style={{ fontFamily: "var(--font-fraunces), serif", color: "var(--navy)", fontSize: "22px" }}>
-              👛 Dompet &amp; Pos
-            </h2>
-            <p style={{ color: "var(--text-secondary)", fontSize: "12px", marginTop: "2px" }}>
-              Atur jatah dan amplop keuangan keluarga
-            </p>
-          </div>
-        </div>
-      </div>
+            <span>＋</span> Pos Baru
+          </button>
+        }
+      />
 
       <div className="mgr-body" style={{ padding: "16px 20px", position: "relative", zIndex: 1 }}>
         {/* Ringkasan Anggaran Hero Card (Selaras dengan BudgetSummaryCard) */}

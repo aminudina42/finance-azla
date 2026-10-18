@@ -1,5 +1,5 @@
 /**
- * Helper utilities for Vehicle Management (Dompet Azla)
+ * Helper utilities for Vehicle Management (Catat Keluarga)
  */
 
 export type TaxStatus = "Belum Bayar" | "Terlambat" | "Lunas" | "Data Belum Lengkap";

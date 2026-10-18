@@ -205,12 +205,17 @@ export default function LoginPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "36px",
                   border: "1px solid var(--border)",
                   boxShadow: "0 8px 24px rgba(40, 127, 240, 0.12)",
+                  overflow: "hidden",
                 }}
               >
-                {logoSettings.emoji}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo-icon.png"
+                  alt="Catat Keluarga"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
               </div>
             )}
           </div>
@@ -223,7 +228,7 @@ export default function LoginPage() {
               letterSpacing: "-0.5px",
             }}
           >
-            Dompet Azla
+            Catat Keluarga
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px" }}>
             Manajemen Keuangan Cerdas Keluarga

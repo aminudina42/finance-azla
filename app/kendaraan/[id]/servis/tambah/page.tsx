@@ -8,6 +8,7 @@ import { getVehicleById, recordVehicleService } from "@/lib/vehicle-service";
 import { formatRp, formatDateIndo } from "@/lib/vehicle-utils";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
 import DateInput from "@/components/Kendaraan/DateInput";
+import PageHeader from "@/components/PageHeader";
 import { useApp } from "@/lib/store";
 
 interface PageProps {
@@ -222,56 +223,17 @@ export default function TambahServisWizardPage({ params }: PageProps) {
   const selectedPos = posList.find((p) => p.id === selectedPosId);
 
   return (
-    <main className="page active" style={{ paddingBottom: "90px" }}>
+    <main className="page active" style={{ paddingBottom: "110px" }}>
       {/* Header (Steps 1, 2, 3) */}
       {step < 4 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            padding: "16px 20px 12px",
-            background: "var(--bg)",
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
+        <PageHeader
+          title="Tambah Riwayat Servis"
+          subtitle={`Langkah ${step} dari 3: ${step === 1 ? "Identitas & Jadwal" : step === 2 ? "Biaya Servis" : "Ringkasan"}`}
+          onBack={() => {
+            if (step === 1) router.back();
+            else setStep((s) => (s - 1) as any);
           }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              if (step === 1) router.back();
-              else setStep((s) => (s - 1) as any);
-            }}
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              color: "var(--navy)",
-              cursor: "pointer",
-            }}
-            aria-label="Kembali"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1
-            style={{
-              fontSize: "18px",
-              fontWeight: 800,
-              color: "var(--navy)",
-              margin: 0,
-              letterSpacing: "-0.3px",
-            }}
-          >
-            Tambah Riwayat Servis
-          </h1>
-        </div>
+        />
       )}
 
       <div style={{ padding: "0 20px" }}>

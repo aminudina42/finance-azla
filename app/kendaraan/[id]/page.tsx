@@ -17,6 +17,7 @@ import {
   formatRp,
 } from "@/lib/vehicle-utils";
 import VehicleStatusBadge from "@/components/Kendaraan/VehicleStatusBadge";
+import PageHeader from "@/components/PageHeader";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -83,121 +84,95 @@ export default function DetailKendaraanPage({ params }: PageProps) {
   const totalServiceExpense = services.reduce((sum, s) => sum + Number(s.total_cost || 0), 0);
 
   return (
-    <main className="page active" style={{ paddingBottom: "90px" }}>
-      {/* Top Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 20px 12px",
-          background: "var(--bg)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => router.push("/kendaraan")}
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            color: "var(--navy)",
-            cursor: "pointer",
-          }}
-          aria-label="Kembali ke Daftar Kendaraan"
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        <div style={{ position: "relative" }}>
-          <button
-            type="button"
-            onClick={() => setShowMenu(!showMenu)}
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              color: "var(--navy)",
-              cursor: "pointer",
-            }}
-            aria-label="Menu Opsi"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <circle cx="12" cy="5" r="1.5" />
-              <circle cx="12" cy="12" r="1.5" />
-              <circle cx="12" cy="19" r="1.5" />
-            </svg>
-          </button>
-
-          {showMenu && (
-            <div
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      {/* Top Header Standardized */}
+      <PageHeader
+        title={vehicle ? `${vehicle.brand} ${vehicle.model}` : "Detail Kendaraan"}
+        subtitle={vehicle ? `${vehicle.plate_number} · ${vehicle.vehicle_type}` : "Memuat data…"}
+        backHref="/kendaraan"
+        action={
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setShowMenu(!showMenu)}
               style={{
-                position: "absolute",
-                right: 0,
-                top: "42px",
-                width: "160px",
-                background: "var(--surface)",
+                width: "38px",
+                height: "38px",
                 borderRadius: "12px",
-                boxShadow: "0 10px 25px rgba(16, 45, 85, 0.12)",
-                border: "1px solid var(--border)",
-                padding: "6px",
-                zIndex: 20,
+                display: "grid",
+                placeItems: "center",
+                background: "var(--surface)",
+                border: "1.5px solid var(--border)",
+                color: "var(--navy)",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(38, 111, 183, 0.05)",
               }}
+              aria-label="Menu Opsi"
             >
-              <Link
-                href={`/kendaraan/${id}/edit`}
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <circle cx="12" cy="5" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="19" r="1.5" />
+              </svg>
+            </button>
+
+            {showMenu && (
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "9px 12px",
-                  borderRadius: "8px",
-                  color: "var(--navy)",
-                  textDecoration: "none",
-                  fontSize: "13px",
-                  fontWeight: 600,
+                  position: "absolute",
+                  right: 0,
+                  top: "46px",
+                  width: "170px",
+                  background: "var(--surface)",
+                  borderRadius: "14px",
+                  boxShadow: "0 10px 28px rgba(16, 45, 85, 0.14)",
+                  border: "1px solid var(--border)",
+                  padding: "6px",
+                  zIndex: 30,
                 }}
               >
-                ✏️ Edit Identitas
-              </Link>
-              <button
-                type="button"
-                onClick={handleArchive}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  background: "transparent",
-                  border: "none",
-                  padding: "9px 12px",
-                  borderRadius: "8px",
-                  color: "#ef4444",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                📦 Arsipkan
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+                <Link
+                  href={`/kendaraan/${id}/edit`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "10px 12px",
+                    borderRadius: "10px",
+                    color: "var(--navy)",
+                    textDecoration: "none",
+                    fontSize: "13px",
+                    fontWeight: 650,
+                  }}
+                >
+                  ✏️ Edit Identitas
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleArchive}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "10px 12px",
+                    borderRadius: "10px",
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--danger)",
+                    fontSize: "13px",
+                    fontWeight: 650,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  📦 Arsipkan Kendaraan
+                </button>
+              </div>
+            )}
+          </div>
+        }
+      />
 
       <div style={{ padding: "0 20px" }}>
         {/* Hero Card */}

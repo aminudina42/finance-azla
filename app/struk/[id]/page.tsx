@@ -7,6 +7,7 @@ import { toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
 import { useApp } from "@/lib/store";
 import ThermalReceipt from "@/components/ThermalReceipt";
+import PageHeader from "@/components/PageHeader";
 import type { ReceiptItem } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -258,32 +259,26 @@ export default function DetailStrukPage() {
   }
 
   return (
-    <main className="page active" style={{ paddingBottom: "100px" }}>
-      <div className="ph ph-border" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <button onClick={() => { setIsNavigating(true); router.push("/struk"); }} className="ib" style={{ fontSize: "18px" }}>←</button>
-        <div>
-          <h2>Struk {receiptNumber}</h2>
-          <p style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
-            <span>Edit atau bagikan struk ini</span>
-            {creatorName && (
-              <>
-                <span>•</span>
-                <span style={{
-                  color: creatorName.toLowerCase().includes("suami") ? "var(--teal)" : creatorName.toLowerCase().includes("istri") ? "var(--pink)" : "var(--purple)",
-                  fontWeight: 800,
-                  background: creatorName.toLowerCase().includes("suami") ? "var(--teal-dim)" : creatorName.toLowerCase().includes("istri") ? "var(--pink-dim)" : "var(--purple-dim)",
-                  padding: "1px 6px",
-                  borderRadius: "4px",
-                  letterSpacing: "0.2px",
-                  fontSize: "9.5px"
-                }}>
-                  👤 {creatorName}
-                </span>
-              </>
-            )}
-          </p>
-        </div>
-      </div>
+    <main className="page active" style={{ paddingBottom: "110px" }}>
+      <PageHeader
+        title={`Struk ${receiptNumber}`}
+        subtitle="Edit, cetak thermal, atau bagikan struk"
+        backHref="/struk"
+        badge={
+          creatorName ? (
+            <span style={{
+              color: creatorName.toLowerCase().includes("suami") ? "var(--teal)" : creatorName.toLowerCase().includes("istri") ? "var(--danger)" : "var(--primary)",
+              fontWeight: 750,
+              background: creatorName.toLowerCase().includes("suami") ? "rgba(22, 168, 154, 0.12)" : creatorName.toLowerCase().includes("istri") ? "rgba(240, 68, 103, 0.12)" : "rgba(40, 127, 240, 0.12)",
+              padding: "2px 8px",
+              borderRadius: "6px",
+              fontSize: "11px"
+            }}>
+              👤 {creatorName}
+            </span>
+          ) : undefined
+        }
+      />
 
       <div className="struk-body">
 
@@ -379,7 +374,7 @@ export default function DetailStrukPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "14px", animation: "pageIn .2s ease both" }}>
               <div className="fg">
                 <div className="fl">Nama Merchant / Pemilik</div>
-                <input type="text" className="fi" placeholder="Contoh: AZLA STORE"
+                <input type="text" className="fi" placeholder="Contoh: CATAT STORE"
                   value={qrisName} onChange={e => setQrisName(e.target.value)} />
               </div>
               

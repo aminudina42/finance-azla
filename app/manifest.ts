@@ -2,13 +2,13 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Dompet Pintar v3',
-    short_name: 'Dompet Pintar',
-    description: 'Manajemen keuangan keluarga cerdas untuk Suami dan Istri',
+    name: 'Catat Keluarga',
+    short_name: 'Catat Keluarga',
+    description: 'Manajemen keuangan keluarga cerdas bersama pasangan',
     start_url: '/',
     display: 'standalone',
-    background_color: '#0c0c10',
-    theme_color: '#0c0c10',
+    background_color: '#f7fbff',
+    theme_color: '#287ff0',
     orientation: 'portrait',
     icons: [
       {
