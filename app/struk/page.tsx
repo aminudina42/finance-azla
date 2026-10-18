@@ -26,7 +26,7 @@ function formatDate(iso: string): string {
 export default function StrukListPage() {
   const router = useRouter();
   const { setIsMutating, setIsNavigating } = useApp();
-  const [receipts, setReceipts] = useState<(Receipt & { store_name?: string; user_name?: string })[]>([]);
+  const [receipts, setReceipts] = useState<(Receipt & { store_name?: string; user_name?: string; total_cost?: number; keuntungan?: number })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<"month" | "week" | "day">("month");
   const [offset, setOffset] = useState(0);
@@ -49,15 +49,31 @@ export default function StrukListPage() {
 
       const { data, error } = await supabase
         .from("receipts")
-        .select("*, stores(name)")
+        .select("*, stores(name), receipt_items(*)")
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        const mapped = data.map((r: any) => ({
-          ...r,
-          store_name: r.stores?.name ?? "—",
-          user_name: userList.find((u: any) => u.id === r.user_id)?.name ?? "Anonim",
-        }));
+        const mapped = data.map((r: any) => {
+          const items = r.receipt_items || [];
+          const calculatedCost = items.reduce((sum: number, it: any) => {
+            const q = it.quantity || 1;
+            const cp = it.cost_price || 0;
+            return sum + (cp * q);
+          }, 0);
+          const totalCost = (r.total_cost !== undefined && r.total_cost !== null && Number(r.total_cost) > 0)
+            ? Number(r.total_cost)
+            : calculatedCost;
+          const omset = Number(r.total) || 0;
+          const keuntungan = omset - totalCost;
+
+          return {
+            ...r,
+            total_cost: totalCost,
+            keuntungan,
+            store_name: r.stores?.name ?? "—",
+            user_name: userList.find((u: any) => u.id === r.user_id)?.name ?? "Anonim",
+          };
+        });
         setReceipts(mapped);
       }
     } catch {
@@ -156,14 +172,17 @@ export default function StrukListPage() {
     return "";
   }, [filterType, offset]);
 
-  const totalNominal = filteredReceipts.reduce((s, r) => s + (r.total || 0), 0);
+  const totalOmset = filteredReceipts.reduce((s, r) => s + (r.total || 0), 0);
+  const totalModal = filteredReceipts.reduce((s, r) => s + (r.total_cost || 0), 0);
+  const totalKeuntungan = totalOmset - totalModal;
+  const marginPersen = totalOmset > 0 ? Math.round((totalKeuntungan / totalOmset) * 100) : 0;
 
   return (
     <main id="pg-struk" className="page active" style={{ paddingBottom: "110px" }}>
       {/* ── Standardized Header ── */}
       <PageHeader
-        title="Struk Dinamis"
-        subtitle="Buat dan kelola struk transaksi digital"
+        title="Kasir"
+        subtitle="Kelola transaksi penjualan, cetak struk & rekap laba modal"
         backHref="/"
         action={
           <button
@@ -184,7 +203,7 @@ export default function StrukListPage() {
               boxShadow: "0 3px 10px rgba(40, 127, 240, 0.25)",
             }}
           >
-            <span>＋</span> Buat Struk
+            <span>＋</span> Transaksi Kasir
           </button>
         }
       />
@@ -195,8 +214,8 @@ export default function StrukListPage() {
         <button className="struk-new-btn" onClick={() => { setIsNavigating(true); router.push("/struk/new"); }}>
           <span className="struk-new-icon">＋</span>
           <div>
-            <div className="struk-new-title">Buat Struk Baru</div>
-            <div className="struk-new-sub">Input item belanja, cetak thermal & bagikan ke WA</div>
+            <div className="struk-new-title">Transaksi Kasir Baru</div>
+            <div className="struk-new-sub">Input barang, harga modal, cetak thermal &amp; share WA</div>
           </div>
         </button>
 
@@ -386,15 +405,78 @@ export default function StrukListPage() {
               </div>
             )}
 
+            {/* ── Rekap Omset, Modal & Keuntungan ── */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "12px",
+              marginBottom: "6px"
+            }}>
+              <span style={{
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.8px",
+                textTransform: "uppercase",
+                color: "var(--navy)"
+              }}>
+                📊 Rekap Penjualan Kasir
+              </span>
+              <span style={{
+                fontSize: "11px",
+                fontWeight: 750,
+                padding: "2px 8px",
+                borderRadius: "999px",
+                background: totalKeuntungan >= 0 ? "rgba(5, 150, 105, 0.12)" : "rgba(220, 38, 38, 0.12)",
+                color: totalKeuntungan >= 0 ? "#059669" : "#dc2626",
+                border: totalKeuntungan >= 0 ? "1px solid rgba(5, 150, 105, 0.25)" : "1px solid rgba(220, 38, 38, 0.25)"
+              }}>
+                Margin: {marginPersen}%
+              </span>
+            </div>
+
             <div className="struk-stats">
+              {/* Omset / Penjualan */}
               <div className="struk-stat-card">
-                <span className="struk-stat-label">Struk Terfilter</span>
-                <span className="struk-stat-value purple">{filteredReceipts.length}</span>
+                <span className="struk-stat-label">💰 Total Omset</span>
+                <span className="struk-stat-value teal" style={{ fontSize: "16px" }}>
+                  {formatRp(totalOmset)}
+                </span>
+                <span style={{ fontSize: "9.5px", color: "var(--muted)", marginTop: "2px" }}>
+                  Total nilai transaksi
+                </span>
               </div>
+
+              {/* Total Modal */}
               <div className="struk-stat-card">
-                <span className="struk-stat-label">Nilai Transaksi</span>
-                <span className="struk-stat-value teal" style={{ fontSize: "15px" }}>
-                  {formatRp(totalNominal)}
+                <span className="struk-stat-label">📦 Total Modal</span>
+                <span className="struk-stat-value amber" style={{ fontSize: "16px" }}>
+                  {formatRp(totalModal)}
+                </span>
+                <span style={{ fontSize: "9.5px", color: "var(--muted)", marginTop: "2px" }}>
+                  HPP barang terjual
+                </span>
+              </div>
+
+              {/* Keuntungan / Laba */}
+              <div className="struk-stat-card">
+                <span className="struk-stat-label">📈 Keuntungan</span>
+                <span className={`struk-stat-value ${totalKeuntungan >= 0 ? "green" : ""}`} style={{ fontSize: "16px", color: totalKeuntungan < 0 ? "#dc2626" : undefined }}>
+                  {totalKeuntungan >= 0 ? `+${formatRp(totalKeuntungan)}` : formatRp(totalKeuntungan)}
+                </span>
+                <span style={{ fontSize: "9.5px", color: totalKeuntungan >= 0 ? "#059669" : "#dc2626", fontWeight: 700, marginTop: "2px" }}>
+                  {totalKeuntungan >= 0 ? "Laba bersih" : "Defisit"}
+                </span>
+              </div>
+
+              {/* Transaksi */}
+              <div className="struk-stat-card">
+                <span className="struk-stat-label">🧾 Transaksi</span>
+                <span className="struk-stat-value purple">
+                  {filteredReceipts.length}
+                </span>
+                <span style={{ fontSize: "9.5px", color: "var(--muted)", marginTop: "2px" }}>
+                  Transaksi tercatat
                 </span>
               </div>
             </div>
@@ -404,8 +486,8 @@ export default function StrukListPage() {
         {/* ── Section Header ── */}
         {!isLoading && receipts.length > 0 && (
           <div className="struk-section-hdr">
-            <span className="sec-label">Riwayat Struk</span>
-            <span className="struk-count-badge">{filteredReceipts.length} struk</span>
+            <span className="sec-label">Riwayat Transaksi Kasir</span>
+            <span className="struk-count-badge">{filteredReceipts.length} transaksi</span>
           </div>
         )}
 
@@ -414,19 +496,19 @@ export default function StrukListPage() {
           <div className="struk-empty">
             <span className="struk-empty-icon">⏳</span>
             <div className="struk-empty-title">Memuat Data...</div>
-            <p>Sedang mengambil riwayat struk Anda</p>
+            <p>Sedang mengambil riwayat transaksi kasir Anda</p>
           </div>
         ) : receipts.length === 0 ? (
           <div className="struk-empty">
             <span className="struk-empty-icon">🧾</span>
-            <div className="struk-empty-title">Belum Ada Struk</div>
-            <p>Mulai buat struk pertamamu dan bagikan ke pelanggan via WhatsApp!</p>
+            <div className="struk-empty-title">Belum Ada Transaksi Kasir</div>
+            <p>Mulai buat transaksi kasir pertamamu dan pantau rekap omset serta keuntungan!</p>
           </div>
         ) : filteredReceipts.length === 0 ? (
           <div className="struk-empty">
             <span className="struk-empty-icon">🔎</span>
-            <div className="struk-empty-title">Tidak Ada Struk</div>
-            <p>Tidak ditemukan riwayat struk pada filter periode ini.</p>
+            <div className="struk-empty-title">Tidak Ada Transaksi Kasir</div>
+            <p>Tidak ditemukan riwayat transaksi kasir pada filter periode ini.</p>
           </div>
         ) : (
           <div className="struk-list">
@@ -451,6 +533,13 @@ export default function StrukListPage() {
                       </span>
                     </div>
                     <div className="struk-card-date">{formatDate(r.created_at)}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "3px", fontSize: "10px" }}>
+                      <span style={{ color: "var(--muted)" }}>Modal: <strong style={{ color: "#d97706" }}>{formatRp(r.total_cost || 0)}</strong></span>
+                      <span style={{ color: "var(--muted)" }}>•</span>
+                      <span style={{ color: (r.keuntungan || 0) >= 0 ? "#059669" : "#dc2626", fontWeight: 700 }}>
+                        {(r.keuntungan || 0) >= 0 ? `Laba: +${formatRp(r.keuntungan || 0)}` : `Rugi: ${formatRp(r.keuntungan || 0)}`}
+                      </span>
+                    </div>
                   </div>
                   <div className="struk-card-right">
                     <div className="struk-card-total">{formatRp(r.total)}</div>
@@ -460,7 +549,7 @@ export default function StrukListPage() {
                 <button
                   className="struk-card-del"
                   onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}
-                  title="Hapus struk"
+                  title="Hapus transaksi"
                 >
                   🗑
                 </button>

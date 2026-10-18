@@ -148,6 +148,7 @@ export interface Receipt {
   user_id: string;
   receipt_number: string;
   total: number;
+  total_cost?: number;
   note: string | null;
   created_at: string;
   updated_at: string;
@@ -159,6 +160,7 @@ export interface ReceiptItem {
   item_name: string;
   quantity: number;
   price: number;
+  cost_price?: number;
   discount: number;
   price_after_discount: number;
   sort_order: number;

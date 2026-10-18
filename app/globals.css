@@ -3455,6 +3455,14 @@
   color: var(--primary);
 }
 
+.struk-stat-value.amber {
+  color: #d97706;
+}
+
+.struk-stat-value.green {
+  color: #059669;
+}
+
 /* ─ Section header ─ */
 .struk-section-hdr {
   display: flex;

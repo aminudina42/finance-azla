@@ -39,16 +39,16 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
           <span className="quick-desc">Kantong &amp; tabungan</span>
         </Link>
 
-        {/* Tile 2: Struk */}
-        <Link href="/struk" className="quick-card" aria-label="Menu Struk: Catat struk">
+        {/* Tile 2: Kasir */}
+        <Link href="/struk" className="quick-card" aria-label="Menu Kasir: Transaksi kasir & cetak struk">
           <span className="quick-icon skyblue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z" />
-              <path d="M9 8h6M9 12h6M9 16h4" />
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M6 8h12M6 12h5M6 16h3m6-4h3m-3 4h3" />
             </svg>
           </span>
-          <span className="quick-name">Struk</span>
-          <span className="quick-desc">Catat struk</span>
+          <span className="quick-name">Kasir</span>
+          <span className="quick-desc">Kasir &amp; struk</span>
         </Link>
 
         {/* Tile 3: Hutang */}

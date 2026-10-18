@@ -70,7 +70,7 @@ export default function AllFeaturesModal({
     },
     {
       id: "struk",
-      name: "Struk",
+      name: "Kasir",
       path: "/struk",
       iconBg: "#e5f7ff",
       icon: (

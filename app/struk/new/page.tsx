@@ -35,7 +35,7 @@ export default function NewStrukPage() {
   const [isUploadingQris, setIsUploadingQris] = useState(false);
 
   const [items, setItems] = useState<Partial<ReceiptItem>[]>([
-    { item_name: "", quantity: 1, price: 0, discount: 0 },
+    { item_name: "", quantity: 1, price: 0, cost_price: 0, discount: 0 },
   ]);
 
   // Load draft from localStorage or fallback to last used store
@@ -46,7 +46,7 @@ export default function NewStrukPage() {
         const p = JSON.parse(draft);
         if (p.storeName)    setStoreName(p.storeName);
         if (p.storeAddress) setStoreAddress(p.storeAddress);
-        if (p.items?.length) setItems(p.items);
+        if (p.items?.length) setItems(p.items.map((it: any) => ({ ...it, cost_price: it.cost_price || 0 })));
         if (p.qrisActive !== undefined) setQrisActive(p.qrisActive);
         if (p.qrisData !== undefined)   setQrisData(p.qrisData);
         if (p.qrisName !== undefined)   setQrisName(p.qrisName);
@@ -114,8 +114,19 @@ export default function NewStrukPage() {
     }, 0),
   [items]);
 
+  const totalModal = useMemo(() =>
+    items.reduce((sum, item) => {
+      const q = item.quantity || 1;
+      const c = item.cost_price || 0;
+      return sum + (c * q);
+    }, 0),
+  [items]);
+
+  const totalKeuntungan = total - totalModal;
+  const marginPersen = total > 0 ? Math.round((totalKeuntungan / total) * 100) : 0;
+
   const handleAddItem = () =>
-    setItems(prev => [...prev, { item_name: "", quantity: 1, price: 0, discount: 0 }]);
+    setItems(prev => [...prev, { item_name: "", quantity: 1, price: 0, cost_price: 0, discount: 0 }]);
 
   const handleRemoveItem = (idx: number) =>
     setItems(prev => prev.filter((_, i) => i !== idx));
@@ -199,24 +210,56 @@ export default function NewStrukPage() {
         storeId = ns.id;
       }
 
-      // Insert Receipt
+      // Insert Receipt (with total_cost fallback if column not yet migrated)
+      let receiptId = "";
       const { data: receipt, error: rErr } = await supabase
         .from("receipts")
-        .insert({ store_id: storeId, user_id: userId, receipt_number: receiptNumber, total })
+        .insert({ store_id: storeId, user_id: userId, receipt_number: receiptNumber, total, total_cost: totalModal } as any)
         .select("id").single();
-      if (rErr) throw rErr;
 
-      // Insert Items
-      await supabase.from("receipt_items").insert(
-        items.map((it, idx) => ({
-          receipt_id: receipt.id,
-          item_name: it.item_name,
-          quantity:  it.quantity  || 1,
-          price:     it.price     || 0,
-          discount:  it.discount  || 0,
-          sort_order: idx,
-        }))
-      );
+      if (rErr) {
+        if (rErr.message?.includes("total_cost")) {
+          const { data: fallbackR, error: fbErr } = await supabase
+            .from("receipts")
+            .insert({ store_id: storeId, user_id: userId, receipt_number: receiptNumber, total })
+            .select("id").single();
+          if (fbErr) throw fbErr;
+          receiptId = fallbackR.id;
+        } else {
+          throw rErr;
+        }
+      } else {
+        receiptId = receipt.id;
+      }
+
+      // Insert Items (with cost_price fallback if column not yet migrated)
+      const itemsWithCost = items.map((it, idx) => ({
+        receipt_id: receiptId,
+        item_name: it.item_name,
+        quantity:  it.quantity  || 1,
+        price:     it.price     || 0,
+        cost_price: it.cost_price || 0,
+        discount:  it.discount  || 0,
+        sort_order: idx,
+      }));
+
+      const { error: itemErr } = await supabase.from("receipt_items").insert(itemsWithCost as any);
+      if (itemErr) {
+        if (itemErr.message?.includes("cost_price")) {
+          const itemsNoCost = items.map((it, idx) => ({
+            receipt_id: receiptId,
+            item_name: it.item_name,
+            quantity:  it.quantity  || 1,
+            price:     it.price     || 0,
+            discount:  it.discount  || 0,
+            sort_order: idx,
+          }));
+          const { error: fbItemErr } = await supabase.from("receipt_items").insert(itemsNoCost);
+          if (fbItemErr) throw fbItemErr;
+        } else {
+          throw itemErr;
+        }
+      }
 
       localStorage.removeItem("struk_draft");
       localStorage.setItem("last_store_name", storeName);
@@ -225,7 +268,7 @@ export default function NewStrukPage() {
       localStorage.setItem("last_qris_data", qrisData);
       localStorage.setItem("last_qris_name", qrisName);
       setIsNavigating(true);
-      router.push(`/struk/${receipt.id}`);
+      router.push(`/struk/${receiptId}`);
     } catch (e: any) {
       alert("Gagal menyimpan: " + e.message);
     } finally {
@@ -238,22 +281,22 @@ export default function NewStrukPage() {
     <main className="page active" style={{ paddingBottom: "110px" }}>
       {/* Header Standardized */}
       <PageHeader
-        title="Buat Struk Baru"
-        subtitle="Isi data toko dan barang belanja, lalu simpan"
+        title="Kasir - Transaksi Baru"
+        subtitle="Input barang penjualan & harga modal, lalu simpan & cetak struk"
         onBack={() => { setIsNavigating(true); router.back(); }}
       />
 
       <div className="struk-body">
 
-        {/* ── Nomor Struk badge ── */}
+        {/* ── Nomor Transaksi badge ── */}
         <div style={{
           display: "flex", alignItems: "center", gap: "10px",
           padding: "10px 14px", borderRadius: "var(--r-sm)",
           background: "var(--purple-dim)", border: "1px solid rgba(139,114,255,.2)",
         }}>
-          <span style={{ fontSize: "16px" }}>🔢</span>
+          <span style={{ fontSize: "16px" }}>🧾</span>
           <div>
-            <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--muted)" }}>Nomor Struk</div>
+            <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--muted)" }}>Nomor Transaksi Kasir</div>
             <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 800, fontSize: "14px", color: "var(--purple)" }}>{receiptNumber}</div>
           </div>
           <div style={{ fontSize: "9px", color: "var(--muted)", marginLeft: "auto" }}>
@@ -430,94 +473,198 @@ export default function NewStrukPage() {
           borderRadius: "var(--r)", padding: "16px", display: "flex", flexDirection: "column", gap: "14px"
         }}>
           <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--amber)" }}>
-            📦 Daftar Barang
+            📦 Daftar Barang &amp; Harga Modal
           </div>
 
-          {items.map((item, idx) => (
-            <div key={idx} style={{
-              background: "var(--s2)", padding: "14px", borderRadius: "var(--r-sm)",
-              border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px"
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted)", letterSpacing: "0.5px" }}>
-                  ITEM #{idx + 1}
-                </span>
-                {items.length > 1 && (
-                  <button onClick={() => handleRemoveItem(idx)}
-                    style={{ background: "rgba(255,79,109,.12)", border: "1px solid rgba(255,79,109,.25)", color: "var(--red)", borderRadius: "6px", padding: "3px 10px", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>
-                    Hapus
-                  </button>
-                )}
-              </div>
+          {items.map((item, idx) => {
+            const q = item.quantity || 1;
+            const p = item.price || 0;
+            const d = item.discount || 0;
+            const c = item.cost_price || 0;
+            const subOmset = (p - d) * q;
+            const subModal = c * q;
+            const subUntung = subOmset - subModal;
 
-              <div className="fg">
-                <div className="fl">Nama Barang</div>
-                <input type="text" className="fi"
-                  value={item.item_name || ""} onChange={e => handleItemChange(idx, "item_name", e.target.value)} />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "10px" }}>
-                <div className="fg">
-                  <div className="fl">Qty</div>
-                  <input type="number" className="fi" min="1"
-                    value={item.quantity === 0 ? "" : (item.quantity?.toString() ?? "")}
-                    onChange={e => handleNumberChange(idx, "quantity", e.target.value)} />
+            return (
+              <div key={idx} style={{
+                background: "var(--s2)", padding: "14px", borderRadius: "var(--r-sm)",
+                border: "1.5px solid var(--border)", display: "flex", flexDirection: "column", gap: "10px"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted)", letterSpacing: "0.5px" }}>
+                    ITEM #{idx + 1}
+                  </span>
+                  {items.length > 1 && (
+                    <button onClick={() => handleRemoveItem(idx)}
+                      style={{ background: "rgba(255,79,109,.12)", border: "1px solid rgba(255,79,109,.25)", color: "var(--red)", borderRadius: "6px", padding: "3px 10px", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>
+                      Hapus
+                    </button>
+                  )}
                 </div>
+
                 <div className="fg">
-                  <div className="fl">Harga Satuan</div>
-                  <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
-                    <input type="text" className="fi" style={{ paddingLeft: "34px" }}
-                      value={(item.price || 0) === 0 ? "" : (item.price || 0).toLocaleString("id-ID")}
-                      onChange={e => handleNumberChange(idx, "price", e.target.value)} />
+                  <div className="fl">Nama Barang</div>
+                  <input type="text" className="fi" placeholder="Contoh: Beras Ramos 5kg"
+                    value={item.item_name || ""} onChange={e => handleItemChange(idx, "item_name", e.target.value)} />
+                </div>
+
+                {/* Qty & Harga Jual Satuan */}
+                <div style={{ display: "grid", gridTemplateColumns: "85px 1fr", gap: "10px" }}>
+                  <div className="fg">
+                    <div className="fl">Qty</div>
+                    <input type="number" className="fi" min="1"
+                      value={item.quantity === 0 ? "" : (item.quantity?.toString() ?? "")}
+                      onChange={e => handleNumberChange(idx, "quantity", e.target.value)} />
+                  </div>
+                  <div className="fg">
+                    <div className="fl">Harga Jual (Satuan)</div>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
+                      <input type="text" className="fi" style={{ paddingLeft: "34px" }}
+                        placeholder="0"
+                        value={(item.price || 0) === 0 ? "" : (item.price || 0).toLocaleString("id-ID")}
+                        onChange={e => handleNumberChange(idx, "price", e.target.value)} />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", alignItems: "flex-end" }}>
-                <div className="fg">
-                  <div className="fl">Diskon (Rp)</div>
-                  <div style={{ position: "relative" }}>
-                    <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
-                    <input type="text" className="fi" style={{ paddingLeft: "34px" }}
-                      value={(item.discount || 0) === 0 ? "" : (item.discount || 0).toLocaleString("id-ID")}
-                      onChange={e => handleNumberChange(idx, "discount", e.target.value)} />
+                {/* Harga Modal Satuan & Diskon */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <div className="fg">
+                    <div className="fl" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span>Harga Modal</span>
+                      <span style={{ fontSize: "9px", color: "var(--muted)", fontWeight: "normal" }}>🔒 Internal</span>
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
+                      <input type="text" className="fi" style={{ paddingLeft: "34px", borderColor: item.cost_price ? "rgba(40, 127, 240, 0.4)" : undefined }}
+                        placeholder="0"
+                        value={(item.cost_price || 0) === 0 ? "" : (item.cost_price || 0).toLocaleString("id-ID")}
+                        onChange={e => handleNumberChange(idx, "cost_price", e.target.value)} />
+                    </div>
+                    <div style={{ fontSize: "9px", color: "var(--muted)", marginTop: "2px" }}>
+                      Tidak masuk ke struk
+                    </div>
+                  </div>
+
+                  <div className="fg">
+                    <div className="fl">Diskon (Rp)</div>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--muted)", pointerEvents: "none" }}>Rp</span>
+                      <input type="text" className="fi" style={{ paddingLeft: "34px" }}
+                        placeholder="0"
+                        value={(item.discount || 0) === 0 ? "" : (item.discount || 0).toLocaleString("id-ID")}
+                        onChange={e => handleNumberChange(idx, "discount", e.target.value)} />
+                    </div>
                   </div>
                 </div>
+
+                {/* Subtotal & Profit Item Badge */}
                 <div style={{
-                  padding: "10px 14px", background: "var(--teal-dim)", border: "1px solid rgba(0,201,167,.2)",
-                  borderRadius: "var(--r-sm)", textAlign: "right"
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  padding: "10px 12px",
+                  background: "rgba(0, 201, 167, 0.06)",
+                  border: "1px solid rgba(0, 201, 167, 0.2)",
+                  borderRadius: "var(--r-sm)"
                 }}>
-                  <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--teal)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Subtotal</div>
-                  <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, color: "var(--teal)", fontSize: "14px" }}>
-                    {formatRp(((item.price || 0) - (item.discount || 0)) * (item.quantity || 1))}
+                  <div>
+                    <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--teal)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Subtotal Jual (Omset)
+                    </div>
+                    <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, color: "var(--teal)", fontSize: "14px" }}>
+                      {formatRp(subOmset)}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 700, color: subUntung >= 0 ? "#10b981" : "#ef4444", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {subUntung >= 0 ? "📈 Laba Item" : "📉 Rugi Item"}
+                    </div>
+                    <div style={{
+                      fontSize: "12px",
+                      fontWeight: 800,
+                      color: subUntung >= 0 ? "#10b981" : "#ef4444"
+                    }}>
+                      {subUntung >= 0 ? `+${formatRp(subUntung)}` : formatRp(subUntung)}
+                      {c > 0 && (
+                        <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--muted)", marginLeft: "4px" }}>
+                          (Modal: {formatRp(subModal)})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <button className="add-btn" onClick={handleAddItem}>＋ Tambah Barang</button>
         </div>
 
-        {/* ── Total bar ── */}
+        {/* ── Rekap Transaksi Kasir (Omset, Modal, Keuntungan) ── */}
         <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "16px 20px", borderRadius: "var(--r)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          padding: "16px",
+          borderRadius: "var(--r)",
           background: "linear-gradient(135deg, rgba(0,201,167,.12), rgba(139,114,255,.08))",
           border: "1px solid rgba(0,201,167,.25)"
         }}>
-          <div>
-            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--muted)" }}>Total Keseluruhan</div>
-            <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, fontSize: "24px", color: "var(--teal)" }}>{formatRp(total)}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: "11px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "var(--teal)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>📊 Rekap Transaksi Ini</span>
+            </div>
+            <span style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: "999px",
+              background: totalKeuntungan >= 0 ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+              color: totalKeuntungan >= 0 ? "#10b981" : "#ef4444",
+              border: totalKeuntungan >= 0 ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(239, 68, 68, 0.3)"
+            }}>
+              Margin: {marginPersen}%
+            </span>
           </div>
-          <span style={{ fontSize: "30px", opacity: 0.5 }}>🧾</span>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginTop: "2px" }}>
+            <div style={{ background: "var(--surface)", padding: "10px", borderRadius: "var(--r-sm)", border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)" }}>Omset (Jual)</div>
+              <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, fontSize: "15px", color: "var(--teal)", marginTop: "2px" }}>
+                {formatRp(total)}
+              </div>
+            </div>
+
+            <div style={{ background: "var(--surface)", padding: "10px", borderRadius: "var(--r-sm)", border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)" }}>Total Modal</div>
+              <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, fontSize: "15px", color: "#f59e0b", marginTop: "2px" }}>
+                {formatRp(totalModal)}
+              </div>
+            </div>
+
+            <div style={{ background: "var(--surface)", padding: "10px", borderRadius: "var(--r-sm)", border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)" }}>Keuntungan</div>
+              <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 900, fontSize: "15px", color: totalKeuntungan >= 0 ? "#10b981" : "#ef4444", marginTop: "2px" }}>
+                {totalKeuntungan >= 0 ? `+${formatRp(totalKeuntungan)}` : formatRp(totalKeuntungan)}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: "10px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "5px", marginTop: "2px" }}>
+            <span>🔒</span>
+            <span>Harga modal &amp; keuntungan hanya tercatat untuk rekap pembukuan internal, tidak dicetak di struk pelanggan.</span>
+          </div>
         </div>
 
         {/* ── Preview Struk (pakai logo dari pengaturan) ── */}
         <div>
           <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
-            👁 Preview Struk
+            👁 Preview Struk Pelanggan
           </div>
           <div className="thermal-wrap">
             <ThermalReceipt
@@ -543,7 +690,7 @@ export default function NewStrukPage() {
           onClick={handleSave}
           disabled={isSaving}
         >
-          {isSaving ? "⏳ Menyimpan..." : "💾 Simpan Struk"}
+          {isSaving ? "⏳ Menyimpan..." : "💾 Simpan Transaksi Kasir"}
         </button>
       </div>
     </main>

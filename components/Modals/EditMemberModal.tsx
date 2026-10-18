@@ -242,7 +242,7 @@ export default function EditMemberModal({
               }}
             />
             <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>
-              Nama ini akan muncul pada riwayat catatan pengeluaran, struk, dan amplop dompet.
+              Nama ini akan muncul pada riwayat catatan pengeluaran, kasir, dan amplop dompet.
             </div>
           </div>
 
@@ -355,7 +355,7 @@ export default function EditMemberModal({
               </div>
             </div>
             <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "1px" }}>
-              Status ini digunakan untuk label catatan transaksi, struk, dan pembukuan keluarga.
+              Status ini digunakan untuk label catatan transaksi, kasir, dan pembukuan keluarga.
             </div>
           </div>
 
@@ -431,7 +431,7 @@ export default function EditMemberModal({
                   Anggota
                 </div>
                 <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", lineHeight: "1.3" }}>
-                  Catat transaksi, struk, dan lihat laporan keluarga.
+                  Catat transaksi, kasir, dan lihat laporan keluarga.
                 </div>
               </div>
             </div>
