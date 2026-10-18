@@ -93,6 +93,10 @@ interface AppState {
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
   leaveFamily: () => Promise<{ success: boolean; error?: string }>;
   refreshMember: () => Promise<void>;
+  // First cycle setup
+  needsFirstCycleSetup: boolean;
+  isWaitingForPayday: boolean;
+  createFirstCycle: (mode: "now" | "wait", availableBudget?: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -164,6 +168,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>(FALLBACK_CHILD_TX);
   const [debts, setDebts] = useState<Debt[]>(FALLBACK_DEBTS);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
+  const [firstSetupComplete, setFirstSetupComplete] = useState(false);
+  const [firstSetupMode, setFirstSetupMode] = useState<"now" | "wait" | "completed" | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     if (typeof window !== "undefined") {
       try {
@@ -269,6 +275,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             const settingsMap = new Map(settingsRes.data.map((s) => [s.key, s.value]));
             const gajianVal = settingsMap.get("gajian_date");
             if (gajianVal) setGajianDate(Number(gajianVal) || 25);
+
+            const setupDone = settingsMap.get("first_setup_complete");
+            if (setupDone === "true") setFirstSetupComplete(true);
+
+            const setupMode = settingsMap.get("first_setup_mode");
+            if (setupMode === "wait" || setupMode === "now" || setupMode === "completed") {
+              setFirstSetupMode(setupMode);
+            }
 
             const dbTheme = settingsMap.get("theme");
             if (dbTheme === "dark" || dbTheme === "light") {
@@ -927,7 +941,20 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       const { data: newCycleData } = await supabase.from("cycles").insert({
         start_date: newCycle.start_date, end_date: newCycle.end_date,
         is_active: true, label: newCycle.label,
+        keluarga_id: currentKeluarga?.id,
       }).select().single();
+
+      // Ensure first setup is marked completed on normal cycle start
+      setFirstSetupComplete(true);
+      setFirstSetupMode("completed");
+      await supabase.from("app_settings").upsert(
+        { key: "first_setup_complete", value: "true", updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+      await supabase.from("app_settings").upsert(
+        { key: "first_setup_mode", value: "completed", updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
 
       // Sync Saku balance changes and create Saku transactions
       for (const transfer of sakuTransfers) {
@@ -950,7 +977,134 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     } finally {
       setIsMutating(false);
     }
-  }, [posList, cycles, childrenList]);
+  }, [posList, cycles, childrenList, currentKeluarga]);
+
+  // ── First Cycle Setup (user baru) ──
+  const createFirstCycle = useCallback(async (mode: "now" | "wait", availableBudget?: number) => {
+    setIsMutating(true);
+    try {
+      // Save gajian date
+      await supabase.from("app_settings").upsert(
+        { key: "gajian_date", value: String(gajianDate), updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+
+      if (mode === "wait") {
+        // Clear active cycles and set pos balances to 0 while waiting for payday
+        setCycles([]);
+        setCycleIndex(0);
+        const updatedPos = posList.map((p) => ({ ...p, current_balance: 0 }));
+        setPosList(updatedPos);
+
+        for (const p of updatedPos) {
+          await supabase.from("pos").update({ current_balance: 0 }).eq("id", p.id);
+        }
+
+        if (currentKeluarga?.id) {
+          await supabase.from("cycles").update({ is_active: false }).eq("keluarga_id", currentKeluarga.id);
+        } else {
+          await supabase.from("cycles").update({ is_active: false }).neq("id", "none");
+        }
+
+        setFirstSetupComplete(true);
+        setFirstSetupMode("wait");
+        await supabase.from("app_settings").upsert(
+          { key: "first_setup_complete", value: "true", updated_at: new Date().toISOString() },
+          { onConflict: "key" }
+        );
+        await supabase.from("app_settings").upsert(
+          { key: "first_setup_mode", value: "wait", updated_at: new Date().toISOString() },
+          { onConflict: "key" }
+        );
+        return;
+      }
+
+      // Mode "now" — create partial cycle from today to (day before next gajian date)
+      const today = new Date();
+      const gd = gajianDate;
+
+      // Calculate end date (day before next gajian occurrence)
+      let endDate = new Date(today);
+      if (today.getDate() < gd) {
+        // Gajian is later this month
+        endDate = new Date(today.getFullYear(), today.getMonth(), gd - 1);
+      } else {
+        // Gajian already passed this month or is today — target next month
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, gd - 1);
+      }
+
+      const label = `${today.getDate()} ${today.toLocaleDateString("id-ID", { month: "short" })} – ${endDate.getDate()} ${endDate.toLocaleDateString("id-ID", { month: "short" })} ${endDate.getFullYear()}`;
+
+      const newCycle: Cycle = {
+        id: "cyc" + Date.now(),
+        start_date: today.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        is_active: true,
+        label,
+        keluarga_id: currentKeluarga?.id,
+      };
+
+      // Set pos balances based on available budget
+      let updatedPos = [...posList];
+      if (availableBudget !== undefined && availableBudget > 0) {
+        // Distribute proportionally across non-goal pos
+        const nonGoalPos = updatedPos.filter(p => !p.is_goal);
+        const totalTarget = nonGoalPos.reduce((sum, p) => sum + p.monthly_target, 0);
+
+        updatedPos = updatedPos.map(p => {
+          if (p.is_goal) return { ...p, current_balance: 0 };
+          if (totalTarget === 0) return { ...p, current_balance: 0 };
+          const proportion = p.monthly_target / totalTarget;
+          return { ...p, current_balance: Math.round(availableBudget * proportion) };
+        });
+      } else {
+        // No budget specified — set all to 0
+        updatedPos = updatedPos.map(p => ({ ...p, current_balance: 0 }));
+      }
+
+      setPosList(updatedPos);
+      setCycles([newCycle]);
+      setCycleIndex(0);
+
+      // Deactivate old cycles and sync pos
+      if (currentKeluarga?.id) {
+        await supabase.from("cycles").update({ is_active: false }).eq("keluarga_id", currentKeluarga.id);
+      } else {
+        await supabase.from("cycles").update({ is_active: false }).neq("id", "none");
+      }
+
+      for (const p of updatedPos) {
+        await supabase.from("pos").update({ current_balance: p.current_balance }).eq("id", p.id);
+      }
+
+      const { data: newCycleData } = await supabase.from("cycles").insert({
+        start_date: newCycle.start_date,
+        end_date: newCycle.end_date,
+        is_active: true,
+        label: newCycle.label,
+        keluarga_id: currentKeluarga?.id,
+      }).select().single();
+
+      // Update local cycle with DB id
+      if (newCycleData) {
+        setCycles([{ ...newCycleData } as Cycle]);
+      }
+
+      // Mark setup complete
+      setFirstSetupComplete(true);
+      setFirstSetupMode("now");
+      await supabase.from("app_settings").upsert(
+        { key: "first_setup_complete", value: "true", updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+      await supabase.from("app_settings").upsert(
+        { key: "first_setup_mode", value: "now", updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }, [posList, gajianDate, currentKeluarga]);
 
   // Wrap setGajianDate to also persist to Supabase
   const updateGajianDate = useCallback(async (d: number) => {
@@ -1294,6 +1448,20 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, [sessionUser?.id, currentKeluarga?.id, currentMember?.role, router]);
 
+  // ── First Cycle Setup computed values ──
+  const needsFirstCycleSetup =
+    dbConnected &&
+    !isLoading &&
+    !firstSetupComplete &&
+    transactions.length === 0 &&
+    cycles.length <= 1;
+
+  const isWaitingForPayday =
+    dbConnected &&
+    !isLoading &&
+    firstSetupComplete &&
+    firstSetupMode === "wait";
+
   const value: AppState = {
     cycles, cycleIndex, setCycleIndex, shiftCycle,
     gajianDate, setGajianDate: updateGajianDate,
@@ -1313,6 +1481,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     currentKeluarga, currentMember,
     sessionUser, logout,
     updateMember, removeMember, leaveFamily, refreshMember,
+    needsFirstCycleSetup, isWaitingForPayday, createFirstCycle,
   };
 
   if (authLoading) return null; // Or a loading spinner

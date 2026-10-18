@@ -14,6 +14,7 @@ import BudgetSummaryCard from "@/components/Dashboard/BudgetSummaryCard";
 import QuickMenuGrid from "@/components/Dashboard/QuickMenuGrid";
 import ContentTabs from "@/components/Dashboard/ContentTabs";
 import PosCard from "@/components/Dashboard/PosCard";
+import FirstCycleSetupModal from "@/components/Modals/FirstCycleSetupModal";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -36,6 +37,8 @@ export default function Home() {
     cyclePosHistory,
     transactions,
     logoSettings,
+    needsFirstCycleSetup,
+    isWaitingForPayday,
   } = useApp();
 
   const [showCycleModal, setShowCycleModal] = useState(false);
@@ -100,7 +103,9 @@ export default function Home() {
   const today = new Date();
 
   let dayInCycleStr = "";
-  if (cycleIndex === 0) {
+  if (isWaitingForPayday) {
+    dayInCycleStr = `Gajian tgl ${gajianDate}`;
+  } else if (cycleIndex === 0) {
     const dayInCycle = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
     dayInCycleStr = `Hari ke-${dayInCycle}`;
   } else {
@@ -183,7 +188,7 @@ export default function Home() {
 
       {/* 1. Header Aplikasi */}
       <AppHeader
-        cycleLabel={selectedCycle?.label || ""}
+        cycleLabel={isWaitingForPayday ? `Menunggu Gajian (tgl ${gajianDate})` : selectedCycle?.label || ""}
         onOpenCyclePicker={() => setShowCycleModal(true)}
         dbConnected={dbConnected}
         logoSettings={logoSettings}
@@ -226,6 +231,54 @@ export default function Home() {
               </div>
             );
           })}
+        </section>
+      )}
+
+      {/* 2.2 Banner: Menunggu Gajian (First-time user waiting for payday) */}
+      {isWaitingForPayday && (
+        <section
+          aria-label="Menunggu gajian"
+          style={{
+            margin: "0 20px 16px",
+            padding: "16px",
+            borderRadius: "16px",
+            background: "linear-gradient(135deg, #fff8e1 0%, #fff3c4 100%)",
+            border: "1px solid #ffe082",
+            boxShadow: "0 4px 14px rgba(255, 193, 7, 0.12)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+            <div
+              style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "12px",
+                background: "#fff",
+                display: "grid",
+                placeItems: "center",
+                fontSize: "22px",
+                flexShrink: 0,
+                border: "1px solid #ffe082",
+              }}
+            >
+              ⏳
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "14px", fontWeight: 750, color: "#b45309", marginBottom: "4px" }}>
+                Menunggu Gajian Tanggal {gajianDate}
+              </div>
+              <p style={{ fontSize: "12px", color: "#92400e", margin: 0, lineHeight: 1.5 }}>
+                Pos anggaran sudah siap! Saat gaji masuk, buka menu{" "}
+                <strong
+                  onClick={() => router.push("/manager")}
+                  style={{ cursor: "pointer", textDecoration: "underline" }}
+                >
+                  Pengaturan
+                </strong>{" "}
+                dan tekan &ldquo;💰 Gajian Tiba!&rdquo; untuk memulai siklus pertama.
+              </p>
+            </div>
+          </div>
         </section>
       )}
 
@@ -316,6 +369,12 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* First Cycle Setup Modal (shown for first-time users) */}
+      <FirstCycleSetupModal
+        isOpen={needsFirstCycleSetup}
+        onClose={() => {}}
+      />
     </main>
   );
 }

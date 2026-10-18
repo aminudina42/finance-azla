@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { Member, StatusKeluarga } from "@/lib/types";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import AlertModal from "@/components/Modals/AlertModal";
+import ConfirmModal from "@/components/Modals/ConfirmModal";
 import EditMemberModal from "@/components/Modals/EditMemberModal";
 import PageHeader from "@/components/PageHeader";
 
@@ -18,6 +19,8 @@ export default function ManagerPage() {
   const {
     gajianDate,
     startNewCycle,
+    cycles,
+    isWaitingForPayday,
     logoSettings,
     updateLogoSettings,
     currentKeluarga,
@@ -76,6 +79,7 @@ export default function ManagerPage() {
   };
   const [showConfirm, setShowConfirm] = useState(false);
   const [showNewCycleModal, setShowNewCycleModal] = useState(false);
+  const [showEarlyPaydayConfirm, setShowEarlyPaydayConfirm] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string}>({ isOpen: false, title: "", message: "" });
   const [membersList, setMembersList] = useState<Member[]>([]);
   const [copied, setCopied] = useState(false);
@@ -207,23 +211,47 @@ export default function ManagerPage() {
         <div className="gajian-card">
           <div className="gc-left">
             <p>Gajian tiap tgl <strong style={{ color: "var(--text)" }}>{gajianDate}</strong></p>
-            <h3>🎉 Mulai siklus baru?</h3>
+            <h3>{isWaitingForPayday ? "🎉 Gaji sudah masuk?" : "🎉 Mulai siklus baru?"}</h3>
           </div>
           <button className="gc-btn" onClick={() => {
+            const isFirstCycle = cycles.length <= 1 || isWaitingForPayday;
             const today = new Date().getDate();
-            if (today !== gajianDate) {
-              setAlertConfig({
-                isOpen: true,
-                title: "Belum Waktunya!",
-                message: `Belum waktunya gajian! Gajian Anda diatur pada tanggal ${gajianDate}.`
-              });
+            // If first cycle or waiting for payday, or if today is payday: start immediately
+            if (isFirstCycle || today === gajianDate) {
+              setShowNewCycleModal(true);
               return;
             }
-            setShowNewCycleModal(true);
+            // If today is not gajianDate, ask user via confirmation instead of strictly blocking
+            setShowEarlyPaydayConfirm(true);
           }}>
             {showConfirm ? "✅ Siklus Dimulai!" : "💰 Gajian Tiba!"}
           </button>
         </div>
+
+        {/* Banner info untuk user yang menunggu gajian */}
+        {isWaitingForPayday && (
+          <div
+            style={{
+              margin: "0 0 16px 0",
+              padding: "14px 16px",
+              borderRadius: "14px",
+              background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+              border: "1px solid #bae6fd",
+              fontSize: "12.5px",
+              color: "#0c4a6e",
+              lineHeight: 1.5,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "10px",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>💡</span>
+            <div>
+              <strong>Siklus Pertama:</strong> Tekan &ldquo;💰 Gajian Tiba!&rdquo; kapan saja saat gaji sudah masuk.
+              Semua pos akan langsung terisi sesuai target budget bulanan yang sudah Anda atur.
+            </div>
+          </div>
+        )}
 
         {/* 2. Informasi Keluarga & Kode Undangan */}
         <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
@@ -964,6 +992,16 @@ export default function ManagerPage() {
         onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))} 
         title={alertConfig.title} 
         message={alertConfig.message} 
+      />
+      <ConfirmModal
+        isOpen={showEarlyPaydayConfirm}
+        title="Gaji Sudah Masuk?"
+        message={`Tanggal gajian Anda diatur pada tanggal ${gajianDate}, sedangkan hari ini tanggal ${new Date().getDate()}. Apakah gaji bulan ini sudah masuk lebih awal dan Anda ingin memulai siklus baru sekarang?`}
+        confirmText="Ya, Mulai Siklus"
+        cancelText="Belum, Batal"
+        isDanger={false}
+        onConfirm={() => setShowNewCycleModal(true)}
+        onCancel={() => setShowEarlyPaydayConfirm(false)}
       />
       <AlertModal
         isOpen={showLogoutModal}
