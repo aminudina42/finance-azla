@@ -82,6 +82,21 @@ export default function AllFeaturesModal({
         </svg>
       ),
     },
+    {
+      id: "kendaraan",
+      name: "Kendaraan",
+      path: "/kendaraan",
+      iconBg: "#eaf5fc",
+      icon: (
+        <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
+          <rect x="4" y="9" width="24" height="15" rx="4" fill="#287ff0" opacity="0.18" />
+          <path d="M5 16L7.5 10.5C7.8 9.8 8.6 9.3 9.4 9.3H22.6C23.4 9.3 24.2 9.8 24.5 10.5L27 16" stroke="#287ff0" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="4" y="15" width="24" height="9" rx="3" stroke="#287ff0" strokeWidth="2.2" />
+          <circle cx="8.5" cy="20" r="2" fill="#287ff0" />
+          <circle cx="23.5" cy="20" r="2" fill="#287ff0" />
+        </svg>
+      ),
+    },
   ];
 
   const handleItemClick = (path: string) => {

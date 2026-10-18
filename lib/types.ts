@@ -133,6 +133,82 @@ export interface ReceiptItem {
   sort_order: number;
 }
 
+export interface Vehicle {
+  id: string;
+  user_id?: string | null;
+  plate_number: string;
+  vehicle_type: "Motor" | "Mobil";
+  brand: string;
+  model: string;
+  next_tax_due_date: string;
+  last_service_date?: string | null;
+  last_odometer: number;
+  service_reminder_interval_months: 1 | 2;
+  service_reminder_enabled: boolean;
+  tax_reminder_enabled: boolean;
+  notes?: string | null;
+  archived_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleTaxPayment {
+  id: string;
+  vehicle_id: string;
+  tax_period: string;
+  payment_date: string;
+  next_due_date: string;
+  amount: number;
+  finance_pos_id?: string | null;
+  finance_transaction_id?: string | null;
+  receipt_url?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface VehicleService {
+  id: string;
+  vehicle_id: string;
+  service_date: string;
+  service_type: "Servis Ringan" | "Servis Besar";
+  cost_mode: "total" | "itemized";
+  total_cost: number;
+  service_description: string;
+  odometer_km: number;
+  workshop_name?: string | null;
+  finance_pos_id?: string | null;
+  finance_transaction_id?: string | null;
+  receipt_url?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleServiceItem {
+  id: string;
+  service_id: string;
+  item_name: string;
+  item_category: "Jasa" | "Part";
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  created_at: string;
+}
+
+export interface VehicleNotification {
+  id: string;
+  vehicle_id: string;
+  notification_type: "service_reminder" | "tax_reminder" | "tax_success" | "service_recorded";
+  title: string;
+  message: string;
+  reference_id?: string | null;
+  scheduled_at: string;
+  sent_at?: string | null;
+  is_read: boolean;
+  status: "pending" | "sent" | "cancelled" | "failed";
+  created_at: string;
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {
@@ -220,6 +296,48 @@ export interface Database {
           price_after_discount?: number;
         };
         Update: Partial<ReceiptItem>;
+      };
+      vehicles: {
+        Row: Vehicle;
+        Insert: Omit<Vehicle, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Vehicle>;
+      };
+      vehicle_tax_payments: {
+        Row: VehicleTaxPayment;
+        Insert: Omit<VehicleTaxPayment, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<VehicleTaxPayment>;
+      };
+      vehicle_services: {
+        Row: VehicleService;
+        Insert: Omit<VehicleService, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<VehicleService>;
+      };
+      vehicle_service_items: {
+        Row: VehicleServiceItem;
+        Insert: Omit<VehicleServiceItem, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<VehicleServiceItem>;
+      };
+      vehicle_notifications: {
+        Row: VehicleNotification;
+        Insert: Omit<VehicleNotification, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<VehicleNotification>;
       };
     };
     Views: {
