@@ -31,8 +31,21 @@ CREATE TABLE IF NOT EXISTS public.vehicle_fuel_logs (
 CREATE INDEX IF NOT EXISTS idx_vehicle_fuel_logs_vehicle 
   ON public.vehicle_fuel_logs(vehicle_id, log_date DESC, odometer_km DESC);
 
--- Nonaktifkan RLS selaras dengan lingkungan dev finance-azla
-ALTER TABLE public.vehicle_fuel_logs DISABLE ROW LEVEL SECURITY;
+-- Aktifkan Row Level Security (RLS) dan amankan akses multi-tenant
+ALTER TABLE public.vehicle_fuel_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "vehicle_fuel_logs_family_all" ON public.vehicle_fuel_logs;
+CREATE POLICY "vehicle_fuel_logs_family_all" ON public.vehicle_fuel_logs
+  FOR ALL
+  USING (keluarga_id = public.get_my_keluarga_id())
+  WITH CHECK (keluarga_id = public.get_my_keluarga_id());
+
+-- Auto-set keluarga_id sebelum insert jika belum ditentukan
+DROP TRIGGER IF EXISTS trigger_auto_set_keluarga_id ON public.vehicle_fuel_logs;
+CREATE TRIGGER trigger_auto_set_keluarga_id
+  BEFORE INSERT ON public.vehicle_fuel_logs
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_set_keluarga_id();
 
 -- ═══════════════════════════════════════════════════════════════════
 -- Stored Procedures / RPC Functions (Atomic)
@@ -56,6 +69,7 @@ CREATE OR REPLACE FUNCTION public.record_vehicle_fuel_tx(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_pos_record RECORD;
@@ -66,17 +80,47 @@ DECLARE
   v_tx_desc TEXT;
   v_distance_km INT := NULL;
   v_efficiency_km_l NUMERIC(6, 2) := NULL;
+  v_my_keluarga_id UUID;
+  v_caller_id UUID;
+  v_effective_user_name TEXT := p_user_name;
+  v_effective_user_role TEXT := p_user_role;
+  v_effective_user_id UUID := p_user_id;
 BEGIN
-  -- 1. Ambil data kendaraan
+  v_my_keluarga_id := public.get_my_keluarga_id();
+  v_caller_id := auth.uid();
+
+  -- Ambil identitas pemanggil dari auth/members jika terotentikasi
+  IF v_caller_id IS NOT NULL THEN
+    v_effective_user_id := v_caller_id;
+    SELECT display_name, COALESCE(status_keluarga, 'suami') 
+    INTO v_effective_user_name, v_effective_user_role 
+    FROM public.members 
+    WHERE id = v_caller_id;
+
+    IF v_effective_user_name IS NULL THEN
+      v_effective_user_name := COALESCE(p_user_name, 'User');
+      v_effective_user_role := COALESCE(p_user_role, 'suami');
+    END IF;
+  END IF;
+
+  -- 1. Ambil data kendaraan dan validasi kepemilikan keluarga
   SELECT * INTO v_vehicle_record FROM public.vehicles WHERE id = p_vehicle_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Kendaraan tidak ditemukan';
   END IF;
 
-  -- 2. Ambil data pos keuangan
+  IF v_vehicle_record.keluarga_id IS NOT NULL AND v_my_keluarga_id IS NOT NULL AND v_vehicle_record.keluarga_id <> v_my_keluarga_id THEN
+    RAISE EXCEPTION 'Akses ditolak: Kendaraan bukan milik keluarga Anda';
+  END IF;
+
+  -- 2. Ambil data pos keuangan dan validasi kepemilikan keluarga
   SELECT * INTO v_pos_record FROM public.pos WHERE id = p_finance_pos_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Pos Keuangan tidak ditemukan';
+  END IF;
+
+  IF v_pos_record.keluarga_id IS NOT NULL AND v_my_keluarga_id IS NOT NULL AND v_pos_record.keluarga_id <> v_my_keluarga_id THEN
+    RAISE EXCEPTION 'Akses ditolak: Pos Keuangan bukan milik keluarga Anda';
   END IF;
 
   -- 3. Cari catatan pengisian bensin TERAKHIR khusus kendaraan ini
@@ -113,6 +157,7 @@ BEGIN
     user_name,
     user_role,
     description,
+    keluarga_id,
     created_at
   ) VALUES (
     p_total_cost,
@@ -120,10 +165,11 @@ BEGIN
     p_finance_pos_id,
     v_pos_record.name,
     v_pos_record.icon,
-    p_user_id,
-    p_user_name,
-    p_user_role,
+    v_effective_user_id,
+    v_effective_user_name,
+    v_effective_user_role,
     v_tx_desc,
+    COALESCE(v_vehicle_record.keluarga_id, v_my_keluarga_id),
     NOW()
   ) RETURNING id INTO v_tx_id;
 
@@ -148,7 +194,7 @@ BEGIN
     efficiency_km_l,
     notes
   ) VALUES (
-    v_vehicle_record.keluarga_id,
+    COALESCE(v_vehicle_record.keluarga_id, v_my_keluarga_id),
     p_vehicle_id,
     p_finance_pos_id,
     v_tx_id,
@@ -186,26 +232,38 @@ CREATE OR REPLACE FUNCTION public.delete_vehicle_fuel_tx(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_log_record RECORD;
+  v_my_keluarga_id UUID;
 BEGIN
+  v_my_keluarga_id := public.get_my_keluarga_id();
+
   -- 1. Ambil data log bensin
   SELECT * INTO v_log_record FROM public.vehicle_fuel_logs WHERE id = p_fuel_log_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Catatan bensin tidak ditemukan';
   END IF;
 
+  -- Validasi otorisasi kepemilikan keluarga (Multi-Tenant BOLA/IDOR protection)
+  IF v_log_record.keluarga_id IS NOT NULL AND v_my_keluarga_id IS NOT NULL AND v_log_record.keluarga_id <> v_my_keluarga_id THEN
+    RAISE EXCEPTION 'Akses ditolak: Catatan bensin bukan milik keluarga Anda';
+  END IF;
+
   -- 2. Kembalikan saldo pos keuangan jika ada transaksi terkait
   IF v_log_record.finance_pos_id IS NOT NULL AND v_log_record.total_cost > 0 THEN
     UPDATE public.pos
     SET current_balance = current_balance + v_log_record.total_cost
-    WHERE id = v_log_record.finance_pos_id;
+    WHERE id = v_log_record.finance_pos_id
+      AND (v_my_keluarga_id IS NULL OR keluarga_id = v_my_keluarga_id);
   END IF;
 
   -- 3. Hapus transaksi keuangan terkait
   IF v_log_record.finance_transaction_id IS NOT NULL THEN
-    DELETE FROM public.transactions WHERE id = v_log_record.finance_transaction_id;
+    DELETE FROM public.transactions 
+    WHERE id = v_log_record.finance_transaction_id
+      AND (v_my_keluarga_id IS NULL OR keluarga_id = v_my_keluarga_id);
   END IF;
 
   -- 4. Hapus log bensin

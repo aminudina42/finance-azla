@@ -222,10 +222,18 @@ BEGIN
   END LOOP;
 END $$;
 
--- 8c. POLICIES: TABEL USERS
+-- 8c. POLICIES: TABEL USERS (Hanya profil sendiri atau anggota satu keluarga)
 DROP POLICY IF EXISTS "users_select_all" ON public.users;
+DROP POLICY IF EXISTS "users_select_family_or_own" ON public.users;
 DROP POLICY IF EXISTS "users_upsert_own" ON public.users;
-CREATE POLICY "users_select_all" ON public.users FOR SELECT USING (true);
+CREATE POLICY "users_select_family_or_own" ON public.users FOR SELECT USING (
+  id = auth.uid() OR
+  EXISTS (
+    SELECT 1 FROM public.members m1
+    JOIN public.members m2 ON m1.keluarga_id = m2.keluarga_id
+    WHERE m1.id = auth.uid() AND m2.id = public.users.id
+  )
+);
 CREATE POLICY "users_upsert_own" ON public.users FOR ALL USING (id = auth.uid()) WITH CHECK (id = auth.uid());
 
 -- 9. BERSIHKAN POLICY LAMA AGAR TIDAK DUPLIKAT

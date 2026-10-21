@@ -136,19 +136,36 @@ export default function DetailStrukPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const allowedTypes: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+
+    if (!allowedTypes[file.type]) {
+      alert("Format file tidak didukung! Harap unggah gambar JPG, PNG, atau WebP.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Ukuran file terlalu besar! Maksimal 2 MB.");
+      return;
+    }
+
     // Instant local object URL preview for fallback & speed
     const localUrl = URL.createObjectURL(file);
     setQrisData(localUrl);
     setIsUploadingQris(true);
 
     try {
-      const fileExtension = file.name.split(".").pop();
+      const fileExtension = allowedTypes[file.type];
       const fileName = `qris-${Date.now()}.${fileExtension}`;
 
       // Upload file directly to Supabase storage bucket 'logos'
       const { error } = await supabase.storage
         .from("logos")
         .upload(fileName, file, {
+          contentType: file.type,
           cacheControl: "3600",
           upsert: true,
         });

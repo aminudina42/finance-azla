@@ -1,7 +1,8 @@
 -- ═══════════════════════════════════════════════
--- Dompet Pintar v3 — Enable Public Access (RLS Policies)
--- Jalankan SQL ini di Supabase SQL Editor
--- SETELAH schema.sql sudah dijalankan
+-- PERINGATAN KEAMANAN: HANYA UNTUK DEBUGGING LOKAL LAMA
+-- JANGAN JALANKAN DI PRODUCTION ATAU SISTEM MULTI-TENANT AKTIF!
+-- Menjalankan file ini akan mencabut seluruh pembatas isolasi data antar keluarga.
+-- Gunakan lib/migration-v11-security-multitenant.sql untuk konfigurasi RLS yang benar.
 -- ═══════════════════════════════════════════════
 
 -- Disable RLS untuk semua tabel (agar anon key bisa akses)

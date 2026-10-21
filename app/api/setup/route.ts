@@ -4,12 +4,15 @@ import { supabase } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  // Hanya izinkan saat development atau jika menyertakan secret header yang cocok
+  // Selalu wajibkan x-setup-secret yang cocok dengan environment variable SETUP_SECRET
   const authHeader = request.headers.get("x-setup-secret");
   const setupSecret = process.env.SETUP_SECRET;
 
-  if (process.env.NODE_ENV === "production" && (!setupSecret || authHeader !== setupSecret)) {
-    return NextResponse.json({ message: "Akses ditolak: Endpoint setup dinonaktifkan di production." }, { status: 403 });
+  if (!setupSecret || authHeader !== setupSecret) {
+    return NextResponse.json(
+      { message: "Akses ditolak: Endpoint setup memerlukan header x-setup-secret yang valid." },
+      { status: 403 }
+    );
   }
 
   const errors: string[] = [];
