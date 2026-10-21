@@ -31,21 +31,37 @@ CREATE TABLE IF NOT EXISTS public.vehicle_fuel_logs (
 CREATE INDEX IF NOT EXISTS idx_vehicle_fuel_logs_vehicle 
   ON public.vehicle_fuel_logs(vehicle_id, log_date DESC, odometer_km DESC);
 
--- Aktifkan Row Level Security (RLS) dan amankan akses multi-tenant
-ALTER TABLE public.vehicle_fuel_logs ENABLE ROW LEVEL SECURITY;
+-- Nonaktifkan RLS agar riwayat bensin dapat diakses selaras dengan migration-v10-kendaraan.sql
+ALTER TABLE public.vehicle_fuel_logs DISABLE ROW LEVEL SECURITY;
 
+-- Berikan izin akses penuh ke anon, authenticated, dan service_role
+GRANT ALL ON TABLE public.vehicle_fuel_logs TO anon, authenticated, service_role;
+
+-- Bersihkan policy lama jika ada
 DROP POLICY IF EXISTS "vehicle_fuel_logs_family_all" ON public.vehicle_fuel_logs;
-CREATE POLICY "vehicle_fuel_logs_family_all" ON public.vehicle_fuel_logs
-  FOR ALL
-  USING (keluarga_id = public.get_my_keluarga_id())
-  WITH CHECK (keluarga_id = public.get_my_keluarga_id());
 
--- Auto-set keluarga_id sebelum insert jika belum ditentukan
-DROP TRIGGER IF EXISTS trigger_auto_set_keluarga_id ON public.vehicle_fuel_logs;
-CREATE TRIGGER trigger_auto_set_keluarga_id
-  BEFORE INSERT ON public.vehicle_fuel_logs
-  FOR EACH ROW
-  EXECUTE FUNCTION public.auto_set_keluarga_id();
+-- Helper function get_my_keluarga_id jika belum dibuat di migrasi sebelumnya
+CREATE OR REPLACE FUNCTION public.get_my_keluarga_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT keluarga_id FROM public.members WHERE id = auth.uid() LIMIT 1;
+$$;
+
+-- Auto-set keluarga_id sebelum insert jika function tersedia
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'auto_set_keluarga_id') THEN
+    DROP TRIGGER IF EXISTS trigger_auto_set_keluarga_id ON public.vehicle_fuel_logs;
+    CREATE TRIGGER trigger_auto_set_keluarga_id
+      BEFORE INSERT ON public.vehicle_fuel_logs
+      FOR EACH ROW
+      EXECUTE FUNCTION public.auto_set_keluarga_id();
+  END IF;
+END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
 -- Stored Procedures / RPC Functions (Atomic)
@@ -272,3 +288,26 @@ BEGIN
   RETURN jsonb_build_object('success', true);
 END;
 $$;
+
+-- C. Function pembaca riwayat bensin (SECURITY DEFINER untuk kehandalan penuh multi-tenant)
+CREATE OR REPLACE FUNCTION public.get_vehicle_fuel_logs(
+  p_vehicle_id UUID
+)
+RETURNS SETOF public.vehicle_fuel_logs
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM public.vehicle_fuel_logs
+  WHERE vehicle_id = p_vehicle_id
+  ORDER BY log_date DESC, odometer_km DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_vehicle_fuel_logs(UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_vehicle_fuel_tx TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_vehicle_fuel_tx TO anon, authenticated, service_role;

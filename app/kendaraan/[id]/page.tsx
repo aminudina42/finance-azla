@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, use, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Vehicle, VehicleTaxPayment, VehicleService, VehicleFuelLog } from "@/lib/types";
 import {
   getVehicleById,
@@ -22,6 +22,7 @@ import {
 } from "@/lib/vehicle-utils";
 import VehicleStatusBadge from "@/components/Kendaraan/VehicleStatusBadge";
 import PageHeader from "@/components/PageHeader";
+import ConfirmModal from "@/components/Modals/ConfirmModal";
 import { useApp } from "@/lib/store";
 
 interface PageProps {
@@ -30,6 +31,7 @@ interface PageProps {
 
 export default function DetailKendaraanPage({ params }: PageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { id } = use(params);
   const { posList, cycles, setIsMutating } = useApp();
 
@@ -40,6 +42,18 @@ export default function DetailKendaraanPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<"bbm" | "servis" | "pajak">("bbm");
+
+  // Modal confirmation states
+  const [deleteFuelLogTarget, setDeleteFuelLogTarget] = useState<VehicleFuelLog | null>(null);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+
+  // Auto-switch tab jika diakses via parameter URL (misal: ?tab=bbm)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "bbm" || tabParam === "servis" || tabParam === "pajak") {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -64,21 +78,36 @@ export default function DetailKendaraanPage({ params }: PageProps) {
 
   useEffect(() => {
     loadData();
+
+    // Re-fetch saat tab aktif kembali
+    const onFocus = () => loadData();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
   }, [loadData]);
 
-  const handleArchive = async () => {
-    if (!confirm("Arsipkan kendaraan ini? Kendaraan tidak akan muncul di daftar aktif, namun riwayat transaksi tetap tersimpan.")) return;
+  const handleArchive = () => {
+    setShowArchiveConfirm(true);
+  };
+
+  const confirmArchive = async () => {
+    setShowArchiveConfirm(false);
     const { success } = await archiveVehicle(id);
     if (success) {
       router.replace("/kendaraan");
     }
   };
 
-  const handleDeleteFuelLog = async (logId: string) => {
-    if (!confirm("Hapus catatan bensin ini? Saldo pos keuangan akan dikembalikan otomatis.")) return;
+  const confirmDeleteFuelLog = async () => {
+    if (!deleteFuelLogTarget) return;
+    const targetId = deleteFuelLogTarget.id;
+    setDeleteFuelLogTarget(null);
     setIsMutating(true);
     try {
-      const { success } = await deleteVehicleFuelTx(logId);
+      const { success } = await deleteVehicleFuelTx(targetId);
       if (success) {
         await loadData();
       }
@@ -711,15 +740,19 @@ export default function DetailKendaraanPage({ params }: PageProps) {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {fuelLogs.map((log) => {
                   const hasEfficiency = typeof log.efficiency_km_l === "number" && log.efficiency_km_l > 0;
+                  const isHighlighted = Boolean(
+                    searchParams.get("txId") && log.finance_transaction_id === searchParams.get("txId")
+                  );
                   return (
                     <div
                       key={log.id}
                       style={{
-                        background: "var(--surface)",
+                        background: isHighlighted ? "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)" : "var(--surface)",
                         borderRadius: "16px",
-                        border: "1px solid var(--border)",
+                        border: isHighlighted ? "1.5px solid #f59e0b" : "1px solid var(--border)",
                         padding: "14px 16px",
-                        boxShadow: "0 2px 8px rgba(16, 45, 85, 0.03)",
+                        boxShadow: isHighlighted ? "0 4px 14px rgba(245, 158, 11, 0.18)" : "0 2px 8px rgba(16, 45, 85, 0.03)",
+                        transition: "all 0.2s ease",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
@@ -732,6 +765,20 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                             <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
                               {formatDateIndo(log.log_date)}
                             </span>
+                            {isHighlighted && (
+                              <span
+                                style={{
+                                  fontSize: "10.5px",
+                                  fontWeight: 750,
+                                  color: "#b45309",
+                                  background: "#fde68a",
+                                  padding: "1px 6px",
+                                  borderRadius: "6px",
+                                }}
+                              >
+                                Terpilih
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
                             Odometer: <strong style={{ color: "var(--navy)" }}>{log.odometer_km.toLocaleString("id-ID")} km</strong>
@@ -750,12 +797,12 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                             borderRadius: "8px",
                             fontSize: "11.5px",
                             fontWeight: 800,
-                            background: hasEfficiency ? "#ecfdf5" : "#f1f5f9",
-                            color: hasEfficiency ? "#059669" : "#64748b",
+                            background: hasEfficiency ? "#ecfdf5" : "var(--s2)",
+                            color: hasEfficiency ? "#059669" : "var(--muted)",
                             border: hasEfficiency ? "1px solid #a7f3d0" : "1px solid var(--border)",
                           }}
                         >
-                          {hasEfficiency ? `${log.efficiency_km_l} km/l` : "Baseline"}
+                          {hasEfficiency ? `${log.efficiency_km_l} km/l` : "—"}
                         </div>
                       </div>
 
@@ -770,7 +817,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleDeleteFuelLog(log.id)}
+                          onClick={() => setDeleteFuelLogTarget(log)}
                           style={{
                             background: "transparent",
                             border: "none",
@@ -892,6 +939,34 @@ export default function DetailKendaraanPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Modal Konfirmasi Hapus Catatan BBM */}
+      <ConfirmModal
+        isOpen={!!deleteFuelLogTarget}
+        title="Hapus Catatan Bensin?"
+        message={
+          deleteFuelLogTarget
+            ? `Hapus catatan bensin ${deleteFuelLogTarget.fuel_type} (${formatRp(deleteFuelLogTarget.total_cost)}) tanggal ${formatDateIndo(deleteFuelLogTarget.log_date)}? Saldo pos keuangan akan dikembalikan otomatis.`
+            : ""
+        }
+        confirmText="Hapus"
+        cancelText="Batal"
+        onConfirm={confirmDeleteFuelLog}
+        onCancel={() => setDeleteFuelLogTarget(null)}
+        isDanger={true}
+      />
+
+      {/* Modal Konfirmasi Arsip Kendaraan */}
+      <ConfirmModal
+        isOpen={showArchiveConfirm}
+        title="Arsipkan Kendaraan?"
+        message="Kendaraan tidak akan muncul di daftar aktif armada, namun seluruh riwayat pengeluaran dan catatan bensin tetap tersimpan dengan aman."
+        confirmText="Arsipkan"
+        cancelText="Batal"
+        onConfirm={confirmArchive}
+        onCancel={() => setShowArchiveConfirm(false)}
+        isDanger={true}
+      />
     </main>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
-import type { Transaction, Vehicle } from "@/lib/types";
-import { getVehicles } from "@/lib/vehicle-service";
+import type { Transaction, Vehicle, VehicleFuelLog } from "@/lib/types";
+import { getVehicles, getFuelLogsByPosId } from "@/lib/vehicle-service";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import PageHeader from "@/components/PageHeader";
 
@@ -34,6 +34,7 @@ function getDateLabel(iso: string): string {
 
 export default function PosDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const posId = params.id as string;
   const { posList, transactions, cycles, cyclePosHistory, deleteTransaction } = useApp();
 
@@ -42,18 +43,54 @@ export default function PosDetailPage() {
   const [selectedCycleId, setSelectedCycleId] = useState(cycles[0]?.id ?? "");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [connectedVehicles, setConnectedVehicles] = useState<Vehicle[]>([]);
+  const [posFuelLogs, setPosFuelLogs] = useState<VehicleFuelLog[]>([]);
 
-  // Ambil kendaraan yang terhubung dengan pos ini (1 Pos -> Banyak Kendaraan)
+  // Ambil armada kendaraan dan riwayat bensin yang dibiayai oleh pos ini
   useEffect(() => {
     let isMounted = true;
-    getVehicles().then((vehs) => {
+    Promise.all([
+      getVehicles(),
+      getFuelLogsByPosId(posId),
+    ]).then(([vehs, logs]) => {
       if (isMounted) {
+        setAllVehicles(vehs);
         setConnectedVehicles(vehs.filter((v) => v.finance_pos_id === posId));
+        setPosFuelLogs(logs);
       }
     });
     return () => { isMounted = false; };
   }, [posId]);
+
+  // Pencocokan transaksi BBM dengan kendaraan terkait
+  const getVehicleForTx = useCallback((tx: Transaction): Vehicle | null => {
+    // 1. Cek dari relasi vehicle_fuel_logs finance_transaction_id
+    const matchedLog = posFuelLogs.find((l) => l.finance_transaction_id === tx.id);
+    if (matchedLog) {
+      const v = allVehicles.find((veh) => veh.id === matchedLog.vehicle_id);
+      if (v) return v;
+    }
+
+    // 2. Deteksi dari format deskripsi bensin ('BBM Pertalite — Honda Beat (B 1234 ABC) @ 15.000 km')
+    if (tx.description && (tx.description.startsWith("BBM ") || tx.description.includes("BBM"))) {
+      // Cek berdasarkan plat nomor yang tercantum di deskripsi
+      const vByPlate = allVehicles.find((veh) => veh.plate_number && tx.description.includes(veh.plate_number));
+      if (vByPlate) return vByPlate;
+
+      // Cek berdasarkan brand & model
+      const vByModel = allVehicles.find((veh) =>
+        tx.description.toLowerCase().includes(veh.brand.toLowerCase()) &&
+        tx.description.toLowerCase().includes(veh.model.toLowerCase())
+      );
+      if (vByModel) return vByModel;
+
+      // Fallback jika pos ini terhubung ke 1 kendaraan
+      if (connectedVehicles.length === 1) return connectedVehicles[0];
+    }
+
+    return null;
+  }, [posFuelLogs, allVehicles, connectedVehicles]);
 
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
 
@@ -439,21 +476,71 @@ export default function PosDetailPage() {
               <div className="hday-label">{label}</div>
               {txs.map((tx) => {
                 const isIncome = tx.type === "income";
+                const vehicleForTx = getVehicleForTx(tx);
                 return (
-                  <div className="hi" key={tx.id} style={{ position: "relative" }}>
+                  <div
+                    className="hi"
+                    key={tx.id}
+                    style={{
+                      position: "relative",
+                      cursor: vehicleForTx ? "pointer" : "default",
+                      transition: "all 0.15s ease",
+                      borderLeft: vehicleForTx ? "3.5px solid #f59e0b" : undefined,
+                    }}
+                    onClick={() => {
+                      if (vehicleForTx) {
+                        router.push(`/kendaraan/${vehicleForTx.id}?tab=bbm&txId=${tx.id}`);
+                      }
+                    }}
+                  >
                     <div
                       className="hi-ic"
-                      style={isIncome ? { background: "rgba(0,201,167,.12)" } : {}}
+                      style={
+                        isIncome
+                          ? { background: "rgba(0,201,167,.12)" }
+                          : vehicleForTx
+                          ? { background: "rgba(245, 158, 11, 0.12)", color: "#b45309" }
+                          : {}
+                      }
                     >
-                      {tx.pos_icon}
+                      {vehicleForTx ? "⛽" : tx.pos_icon}
                     </div>
                     <div className="hi-info">
-                      <div className="hi-desc">{tx.description}</div>
+                      <div className="hi-desc">
+                        <span>{tx.description}</span>
+                        {vehicleForTx && (
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              marginTop: "4px",
+                              padding: "2.5px 8px",
+                              borderRadius: "6px",
+                              background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                              border: "1px solid #fde68a",
+                              color: "#b45309",
+                              fontSize: "11px",
+                              fontWeight: 750,
+                              width: "fit-content",
+                            }}
+                          >
+                            <span>{vehicleForTx.vehicle_type === "Mobil" ? "🚗" : "🛵"}</span>
+                            <span>{vehicleForTx.brand} {vehicleForTx.model} ({vehicleForTx.plate_number})</span>
+                            <span style={{ fontSize: "11px", marginLeft: "2px", opacity: 0.8 }}>›</span>
+                          </div>
+                        )}
+                      </div>
                       <div className="hi-meta">
                         {tx.user_role === "suami" ? "👨‍💼" : tx.user_role === "istri" ? "👩" : "🧒"} {tx.user_name}
                         {isIncome && (
                           <span style={{ color: "var(--teal)", marginLeft: "6px", fontWeight: 700 }}>
                             MASUK
+                          </span>
+                        )}
+                        {vehicleForTx && (
+                          <span style={{ color: "#b45309", marginLeft: "6px", fontWeight: 700 }}>
+                            · Riwayat BBM Kendaraan
                           </span>
                         )}
                       </div>

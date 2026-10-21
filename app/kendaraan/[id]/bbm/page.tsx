@@ -230,8 +230,9 @@ export default function CatatBbmPage({ params }: PageProps) {
         return;
       }
 
-      // Berhasil, kembali ke detail kendaraan
-      router.push(`/kendaraan/${id}`);
+      // Berhasil, kembali ke detail kendaraan & refresh cache
+      router.replace(`/kendaraan/${id}`);
+      router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || "Terjadi kesalahan saat menyimpan data.");
     } finally {
@@ -311,7 +312,7 @@ export default function CatatBbmPage({ params }: PageProps) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: lastFuelLog ? "#92400e" : "var(--navy)", textTransform: "uppercase", letterSpacing: "0.15em" }}>
-                    {lastFuelLog ? "Pengisian Bensin Terakhir" : "Pengisian Pertama (Baseline)"}
+                    {lastFuelLog ? "Pengisian Bensin Terakhir" : "Pengisian Pertama"}
                   </div>
                   <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)", marginTop: "2px" }}>
                     {lastFuelLog ? (
