@@ -181,7 +181,17 @@ export default function StrukListPage() {
     <main id="pg-struk" className="page active" style={{ paddingBottom: "110px" }}>
       {/* ── Standardized Header ── */}
       <PageHeader
-        title="Kasir"
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/icon-menu-kasir.png"
+              alt="Menu Kasir"
+              style={{ width: "30px", height: "30px", objectFit: "contain" }}
+            />
+            <span>Kasir</span>
+          </span>
+        }
         subtitle="Kelola transaksi penjualan, cetak struk & rekap laba modal"
         backHref="/"
         action={

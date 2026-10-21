@@ -125,7 +125,17 @@ export default function DompetPage() {
 
       {/* Header Halaman Standardized */}
       <PageHeader
-        title="Dompet & Pos"
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/icon-menu-dompet.png"
+              alt="Menu Dompet"
+              style={{ width: "30px", height: "30px", objectFit: "contain" }}
+            />
+            <span>Dompet &amp; Pos</span>
+          </span>
+        }
         subtitle="Atur jatah dan amplop keuangan keluarga"
         backHref="/"
         action={

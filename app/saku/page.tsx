@@ -73,7 +73,17 @@ export default function SakuPage() {
   return (
     <main id="pg-saku" className="page active" style={{ paddingBottom: "110px" }}>
       <PageHeader
-        title="Saku"
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/icon-menu-saku.png"
+              alt="Menu Saku"
+              style={{ width: "30px", height: "30px", objectFit: "contain" }}
+            />
+            <span>Saku</span>
+          </span>
+        }
         subtitle="Tabungan & kantong keuangan pribadi"
         backHref="/"
         action={

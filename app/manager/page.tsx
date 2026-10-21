@@ -758,7 +758,15 @@ export default function ManagerPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="gc-left">
               <p>Pengaturan Pos Anggaran</p>
-              <h3>👛 Kelola Amplop &amp; Pos</h3>
+              <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo/icon-menu-dompet.png"
+                  alt="Menu Dompet"
+                  style={{ width: "28px", height: "28px", objectFit: "contain" }}
+                />
+                <span>Kelola Amplop &amp; Pos</span>
+              </h3>
             </div>
             <Link
               href="/dompet"

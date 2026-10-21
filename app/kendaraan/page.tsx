@@ -86,7 +86,17 @@ export default function KendaraanPage() {
     <main className="page active" style={{ paddingBottom: "110px" }}>
       {/* Top Header Standardized */}
       <PageHeader
-        title="Kendaraan"
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/icon-menu-kendaraan.png"
+              alt="Menu Kendaraan"
+              style={{ width: "30px", height: "30px", objectFit: "contain" }}
+            />
+            <span>Kendaraan</span>
+          </span>
+        }
         subtitle={`Kendaraan keluarga · ${vehicles.length} kendaraan`}
         backHref="/"
         action={

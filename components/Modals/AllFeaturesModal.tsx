@@ -333,7 +333,7 @@ export default function AllFeaturesModal({
                             marginBottom: "4px",
                           }}
                         >
-                          <div style={{ transform: "scale(0.8)" }}>{item.iconModal}</div>
+                          <div style={{ transform: "scale(0.7)" }}>{item.iconModal}</div>
                         </div>
 
                         {/* Name */}
@@ -474,7 +474,7 @@ export default function AllFeaturesModal({
                             flexShrink: 0,
                           }}
                         >
-                          <div style={{ transform: "scale(0.78)" }}>{m.iconModal}</div>
+                          <div style={{ transform: "scale(0.7)" }}>{m.iconModal}</div>
                         </div>
                         <div>
                           <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)" }}>

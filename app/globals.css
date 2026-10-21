@@ -781,6 +781,25 @@
     height: 30px;
   }
 
+  .menu-icon-img {
+    object-fit: contain;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    filter: drop-shadow(0 2px 5px rgba(16, 45, 85, 0.12));
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+  }
+
+  .quick-icon .menu-icon-img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .quick-card:hover .menu-icon-img {
+    transform: scale(1.08) translateY(-1.5px);
+    filter: drop-shadow(0 4px 9px rgba(16, 45, 85, 0.18));
+  }
+
   .quick-icon.blue {
     background: #e0f0ff;
     color: #2387ef;
@@ -883,6 +902,10 @@
     .quick-icon svg {
       width: 24px;
       height: 24px;
+    }
+    .quick-icon .menu-icon-img {
+      width: 35px;
+      height: 35px;
     }
     .quick-name {
       font-size: 12px;
@@ -1780,6 +1803,10 @@
   .quick-icon svg {
     width: 28px;
     height: 28px;
+  }
+  .quick-icon .menu-icon-img {
+    width: 40px;
+    height: 40px;
   }
 
   .quick-icon.blue {

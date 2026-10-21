@@ -56,7 +56,17 @@ export default function DebtsPage() {
   return (
     <main id="pg-debts" className="page active" style={{ paddingBottom: "110px" }}>
       <PageHeader
-        title="Hutang & Cicilan"
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/icon-menu-hutang.png"
+              alt="Menu Hutang"
+              style={{ width: "30px", height: "30px", objectFit: "contain" }}
+            />
+            <span>Hutang &amp; Cicilan</span>
+          </span>
+        }
         subtitle="Pantau kewajiban keuangan keluarga"
         backHref="/"
         action={
