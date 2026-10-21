@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { ImageResponse } from 'next/og'
+import { CATAT_KELUARGA_LOGO_DATA_URI } from '@/lib/brand-logo'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
@@ -11,10 +12,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholde
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default async function AppleIcon() {
-  let type = 'emoji'
-  let emoji = '🏠'
-  let bg = 'linear-gradient(135deg, #4392f9 0%, #1769d2 100%)'
-  let image = ''
+  let type = 'image'
+  let emoji = ''
+  let bg = '#ffffff'
+  let image = CATAT_KELUARGA_LOGO_DATA_URI
 
   try {
     const { data } = await supabase
@@ -22,12 +23,18 @@ export default async function AppleIcon() {
       .select("key, value")
       .in("key", ["website_logo_type", "website_logo_emoji", "website_logo_bg", "website_logo_image"])
     
-    if (data) {
+    if (data && data.length > 0) {
       const settings = new Map(data.map(item => [item.key, item.value]))
-      type = settings.get("website_logo_type") || 'emoji'
-      emoji = settings.get("website_logo_emoji") || '🏠'
-      bg = settings.get("website_logo_bg") || 'linear-gradient(135deg, #4392f9 0%, #1769d2 100%)'
-      image = settings.get("website_logo_image") || ''
+      const fetchedType = settings.get("website_logo_type")
+      if (fetchedType === 'emoji' && settings.get("website_logo_emoji")) {
+        type = 'emoji'
+        emoji = settings.get("website_logo_emoji") || '💳'
+        bg = settings.get("website_logo_bg") || 'linear-gradient(135deg, #4392f9 0%, #1769d2 100%)'
+      } else if (fetchedType === 'image' && settings.get("website_logo_image")) {
+        type = 'image'
+        image = settings.get("website_logo_image") || CATAT_KELUARGA_LOGO_DATA_URI
+        bg = settings.get("website_logo_bg") || '#ffffff'
+      }
     }
   } catch (e) {
     console.error("Error fetching apple-icon settings:", e)
@@ -43,14 +50,14 @@ export default async function AppleIcon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: bg || 'linear-gradient(135deg, #8b72ff 0%, #ff72b8 100%)',
+            background: bg || '#ffffff',
             borderRadius: '120px',
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image}
-            alt="Logo"
+            alt="Catat Keluarga Logo"
             style={{
               width: '90%',
               height: '90%',
@@ -77,7 +84,7 @@ export default async function AppleIcon() {
           color: 'white',
         }}
       >
-        {emoji}
+        {emoji || '💳'}
       </div>
     ),
     { ...size }
