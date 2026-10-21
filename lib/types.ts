@@ -180,6 +180,7 @@ export interface Vehicle {
   service_reminder_interval_months: 1 | 2;
   service_reminder_enabled: boolean;
   tax_reminder_enabled: boolean;
+  finance_pos_id?: string | null;
   notes?: string | null;
   archived_at?: string | null;
   created_at: string;
@@ -226,6 +227,25 @@ export interface VehicleServiceItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  created_at: string;
+}
+
+
+export interface VehicleFuelLog {
+  id: string;
+  keluarga_id?: string;
+  vehicle_id: string;
+  finance_pos_id?: string | null;
+  finance_transaction_id?: string | null;
+  log_date: string;
+  odometer_km: number;
+  fuel_type: string;
+  cost_per_liter?: number | null;
+  fuel_liters: number;
+  total_cost: number;
+  distance_km?: number | null;
+  efficiency_km_l?: number | null;
+  notes?: string | null;
   created_at: string;
 }
 
@@ -364,6 +384,14 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<VehicleServiceItem>;
+      };
+      vehicle_fuel_logs: {
+        Row: VehicleFuelLog;
+        Insert: Omit<VehicleFuelLog, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<VehicleFuelLog>;
       };
       vehicle_notifications: {
         Row: VehicleNotification;

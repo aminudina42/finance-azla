@@ -46,3 +46,4 @@ next-env.d.ts
 # Documentation & Work Files
 *.md
 
+/rekap-file-md/

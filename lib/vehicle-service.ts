@@ -6,6 +6,7 @@ import type {
   VehicleService,
   VehicleServiceItem,
   VehicleNotification,
+  VehicleFuelLog,
   StatusKeluarga,
 } from "@/lib/types";
 
@@ -20,6 +21,23 @@ export interface CreateVehicleInput {
   service_reminder_interval_months?: 1 | 2;
   service_reminder_enabled?: boolean;
   tax_reminder_enabled?: boolean;
+  finance_pos_id?: string | null;
+}
+
+
+export interface RecordFuelInput {
+  vehicle_id: string;
+  log_date: string;
+  odometer_km: number;
+  fuel_type: string;
+  cost_per_liter?: number;
+  fuel_liters: number;
+  total_cost: number;
+  finance_pos_id: string;
+  user_id: string;
+  user_name: string;
+  user_role: StatusKeluarga;
+  notes?: string;
 }
 
 export interface RecordTaxPaymentInput {
@@ -101,6 +119,7 @@ export async function createVehicle(
     service_reminder_interval_months: input.service_reminder_interval_months || 1,
     service_reminder_enabled: input.service_reminder_enabled ?? true,
     tax_reminder_enabled: input.tax_reminder_enabled ?? true,
+    finance_pos_id: input.finance_pos_id || null,
   };
 
   const { data, error } = await supabase
@@ -399,4 +418,70 @@ export async function getVehicleNotifications(): Promise<VehicleNotification[]> 
 
 export async function markNotificationAsRead(id: string): Promise<void> {
   await supabase.from("vehicle_notifications").update({ is_read: true }).eq("id", id);
+}
+
+
+// ── Vehicle Fuel Tracking ──
+
+export async function getVehicleFuelLogs(vehicleId: string): Promise<VehicleFuelLog[]> {
+  const { data, error } = await supabase
+    .from("vehicle_fuel_logs")
+    .select("*")
+    .eq("vehicle_id", vehicleId)
+    .order("log_date", { ascending: false })
+    .order("odometer_km", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching vehicle fuel logs:", error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getLastFuelLog(vehicleId: string): Promise<VehicleFuelLog | null> {
+  const { data, error } = await supabase
+    .from("vehicle_fuel_logs")
+    .select("*")
+    .eq("vehicle_id", vehicleId)
+    .order("odometer_km", { ascending: false })
+    .order("log_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching last fuel log:", error);
+    return null;
+  }
+  return data;
+}
+
+export async function recordVehicleFuelTx(
+  input: RecordFuelInput
+): Promise<{ data: any; error: PostgrestError | null }> {
+  const { data, error } = await supabase.rpc("record_vehicle_fuel_tx", {
+    p_vehicle_id: input.vehicle_id,
+    p_log_date: input.log_date,
+    p_odometer_km: input.odometer_km,
+    p_fuel_type: input.fuel_type,
+    p_cost_per_liter: input.cost_per_liter || null,
+    p_fuel_liters: input.fuel_liters,
+    p_total_cost: input.total_cost,
+    p_finance_pos_id: input.finance_pos_id,
+    p_user_id: input.user_id,
+    p_user_name: input.user_name,
+    p_user_role: input.user_role,
+    p_notes: input.notes || null,
+  });
+
+  return { data, error };
+}
+
+export async function deleteVehicleFuelTx(
+  fuelLogId: string
+): Promise<{ success: boolean; error: PostgrestError | null }> {
+  const { data, error } = await supabase.rpc("delete_vehicle_fuel_tx", {
+    p_fuel_log_id: fuelLogId,
+  });
+
+  return { success: !error, error };
 }

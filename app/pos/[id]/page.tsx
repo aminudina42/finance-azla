@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
-import type { Transaction } from "@/lib/types";
+import type { Transaction, Vehicle } from "@/lib/types";
+import { getVehicles } from "@/lib/vehicle-service";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import PageHeader from "@/components/PageHeader";
 
@@ -41,6 +42,18 @@ export default function PosDetailPage() {
   const [selectedCycleId, setSelectedCycleId] = useState(cycles[0]?.id ?? "");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const [connectedVehicles, setConnectedVehicles] = useState<Vehicle[]>([]);
+
+  // Ambil kendaraan yang terhubung dengan pos ini (1 Pos -> Banyak Kendaraan)
+  useEffect(() => {
+    let isMounted = true;
+    getVehicles().then((vehs) => {
+      if (isMounted) {
+        setConnectedVehicles(vehs.filter((v) => v.finance_pos_id === posId));
+      }
+    });
+    return () => { isMounted = false; };
+  }, [posId]);
 
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
 
@@ -250,6 +263,92 @@ export default function PosDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Section: Kendaraan Terhubung (1 Pos -> Banyak Kendaraan) */}
+      {connectedVehicles.length > 0 && (
+        <div style={{ padding: "16px 20px 0" }}>
+          <div
+            style={{
+              background: "var(--surface)",
+              borderRadius: "18px",
+              border: "1px solid var(--border)",
+              padding: "16px 18px",
+              boxShadow: "0 4px 14px rgba(16, 45, 85, 0.04)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--navy)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🚗</span>
+                <span>Kendaraan Terhubung ({connectedVehicles.length})</span>
+              </div>
+              <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
+                BBM & Perawatan
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {connectedVehicles.map((v) => (
+                <div
+                  key={v.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    borderRadius: "12px",
+                    background: "var(--s1)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <Link
+                    href={`/kendaraan/${v.id}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      textDecoration: "none",
+                      color: "inherit",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div style={{ fontSize: "18px" }}>{v.vehicle_type === "Mobil" ? "🚗" : "🛵"}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {v.brand} {v.model}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                        {v.plate_number} · Odometer {v.last_odometer.toLocaleString("id-ID")} km
+                      </div>
+                    </div>
+                  </Link>
+
+                  <Link
+                    href={`/kendaraan/${v.id}/bbm`}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "8px",
+                      background: "#f59e0b",
+                      color: "#ffffff",
+                      fontSize: "11.5px",
+                      fontWeight: 750,
+                      textDecoration: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      flexShrink: 0,
+                      boxShadow: "0 2px 6px rgba(245, 158, 11, 0.25)",
+                    }}
+                  >
+                    <span>⛽</span>
+                    <span>Isi BBM</span>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Body */}
       <div className="pos-detail-body">

@@ -10,7 +10,7 @@ import PageHeader from "@/components/PageHeader";
 
 export default function TambahKendaraanPage() {
   const router = useRouter();
-  const { setIsMutating } = useApp();
+  const { setIsMutating, posList } = useApp();
 
   const [plateNumber, setPlateNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<"Motor" | "Mobil">("Motor");
@@ -19,6 +19,7 @@ export default function TambahKendaraanPage() {
   const [nextTaxDueDate, setNextTaxDueDate] = useState("");
   const [lastOdometer, setLastOdometer] = useState("");
   const [notes, setNotes] = useState("");
+  const [financePosId, setFinancePosId] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -60,6 +61,7 @@ export default function TambahKendaraanPage() {
         service_reminder_interval_months: 1,
         service_reminder_enabled: true,
         tax_reminder_enabled: true,
+        finance_pos_id: financePosId || undefined,
       });
 
       if (error) {
@@ -254,6 +256,40 @@ export default function TambahKendaraanPage() {
                 }}
               />
             </div>
+
+            {/* Pos Keuangan Terkait (Multi-Kendaraan) */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "var(--navy)", marginBottom: "6px" }}>
+                Pos Keuangan Terkait (Anggaran)
+              </label>
+              <select
+                value={financePosId}
+                onChange={(e) => setFinancePosId(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "44px",
+                  padding: "0 14px",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  fontSize: "13.5px",
+                  color: "var(--text)",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              >
+                <option value="">-- Tanpa Pos (Dapat diatur nanti) --</option>
+                {posList.map((pos) => (
+                  <option key={pos.id} value={pos.id}>
+                    {pos.icon} {pos.name}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>
+                1 Pos dapat digunakan untuk banyak kendaraan. Biaya bensin dan servis akan memotong pos ini.
+              </div>
+            </div>
+
 
             {/* Tanggal Pajak Berikutnya */}
             <div style={{ marginBottom: "14px" }}>

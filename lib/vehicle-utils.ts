@@ -1,3 +1,97 @@
+
+import type { VehicleFuelLog } from "@/lib/types";
+
+export const PERTALITE_PRICE_PER_LITER = 10000;
+export const FUEL_TYPES = ["Pertalite", "Pertamax", "Pertamax Turbo", "BP 92", "Lainnya"] as const;
+
+export interface MonthlyFuelStats {
+  totalFills: number;
+  totalCost: number;
+  totalLiters: number;
+  totalDistanceKm: number;
+  averageKmL: number | null;
+  costPerKm: number | null;
+  hasBaselineOnly: boolean;
+}
+
+/**
+ * Format fuel consumption efficiency: e.g. "35 km/l" or "35.2 km/l"
+ */
+export function formatFuelEfficiency(kmL?: number | null): string {
+  if (kmL === null || kmL === undefined || isNaN(kmL) || kmL <= 0) {
+    return "— km/l";
+  }
+  const formatted = kmL % 1 === 0 ? kmL.toFixed(0) : kmL.toFixed(1);
+  return `${formatted} km/l`;
+}
+
+/**
+ * Calculates monthly/cycle fuel statistics for a vehicle
+ */
+export function calculateMonthlyFuelStats(
+  logs: VehicleFuelLog[],
+  cycleStartDateStr?: string | null
+): MonthlyFuelStats {
+  if (!logs || logs.length === 0) {
+    return {
+      totalFills: 0,
+      totalCost: 0,
+      totalLiters: 0,
+      totalDistanceKm: 0,
+      averageKmL: null,
+      costPerKm: null,
+      hasBaselineOnly: false,
+    };
+  }
+
+  // Filter logs within active cycle if provided, else default to all in the current calendar month
+  let filteredLogs = logs;
+  if (cycleStartDateStr) {
+    const cycleStart = new Date(cycleStartDateStr + "T00:00:00");
+    filteredLogs = logs.filter((log) => {
+      const d = new Date(log.log_date + "T00:00:00");
+      return d >= cycleStart;
+    });
+  } else {
+    const now = new Date();
+    filteredLogs = logs.filter((log) => {
+      const d = new Date(log.log_date + "T00:00:00");
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+  }
+
+  const totalCost = filteredLogs.reduce((sum, l) => sum + Number(l.total_cost || 0), 0);
+  const totalLiters = filteredLogs.reduce((sum, l) => sum + Number(l.fuel_liters || 0), 0);
+
+  // Valid distance logs (logs that have distance_km calculated from previous fuel log)
+  const validDistanceLogs = filteredLogs.filter(
+    (l) => typeof l.distance_km === "number" && l.distance_km > 0
+  );
+
+  const totalDistanceKm = validDistanceLogs.reduce((sum, l) => sum + Number(l.distance_km || 0), 0);
+  const validLiters = validDistanceLogs.reduce((sum, l) => sum + Number(l.fuel_liters || 0), 0);
+
+  const averageKmL = validLiters > 0 && totalDistanceKm > 0 
+    ? Math.round((totalDistanceKm / validLiters) * 10) / 10 
+    : null;
+
+  const costPerKm = totalDistanceKm > 0 && totalCost > 0 
+    ? Math.round(totalCost / totalDistanceKm) 
+    : null;
+
+  const hasBaselineOnly = filteredLogs.length === 1 && validDistanceLogs.length === 0;
+
+  return {
+    totalFills: filteredLogs.length,
+    totalCost,
+    totalLiters: Math.round(totalLiters * 10) / 10,
+    totalDistanceKm,
+    averageKmL,
+    costPerKm,
+    hasBaselineOnly,
+  };
+}
+
 /**
  * Helper utilities for Vehicle Management (Catat Keluarga)
  */
