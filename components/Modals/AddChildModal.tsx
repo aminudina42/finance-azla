@@ -98,7 +98,7 @@ export default function AddChildModal({
           Batal
         </button>
         <button className="m-save" onClick={handleSave}>
-          ✅ Tambah
+          Tambah
         </button>
       </div>
     </Modal>

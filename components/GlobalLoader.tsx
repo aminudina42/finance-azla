@@ -11,13 +11,13 @@ export default function GlobalLoader({ isNavigating, isMutating }: GlobalLoaderP
   const active = isNavigating || isMutating;
   const [visible, setVisible] = useState(false);
 
-  // Gunakan jeda singkat sebelum menampilkan spinner glassmorphic agar tidak flickering untuk aksi yang sangat cepat
+  // Responsif cepat menampilkan animasi loading saat berpindah halaman
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (active) {
       timer = setTimeout(() => {
         setVisible(true);
-      }, 80); // jeda 80ms
+      }, 30);
     } else {
       setVisible(false);
     }
@@ -31,17 +31,29 @@ export default function GlobalLoader({ isNavigating, isMutating }: GlobalLoaderP
       {/* Progress bar tipis menyala di bagian paling atas layar */}
       <div className="top-progress-bar" />
 
-      {/* Overlay glassmorphism untuk memblokir interaksi klik berulang */}
+      {/* Overlay glassmorphism dengan animated SVG spinner */}
       {visible && (
         <div className="global-loader-overlay">
           <div className="global-loader-container">
-            <div className="global-loader-spinner">
-              <span className="global-loader-emoji">
-                {isMutating ? "💾" : "💳"}
-              </span>
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                display: "grid",
+                placeItems: "center",
+                marginBottom: "12px",
+              }}
+            >
+              <img
+                src="/logo/loading_spinner_animated.svg"
+                alt="Memuat..."
+                width={56}
+                height={56}
+                style={{ display: "block" }}
+              />
             </div>
             <div className="global-loader-text">
-              {isMutating ? "Menyimpan data..." : "Memuat halaman..."}
+              {isMutating ? "Menyimpan data..." : "Memuat..."}
             </div>
             <div className="global-loader-sub">
               Mohon tunggu sebentar

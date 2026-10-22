@@ -6,6 +6,7 @@ import { getVehicleById, updateVehicle } from "@/lib/vehicle-service";
 import { normalizePlateNumber } from "@/lib/vehicle-utils";
 import { useApp } from "@/lib/store";
 import DateInput from "@/components/Kendaraan/DateInput";
+import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
 
 interface PageProps {
@@ -208,7 +209,8 @@ export default function EditKendaraanPage({ params }: PageProps) {
                       gap: "8px",
                     }}
                   >
-                    {type === "Motor" ? "🛵 Motor" : "🚗 Mobil"}
+                    <VehicleTypeIcon type={type} size={22} />
+                    <span>{type}</span>
                   </button>
                 ))}
               </div>

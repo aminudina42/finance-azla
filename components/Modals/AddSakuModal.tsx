@@ -110,13 +110,13 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
               className={`type-opt ${sakuType === "standalone" ? "active-in" : ""}`}
               onClick={() => setSakuType("standalone")}
             >
-              🪙 Mandiri
+              Mandiri
             </div>
             <div
               className={`type-opt ${sakuType === "linked" ? "active-out" : ""}`}
               onClick={() => setSakuType("linked")}
             >
-              🔗 Terhubung ke Pos
+              Terhubung ke Pos
             </div>
           </div>
           {sakuType === "linked" && (
@@ -164,7 +164,7 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
           onClick={handleSave}
           style={{ opacity: !name.trim() ? 0.5 : 1 }}
         >
-          ✅ Tambah Saku
+          Tambah Saku
         </button>
       </div>
     </Modal>

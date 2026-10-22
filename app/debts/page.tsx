@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useApp } from "@/lib/store";
 import DebtModal from "@/components/Modals/DebtModal";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
@@ -11,6 +11,18 @@ function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
+function getRemainingTimes(debt: { remaining_amount: number; tenor_months?: number; paid_months?: number; monthly_payment: number }): number {
+  if (debt.remaining_amount <= 0) return 0;
+  if ((debt.tenor_months || 0) > 0) {
+    const sisa = (debt.tenor_months || 0) - (debt.paid_months || 0);
+    return Math.max(1, sisa);
+  }
+  if (debt.monthly_payment > 0) {
+    return Math.max(1, Math.ceil(debt.remaining_amount / debt.monthly_payment));
+  }
+  return Infinity;
+}
+
 export default function DebtsPage() {
   const { debts, posList, addDebt, updateDebt, deleteDebt, payDebt } = useApp();
 
@@ -19,9 +31,61 @@ export default function DebtsPage() {
   const [editingDebt, setEditingDebt] = useState<any>(null);
   const [debtToDelete, setDebtToDelete] = useState<any>(null);
   const [payingDebt, setPayingDebt] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<"sisa" | "nominal">("sisa");
 
-  const totalDebt = debts.reduce((s, d) => s + d.remaining_amount, 0);
-  const totalMonthly = debts.reduce((s, d) => s + d.monthly_payment, 0);
+  // Hanya hutang yang masih berjalan (belum lunas) yang masuk ke total cicilan & sisa hutang
+  const activeDebts = useMemo(() => debts.filter((d) => d.remaining_amount > 0), [debts]);
+  const totalDebt = useMemo(() => activeDebts.reduce((s, d) => s + d.remaining_amount, 0), [activeDebts]);
+  const totalMonthly = useMemo(() => activeDebts.reduce((s, d) => s + d.monthly_payment, 0), [activeDebts]);
+
+  // Sorting hutang:
+  // 1. Yang belum lunas selalu di atas, yang sudah lunas di paling bawah
+  // 2. Mode 'sisa' (default): urutkan dari sisa pembayaran terkecil berapa kali lagi (1x, 2x, dst).
+  //    Jika sama, urutkan dari nominal hutang terbesar.
+  // 3. Mode 'nominal': urutkan dari nominal hutang terbesar.
+  const sortedDebts = useMemo(() => {
+    return [...debts].sort((a, b) => {
+      const isLunasA = a.remaining_amount <= 0;
+      const isLunasB = b.remaining_amount <= 0;
+
+      // 1. Belum lunas selalu di atas, lunas di bawah
+      if (isLunasA !== isLunasB) {
+        return isLunasA ? 1 : -1;
+      }
+
+      // Jika keduanya sudah lunas, urutkan dari total hutang terbesar
+      if (isLunasA && isLunasB) {
+        return (b.total_amount || 0) - (a.total_amount || 0);
+      }
+
+      // Keduanya belum lunas:
+      if (sortBy === "sisa") {
+        const timesA = getRemainingTimes(a);
+        const timesB = getRemainingTimes(b);
+
+        if (timesA !== timesB) {
+          return timesA - timesB;
+        }
+
+        // Jika sisa kali sama, dari nominal sisa hutang terbesar
+        if (b.remaining_amount !== a.remaining_amount) {
+          return b.remaining_amount - a.remaining_amount;
+        }
+        return (b.total_amount || 0) - (a.total_amount || 0);
+      } else {
+        // Mode nominal terbesar
+        if (b.remaining_amount !== a.remaining_amount) {
+          return b.remaining_amount - a.remaining_amount;
+        }
+        const timesA = getRemainingTimes(a);
+        const timesB = getRemainingTimes(b);
+        if (timesA !== timesB) {
+          return timesA - timesB;
+        }
+        return (b.total_amount || 0) - (a.total_amount || 0);
+      }
+    });
+  }, [debts, sortBy]);
 
   const openAdd = () => {
     setEditingDebt(null); setModalMode("add"); setShowModal(true);
@@ -129,6 +193,45 @@ export default function DebtsPage() {
 
       {/* Debt list */}
       <div style={{ padding: "16px 20px 0" }}>
+        {debts.length > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)" }}>
+              Daftar Hutang
+              <span style={{ marginLeft: "6px", fontSize: "11px", fontWeight: 650, color: "var(--text-secondary)" }}>
+                ({activeDebts.length} aktif{debts.length - activeDebts.length > 0 ? ` · ${debts.length - activeDebts.length} lunas` : ""})
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {[
+                { id: "sisa", label: "⚡ Sisa Kali (1x, 2x)" },
+                { id: "nominal", label: "💰 Nominal Terbesar" },
+              ].map((pill) => {
+                const active = sortBy === pill.id;
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setSortBy(pill.id as any)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "999px",
+                      border: active ? "1.5px solid var(--primary)" : "1px solid var(--border)",
+                      background: active ? "rgba(40, 127, 240, 0.08)" : "#ffffff",
+                      color: active ? "var(--primary)" : "var(--text-secondary)",
+                      fontSize: "11px",
+                      fontWeight: active ? 750 : 600,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {pill.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {debts.length === 0 && (
           <div style={{ textAlign: "center", padding: "40px 20px", background: "#ffffff", borderRadius: "16px", border: "1.5px dashed var(--border)", color: "var(--text-secondary)", marginTop: "8px" }}>
             <div style={{ fontSize: "40px", marginBottom: "10px" }}>💳</div>
@@ -136,7 +239,7 @@ export default function DebtsPage() {
             <div style={{ fontSize: "12.5px" }}>Bagus! Atau tap tombol <strong>＋ Tambah</strong> untuk mencatat kewajiban cicilan.</div>
           </div>
         )}
-        {debts.map((debt) => {
+        {sortedDebts.map((debt) => {
           const progress = debt.total_amount > 0
             ? Math.round(((debt.total_amount - debt.remaining_amount) / debt.total_amount) * 100)
             : 0;
@@ -199,11 +302,14 @@ export default function DebtsPage() {
                       cursor: "pointer",
                       display: "grid",
                       placeItems: "center",
-                      fontSize: "12px",
+                      color: "var(--text-secondary)",
                     }}
                     title="Edit"
                   >
-                    ✏️
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
                   </button>
                   <button
                     type="button"
@@ -217,11 +323,14 @@ export default function DebtsPage() {
                       cursor: "pointer",
                       display: "grid",
                       placeItems: "center",
-                      fontSize: "12px",
+                      color: "var(--danger)",
                     }}
                     title="Hapus"
                   >
-                    🗑
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -231,7 +340,7 @@ export default function DebtsPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--border)", paddingBottom: "8px" }}>
                     <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>Sisa Tagihan</div>
                     <div style={{ fontSize: "14.5px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--danger)", fontVariantNumeric: "tabular-nums" }}>
-                      {formatRp(debt.remaining_amount)} {!isLunas && <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>(Sisa {(debt.tenor_months || 0) - (debt.paid_months || 0)}x)</span>}
+                      {formatRp(debt.remaining_amount)} {!isLunas && <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>(Sisa {getRemainingTimes(debt)}x)</span>}
                     </div>
                   </div>
                   {(debt.principal_amount || 0) > 0 && (
@@ -250,7 +359,12 @@ export default function DebtsPage() {
                   <div>
                     <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Sisa</div>
                     <div style={{ fontSize: "15px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--danger)", fontVariantNumeric: "tabular-nums", marginTop: "2px" }}>
-                      {formatRp(debt.remaining_amount)}
+                      {formatRp(debt.remaining_amount)}{" "}
+                      {!isLunas && getRemainingTimes(debt) < Infinity && (
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>
+                          (Sisa {getRemainingTimes(debt)}x)
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -294,7 +408,7 @@ export default function DebtsPage() {
                   }}
                   onClick={() => setPayingDebt(debt)}
                 >
-                  💸 Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}
+                  Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}
                 </button>
               )}
             </div>

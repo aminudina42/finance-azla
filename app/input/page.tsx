@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 import type { StatusKeluarga, Vehicle, VehicleFuelLog } from "@/lib/types";
 import { getVehicles, getLastFuelLog, recordVehicleFuelTx } from "@/lib/vehicle-service";
 import { PERTALITE_PRICE_PER_LITER, formatRp } from "@/lib/vehicle-utils";
+import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import SakuBorrowModal from "@/components/Modals/SakuBorrowModal";
 import PageHeader from "@/components/PageHeader";
 
@@ -33,7 +34,6 @@ export default function InputPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [lastFuelLog, setLastFuelLog] = useState<VehicleFuelLog | null>(null);
-  const [isFuelMode, setIsFuelMode] = useState(true);
 
   // Form Fields BBM
   const [odometerKm, setOdometerKm] = useState("");
@@ -66,32 +66,39 @@ export default function InputPage() {
     return vehicles.filter((v) => v.finance_pos_id === posId);
   }, [vehicles, posId]);
 
-  // Daftar kendaraan yang dapat dipilih (utamakan yang terhubung ke pos, fallback ke seluruh armada)
-  const availableVehicles = useMemo(() => {
-    if (connectedVehicles.length > 0) return connectedVehicles;
-    return vehicles;
-  }, [connectedVehicles, vehicles]);
+  // Mode BBM hanya aktif langsung jika pengeluaran dan POS terhubung ke kendaraan
+  const isFuelMode = txType === "expense" && connectedVehicles.length > 0;
 
-  // Otomatis aktifkan mode BBM jika pos terintegrasi dengan kendaraan
+  // Sinkronkan kendaraan terpilih dengan daftar kendaraan yang terhubung ke pos ini
   useEffect(() => {
     if (connectedVehicles.length > 0) {
       if (!connectedVehicles.some((v) => v.id === selectedVehicleId)) {
         setSelectedVehicleId(connectedVehicles[0].id);
       }
-      setIsFuelMode(true);
     } else {
-      // Jika pos tidak terhubung langsung ke kendaraan, siapkan kendaraan pertama namun mode BBM default off
-      if (!vehicles.some((v) => v.id === selectedVehicleId)) {
-        setSelectedVehicleId(vehicles[0]?.id || "");
-      }
-      setIsFuelMode(false);
+      setSelectedVehicleId("");
     }
-  }, [connectedVehicles, selectedVehicleId, vehicles]);
+  }, [connectedVehicles, selectedVehicleId]);
+
+  // Sinkronkan liter bensin saat mode BBM aktif dan nominal sudah terisi
+  useEffect(() => {
+    if (isFuelMode) {
+      const rawNominal = parseInt(nominal.replace(/\D/g, ""), 10) || 0;
+      const rawCostPerLiter = parseInt(costPerLiterStr.replace(/\D/g, ""), 10) || PERTALITE_PRICE_PER_LITER;
+      if (rawNominal > 0 && rawCostPerLiter > 0) {
+        setLitersStr((rawNominal / rawCostPerLiter).toFixed(2));
+      }
+    } else {
+      setLitersStr("");
+      setOdometerKm("");
+      setFuelErrorMsg("");
+    }
+  }, [isFuelMode]);
 
   // Ambil data pengisian bensin terakhir khusus kendaraan terpilih
   useEffect(() => {
     let isMounted = true;
-    if (selectedVehicleId) {
+    if (selectedVehicleId && isFuelMode) {
       getLastFuelLog(selectedVehicleId).then((log) => {
         if (isMounted) setLastFuelLog(log);
       });
@@ -99,7 +106,7 @@ export default function InputPage() {
       setLastFuelLog(null);
     }
     return () => { isMounted = false; };
-  }, [selectedVehicleId]);
+  }, [selectedVehicleId, isFuelMode]);
 
   // Efek perubahan jenis bahan bakar -> update harga per liter & hitung ulang liter jika nominal ada
   useEffect(() => {
@@ -194,9 +201,9 @@ export default function InputPage() {
     setFuelErrorMsg("");
     if (!amount || !posId || isSubmitting) return;
 
-    // A. JIKA MODE BBM AKTIF PADA KENDARAAN TERPILIH
-    if (txType === "expense" && isFuelMode && selectedVehicleId) {
-      const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+    // A. JIKA MODE BBM AKTIF PADA POS TERHUBUNG KENDARAAN
+    if (isFuelMode) {
+      const selectedVehicle = connectedVehicles.find((v) => v.id === selectedVehicleId) || connectedVehicles[0];
       if (!selectedVehicle) {
         setFuelErrorMsg("Pilih kendaraan yang akan diisi bensin");
         return;
@@ -349,7 +356,7 @@ export default function InputPage() {
                   gap: "6px",
                 }}
               >
-                📤 Pengeluaran
+                Pengeluaran
               </button>
               <button
                 type="button"
@@ -371,7 +378,7 @@ export default function InputPage() {
                   gap: "6px",
                 }}
               >
-                📥 Pemasukan
+                Pemasukan
               </button>
             </div>
           </div>
@@ -527,8 +534,8 @@ export default function InputPage() {
             )}
           </div>
 
-          {/* Section: Formulir Pengisian BBM Terintegrasi Kendaraan */}
-          {txType === "expense" && posId && availableVehicles.length > 0 && (
+          {/* Section: Formulir Pengisian BBM Langsung (Hanya Pos Terhubung Kendaraan) */}
+          {isFuelMode && (
             <div
               style={{
                 borderRadius: "18px",
@@ -545,8 +552,8 @@ export default function InputPage() {
                   padding: "16px 18px",
                 }}
               >
-                {/* Header Section dengan Switch Toggle */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isFuelMode ? "14px" : "0" }}>
+                {/* Header Section BBM Langsung */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div
                       style={{
@@ -568,119 +575,102 @@ export default function InputPage() {
                         Pencatatan Bensin (BBM)
                       </div>
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                        {connectedVehicles.length > 0 ? "Pos ini terhubung ke kendaraan keluarga" : "Catat pengeluaran pos ini untuk bensin armada"}
+                        Pos ini terhubung ke kendaraan armada
                       </div>
                     </div>
                   </div>
 
-                  <label
+                  <span
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      cursor: "pointer",
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: 750,
                       color: "#b45309",
                       background: "#fffbeb",
-                      padding: "5px 10px",
-                      borderRadius: "8px",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
                       border: "1px solid #fde68a",
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isFuelMode}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setIsFuelMode(checked);
-                        if (checked && !selectedVehicleId && availableVehicles.length > 0) {
-                          setSelectedVehicleId(availableVehicles[0].id);
-                        }
-                      }}
-                      style={{ accentColor: "#f59e0b", width: "16px", height: "16px", cursor: "pointer" }}
-                    />
-                    <span>Mode BBM</span>
-                  </label>
+                    Terhubung Kendaraan
+                  </span>
                 </div>
 
-                {isFuelMode && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                    {/* Error message alert jika validasi gagal */}
-                    {fuelErrorMsg && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {/* Error message alert jika validasi gagal */}
+                  {fuelErrorMsg && (
+                    <div
+                      style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        color: "#dc2626",
+                        padding: "10px 12px",
+                        borderRadius: "10px",
+                        fontSize: "12px",
+                        fontWeight: 650,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span>⚠️</span>
+                      <span>{fuelErrorMsg}</span>
+                    </div>
+                  )}
+
+                  {/* Selector Kendaraan jika ada beberapa pilihan armada */}
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 750, color: "var(--navy)", marginBottom: "6px" }}>
+                      Kendaraan yang Diisi BBM
+                    </label>
+                    {connectedVehicles.length > 1 ? (
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        {connectedVehicles.map((v) => {
+                          const isSelected = v.id === selectedVehicleId;
+                          return (
+                            <button
+                              key={v.id}
+                              type="button"
+                              onClick={() => setSelectedVehicleId(v.id)}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: "10px",
+                                border: isSelected ? "2px solid #f59e0b" : "1px solid var(--border)",
+                                background: isSelected ? "#fffbeb" : "var(--s1)",
+                                color: isSelected ? "#b45309" : "var(--navy)",
+                                fontWeight: 750,
+                                fontSize: "12px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                              }}
+                            >
+                              <VehicleTypeIcon type={v.vehicle_type} size={18} />
+                              <span>{v.brand} {v.model} ({v.plate_number})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
                       <div
                         style={{
-                          background: "#fef2f2",
-                          border: "1px solid #fecaca",
-                          color: "#dc2626",
-                          padding: "10px 12px",
+                          padding: "8px 12px",
                           borderRadius: "10px",
-                          fontSize: "12px",
-                          fontWeight: 650,
-                          display: "flex",
+                          background: "#fffbeb",
+                          border: "1px solid #fde68a",
+                          fontSize: "12.5px",
+                          fontWeight: 750,
+                          color: "#92400e",
+                          display: "inline-flex",
                           alignItems: "center",
                           gap: "6px",
                         }}
                       >
-                        <span>⚠️</span>
-                        <span>{fuelErrorMsg}</span>
+                        <VehicleTypeIcon type={connectedVehicles[0]?.vehicle_type} size={20} />
+                        <span>{connectedVehicles[0]?.brand} {connectedVehicles[0]?.model} ({connectedVehicles[0]?.plate_number})</span>
                       </div>
                     )}
-
-                    {/* Selector Kendaraan jika ada beberapa pilihan armada */}
-                    <div>
-                      <label style={{ display: "block", fontSize: "11.5px", fontWeight: 750, color: "var(--navy)", marginBottom: "6px" }}>
-                        Kendaraan yang Diisi BBM
-                      </label>
-                      {availableVehicles.length > 1 ? (
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                          {availableVehicles.map((v) => {
-                            const isSelected = v.id === selectedVehicleId;
-                            return (
-                              <button
-                                key={v.id}
-                                type="button"
-                                onClick={() => setSelectedVehicleId(v.id)}
-                                style={{
-                                  padding: "8px 12px",
-                                  borderRadius: "10px",
-                                  border: isSelected ? "2px solid #f59e0b" : "1px solid var(--border)",
-                                  background: isSelected ? "#fffbeb" : "var(--s1)",
-                                  color: isSelected ? "#b45309" : "var(--navy)",
-                                  fontWeight: 750,
-                                  fontSize: "12px",
-                                  cursor: "pointer",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "6px",
-                                }}
-                              >
-                                <span>{v.vehicle_type === "Mobil" ? "🚗" : "🛵"}</span>
-                                <span>{v.brand} {v.model} ({v.plate_number})</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: "10px",
-                            background: "#fffbeb",
-                            border: "1px solid #fde68a",
-                            fontSize: "12.5px",
-                            fontWeight: 750,
-                            color: "#92400e",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                          }}
-                        >
-                          <span>{availableVehicles[0]?.vehicle_type === "Mobil" ? "🚗" : "🛵"}</span>
-                          <span>{availableVehicles[0]?.brand} {availableVehicles[0]?.model} ({availableVehicles[0]?.plate_number})</span>
-                        </div>
-                      )}
-                    </div>
+                  </div>
 
                     {/* Helper status pengisian bensin sebelumnya */}
                     <div
@@ -782,7 +772,7 @@ export default function InputPage() {
                                 textAlign: "center",
                               }}
                             >
-                              {cat === "Pertalite" ? "🟢 Pertalite" : cat === "Pertamax" ? "🔵 Pertamax" : cat === "Pertamax Turbo" ? "🔴 Turbo" : cat === "BP 92" ? "🟡 BP 92" : "✏️ Lainnya"}
+                              {cat === "Pertalite" ? "Pertalite" : cat === "Pertamax" ? "Pertamax" : cat === "Pertamax Turbo" ? "Turbo" : cat === "BP 92" ? "BP 92" : "Lainnya"}
                             </button>
                           );
                         })}
@@ -905,9 +895,8 @@ export default function InputPage() {
                       </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
           )}
 
           {/* Shortfall warning + Saku borrow banner */}
@@ -941,7 +930,7 @@ export default function InputPage() {
                   boxShadow: "0 2px 8px rgba(244, 163, 59, 0.3)",
                 }}
               >
-                🏧 Pinjam dari Saku
+                Pinjam dari Saku
               </button>
             </div>
           )}
@@ -952,7 +941,13 @@ export default function InputPage() {
               Keterangan
             </div>
             <textarea
-              placeholder={isIncome ? "Contoh: Bonus proyek freelance…" : "Contoh: Beli beras 5kg di pasar…"}
+              placeholder={
+                isIncome
+                  ? "Contoh: Bonus proyek freelance…"
+                  : isFuelMode
+                    ? "Contoh: SPBU Pertamina Dago, Shell Pajajaran, isi full tank…"
+                    : "Contoh: Beli beras 5kg di pasar…"
+              }
               value={keterangan}
               onChange={(e) => setKeterangan(e.target.value)}
               rows={3}
@@ -981,34 +976,34 @@ export default function InputPage() {
               border: "none",
               background: isIncome
                 ? "linear-gradient(135deg, var(--teal), #108e82)"
-                : isFuelMode && connectedVehicles.length > 0
+                : isFuelMode
                   ? "linear-gradient(135deg, #f59e0b, #d97706)"
                   : "linear-gradient(135deg, #287ff0, #1769d2)",
               color: "#ffffff",
               fontWeight: 800,
               fontSize: "15px",
               letterSpacing: "-0.2px",
-              cursor: isSubmitting || saved || Boolean(isFuelMode && connectedVehicles.length > 0 && isOdoInvalid) ? "default" : "pointer",
+              cursor: isSubmitting || saved || Boolean(isFuelMode && isOdoInvalid) ? "default" : "pointer",
               boxShadow: isIncome
                 ? "0 4px 16px rgba(22, 168, 154, 0.3)"
-                : isFuelMode && connectedVehicles.length > 0
+                : isFuelMode
                   ? "0 4px 16px rgba(245, 158, 11, 0.35)"
                   : "0 4px 16px rgba(40, 127, 240, 0.35)",
-              opacity: isSubmitting || (isFuelMode && connectedVehicles.length > 0 && isOdoInvalid) ? 0.6 : 1,
+              opacity: isSubmitting || (isFuelMode && isOdoInvalid) ? 0.6 : 1,
               transition: "transform 0.15s ease, opacity 0.15s ease",
             }}
             onClick={handleSave}
-            disabled={isSubmitting || saved || Boolean(isFuelMode && connectedVehicles.length > 0 && isOdoInvalid)}
+            disabled={isSubmitting || saved || Boolean(isFuelMode && isOdoInvalid)}
           >
             {saved
-              ? "✅ Berhasil Disimpan!"
+              ? "Berhasil Disimpan!"
               : isSubmitting
-                ? "⏳ Menyimpan..."
+                ? "Menyimpan..."
                 : isIncome
-                  ? "💰 Simpan Pemasukan"
-                  : isFuelMode && connectedVehicles.length > 0
-                    ? "⛽ Simpan Transaksi & Log BBM"
-                    : "💾 Simpan Pengeluaran"}
+                  ? "Simpan Pemasukan"
+                  : isFuelMode
+                    ? "Simpan Transaksi & Log BBM"
+                    : "Simpan Pengeluaran"}
           </button>
         </div>
       </div>

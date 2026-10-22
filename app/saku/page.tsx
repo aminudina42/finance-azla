@@ -189,7 +189,7 @@ export default function SakuPage() {
                   boxShadow: "0 2px 8px rgba(240, 68, 103, 0.3)",
                 }}
               >
-                ↩️ Bayar
+                Bayar
               </button>
             </div>
           )}
@@ -232,10 +232,14 @@ export default function SakuPage() {
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "4px",
+                  gap: "5px",
                 }}
               >
-                ✏️ Edit
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit</span>
               </button>
             </div>
 
@@ -293,7 +297,7 @@ export default function SakuPage() {
                   transition: "background 0.15s ease",
                 }}
               >
-                <span>➖</span> Pengeluaran
+                Pengeluaran
               </button>
               <button
                 onClick={() => openSakuTx("in")}
@@ -313,7 +317,7 @@ export default function SakuPage() {
                   transition: "background 0.15s ease",
                 }}
               >
-                <span>➕</span> Pemasukan
+                Pemasukan
               </button>
             </div>
           </div>

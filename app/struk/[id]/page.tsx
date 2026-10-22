@@ -418,18 +418,18 @@ export default function DetailStrukPage() {
           <button className="btn-primary"
             style={{ padding: "12px", fontSize: "14px", background: "var(--s2)", color: "var(--text)", border: "1px solid var(--border)" }}
             onClick={() => { setIsNavigating(true); router.push(`/struk/${id}/print`); }}>
-            🖨️ Cetak
+            Cetak
           </button>
           <button className="btn-primary"
             style={{ padding: "12px", fontSize: "14px", background: "var(--s2)", color: "var(--text)", border: "1px solid var(--border)" }}
             onClick={handleDownloadPNG} disabled={isProcessing}>
-            ⬇️ Unduh PNG
+            Unduh PNG
           </button>
         </div>
         <button className="btn-primary"
           style={{ padding: "12px", fontSize: "14px", background: "#25D366", color: "#fff" }}
           onClick={handleShareWA} disabled={isProcessing}>
-          💬 Bagikan ke WhatsApp
+          Bagikan ke WhatsApp
         </button>
 
         <div style={{ borderTop: "1px dashed var(--border)", margin: "8px 0" }} />
@@ -573,7 +573,7 @@ export default function DetailStrukPage() {
                             fontWeight: "bold", textAlign: "center", cursor: "pointer"
                           }}
                         >
-                          🔄 Ganti
+                          Ganti
                         </label>
                         <button
                           type="button"
@@ -584,7 +584,7 @@ export default function DetailStrukPage() {
                             fontWeight: "bold", cursor: "pointer"
                           }}
                         >
-                          🗑 Hapus
+                          Hapus
                         </button>
                       </div>
                     </div>
@@ -734,7 +734,7 @@ export default function DetailStrukPage() {
         <button className="btn-primary"
           style={{ marginTop: "4px", background: "linear-gradient(135deg, var(--purple), var(--pink))" }}
           onClick={handleUpdate} disabled={isSaving}>
-          {isSaving ? "⏳ Menyimpan..." : "💾 Simpan Perubahan Transaksi Kasir"}
+          {isSaving ? "Menyimpan..." : "Simpan Perubahan Transaksi Kasir"}
         </button>
       </div>
     </main>

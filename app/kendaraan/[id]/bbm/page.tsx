@@ -475,7 +475,7 @@ export default function CatatBbmPage({ params }: PageProps) {
                           textAlign: "center",
                         }}
                       >
-                        {cat === "Pertalite" ? "🟢 Pertalite" : cat === "Pertamax" ? "🔵 Pertamax" : cat === "Pertamax Turbo" ? "🔴 Turbo" : cat === "BP 92" ? "🟡 BP 92" : "✏️ Lainnya"}
+                        {cat === "Pertalite" ? "Pertalite" : cat === "Pertamax" ? "Pertamax" : cat === "Pertamax Turbo" ? "Turbo" : cat === "BP 92" ? "BP 92" : "Lainnya"}
                       </button>
                     );
                   })}

@@ -95,13 +95,13 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
               className={`type-opt ${sakuType === "standalone" ? "active-in" : ""}`}
               onClick={() => setSakuType("standalone")}
             >
-              🪙 Mandiri
+              Mandiri
             </div>
             <div
               className={`type-opt ${sakuType === "linked" ? "active-out" : ""}`}
               onClick={() => setSakuType("linked")}
             >
-              🔗 Terhubung ke Pos
+              Terhubung ke Pos
             </div>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
       <div className="m-actions" style={{ flexDirection: "column", gap: "10px" }}>
         <div style={{ display: "flex", gap: "10px", width: "100%" }}>
           <button className="m-cancel" onClick={onClose} style={{ flex: 1 }}>Batal</button>
-          <button className="m-save" onClick={handleSave} style={{ flex: 2 }}>💾 Simpan</button>
+          <button className="m-save" onClick={handleSave} style={{ flex: 2 }}>Simpan</button>
         </div>
         <button
           onClick={handleDelete}
@@ -152,7 +152,7 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
             transition: "all .2s",
           }}
         >
-          {confirmDelete ? "⚠️ Yakin? Tap lagi untuk hapus" : "🗑️ Hapus Saku"}
+          {confirmDelete ? "Yakin? Tap lagi untuk hapus" : "Hapus Saku"}
         </button>
       </div>
     </Modal>

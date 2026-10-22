@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Animated loading spinner</title>
+  <desc>Blue gradient radial loading indicator on a transparent background.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#55D6FF"/>
+      <stop offset="0.55" stop-color="#168BFF"/>
+      <stop offset="1" stop-color="#174DE8"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(128 128)">
+    <g>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="#1762E9"><animate attributeName="opacity" values="1;.35;.35" keyTimes="0;.12;1" dur="1s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(45)"><animate attributeName="opacity" values=".88;.25;.25" keyTimes="0;.12;1" dur="1s" begin=".125s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(90)"><animate attributeName="opacity" values=".8;.22;.22" keyTimes="0;.12;1" dur="1s" begin=".25s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(135)"><animate attributeName="opacity" values=".72;.2;.2" keyTimes="0;.12;1" dur="1s" begin=".375s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(180)"><animate attributeName="opacity" values=".64;.18;.18" keyTimes="0;.12;1" dur="1s" begin=".5s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(225)"><animate attributeName="opacity" values=".56;.16;.16" keyTimes="0;.12;1" dur="1s" begin=".625s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(270)"><animate attributeName="opacity" values=".48;.14;.14" keyTimes="0;.12;1" dur="1s" begin=".75s" repeatCount="indefinite"/></rect>
+      <rect x="-10" y="-91" width="20" height="43" rx="10" fill="url(#blue)" transform="rotate(315)"><animate attributeName="opacity" values=".4;.12;.12" keyTimes="0;.12;1" dur="1s" begin=".875s" repeatCount="indefinite"/></rect>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.2s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>

@@ -301,7 +301,7 @@ function OnboardingContent() {
               transition: "all 0.15s ease",
             }}
           >
-            🏠 Buat Keluarga
+            Buat Keluarga
           </button>
           <button
             type="button"
@@ -319,7 +319,7 @@ function OnboardingContent() {
               transition: "all 0.15s ease",
             }}
           >
-            🔗 Gabung Keluarga
+            Gabung Keluarga
           </button>
         </div>
 
@@ -454,7 +454,7 @@ function OnboardingContent() {
                 marginTop: "4px",
               }}
             >
-              {loading ? "Membuat Keluarga..." : "Buat Keluarga & Mulai 🚀"}
+              {loading ? "Membuat Keluarga..." : "Buat Keluarga & Mulai"}
             </button>
           </form>
         )}

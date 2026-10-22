@@ -233,7 +233,6 @@ export default function FirstCycleSetupModal({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                <span style={{ fontSize: "22px" }}>📝</span>
                 <span
                   style={{
                     fontSize: "14px",
@@ -244,7 +243,7 @@ export default function FirstCycleSetupModal({
                   Mulai Catat Sekarang
                 </span>
               </div>
-              <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, lineHeight: 1.5, paddingLeft: "32px" }}>
+              <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>
                 Buat siklus parsial ({new Date().getDate()} {new Date().toLocaleDateString("id-ID", { month: "short" })} – {partialEndDate.getDate()} {partialEndDate.toLocaleDateString("id-ID", { month: "short" })}). Masukkan budget yang tersedia dan langsung catat pengeluaran.
               </p>
             </button>
@@ -265,7 +264,6 @@ export default function FirstCycleSetupModal({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-                <span style={{ fontSize: "22px" }}>⏳</span>
                 <span
                   style={{
                     fontSize: "14px",
@@ -276,7 +274,7 @@ export default function FirstCycleSetupModal({
                   {isSubmitting ? "Menyimpan..." : "Tunggu Sampai Gajian"}
                 </span>
               </div>
-              <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, lineHeight: 1.5, paddingLeft: "32px" }}>
+              <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>
                 Atur pos anggaran dulu sekarang. Saat gaji masuk tanggal {localGajianDate}, tekan &ldquo;Gajian Tiba!&rdquo; untuk memulai siklus pertama.
               </p>
             </button>
@@ -442,7 +440,7 @@ export default function FirstCycleSetupModal({
                 borderRadius: "12px",
               }}
             >
-              {isSubmitting ? "Membuat Siklus..." : "🚀 Mulai Siklus Parsial"}
+              {isSubmitting ? "Membuat Siklus..." : "Mulai Siklus Parsial"}
             </button>
 
             <button

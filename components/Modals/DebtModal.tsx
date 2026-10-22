@@ -196,7 +196,7 @@ export default function DebtModal({
       </div>
       <div className="m-actions">
         <button className="m-cancel" onClick={onClose}>Batal</button>
-        <button className="m-save" onClick={handleSave}>💾 Simpan</button>
+        <button className="m-save" onClick={handleSave}>Simpan</button>
       </div>
     </Modal>
   );

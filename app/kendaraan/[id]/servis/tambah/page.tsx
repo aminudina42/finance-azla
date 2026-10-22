@@ -7,6 +7,7 @@ import type { Vehicle } from "@/lib/types";
 import { getVehicleById, recordVehicleService } from "@/lib/vehicle-service";
 import { formatRp, formatDateIndo } from "@/lib/vehicle-utils";
 import VehicleHeaderCard from "@/components/Kendaraan/VehicleHeaderCard";
+import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import DateInput from "@/components/Kendaraan/DateInput";
 import PageHeader from "@/components/PageHeader";
 import { useApp } from "@/lib/store";
@@ -718,9 +719,14 @@ export default function TambahServisWizardPage({ params }: PageProps) {
                             color: "#ef4444",
                             cursor: "pointer",
                             padding: "4px",
+                            display: "flex",
+                            alignItems: "center",
                           }}
                         >
-                          🗑️
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
                         </button>
                       </div>
                     </div>
@@ -1102,7 +1108,7 @@ export default function TambahServisWizardPage({ params }: PageProps) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingBottom: "12px", borderBottom: "1px solid var(--border)", marginBottom: "12px" }}>
-                <span style={{ fontSize: "24px" }}>{vehicle.vehicle_type === "Mobil" ? "🚗" : "🛵"}</span>
+                <VehicleTypeIcon type={vehicle.vehicle_type} size={30} />
                 <div>
                   <div style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>{vehicle.brand} {vehicle.model}</div>
                   <div style={{ fontSize: "12px", color: "var(--muted)" }}>{vehicle.plate_number}</div>

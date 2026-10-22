@@ -123,17 +123,21 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [isNavigating, setIsNavigating] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
 
-  // Global click interceptor for relative route links
+  // Global click interceptor for relative route links (Perpindahan halaman)
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {
-      let target = e.target as HTMLElement | null;
-      while (target && target.tagName !== "A") {
-        target = target.parentElement;
-      }
+      // Tangkap elemen <a> bahkan jika klik terjadi pada icon, svg, atau nested span
+      const anchor = (e.target as Element | null)?.closest?.("a");
 
-      if (target && target instanceof HTMLAnchorElement) {
-        const href = target.getAttribute("href");
-        if (href && href.startsWith("/") && !href.startsWith("//")) {
+      if (anchor instanceof HTMLAnchorElement) {
+        const href = anchor.getAttribute("href");
+        if (
+          href &&
+          href.startsWith("/") &&
+          !href.startsWith("//") &&
+          anchor.target !== "_blank" &&
+          !anchor.hasAttribute("download")
+        ) {
           try {
             const targetUrl = new URL(href, window.location.origin);
             if (
@@ -151,9 +155,15 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       }
     };
 
-    document.addEventListener("click", handleLinkClick);
+    const handlePopState = () => {
+      setIsNavigating(true);
+    };
+
+    document.addEventListener("click", handleLinkClick, { capture: true });
+    window.addEventListener("popstate", handlePopState);
     return () => {
-      document.removeEventListener("click", handleLinkClick);
+      document.removeEventListener("click", handleLinkClick, { capture: true });
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
@@ -161,6 +171,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   useEffect(() => {
     setIsNavigating(false);
   }, [pathname]);
+
+  // Safety timeout agar loading tidak pernah macet
+  useEffect(() => {
+    if (isNavigating) {
+      const timer = setTimeout(() => setIsNavigating(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNavigating]);
   const [dbConnected, setDbConnected] = useState(false);
   const [cycles, setCycles] = useState<Cycle[]>(FALLBACK_CYCLES);
   const [cycleIndex, setCycleIndex] = useState(0);

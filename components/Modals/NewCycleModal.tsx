@@ -80,14 +80,14 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
               }}
               style={{ width: "100%" }}
             >
-              ✅ Ya, Gunakan Budget Lama
+              Ya, Gunakan Budget Lama
             </button>
             <button
               className="m-cancel"
               onClick={() => setStep(2)}
               style={{ width: "100%", background: "var(--s2)", color: "var(--text)" }}
             >
-              ⚙️ Tidak, Ubah Budget Dulu
+              Tidak, Ubah Budget Dulu
             </button>
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
               className="m-save"
               onClick={() => prevStep === 2 ? handleConfirmWithNewBudgets() : onConfirm()}
             >
-              🚀 Mulai Siklus Baru
+              Mulai Siklus Baru
             </button>
           </div>
         </div>

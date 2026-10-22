@@ -89,7 +89,7 @@ export default function SakuTxModal({
               : "linear-gradient(135deg,var(--teal),#009b80)",
           }}
         >
-          💾 Simpan
+          Simpan
         </button>
       </div>
     </Modal>

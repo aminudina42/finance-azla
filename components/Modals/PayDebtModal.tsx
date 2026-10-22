@@ -97,7 +97,7 @@ export default function PayDebtModal({
 
       <div className="m-actions">
         <button className="m-cancel" onClick={onClose}>Batal</button>
-        <button className="m-save" onClick={handleConfirm}>✅ Konfirmasi Bayar</button>
+        <button className="m-save" onClick={handleConfirm}>Konfirmasi Bayar</button>
       </div>
     </Modal>
   );

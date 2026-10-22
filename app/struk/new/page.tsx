@@ -462,7 +462,7 @@ export default function NewStrukPage() {
                             fontWeight: "bold", textAlign: "center", cursor: "pointer"
                           }}
                         >
-                          🔄 Ganti
+                          Ganti
                         </label>
                         <button
                           type="button"
@@ -473,7 +473,7 @@ export default function NewStrukPage() {
                             fontWeight: "bold", cursor: "pointer"
                           }}
                         >
-                          🗑 Hapus
+                          Hapus
                         </button>
                       </div>
                     </div>
@@ -707,7 +707,7 @@ export default function NewStrukPage() {
           onClick={handleSave}
           disabled={isSaving}
         >
-          {isSaving ? "⏳ Menyimpan..." : "💾 Simpan Transaksi Kasir"}
+          {isSaving ? "Menyimpan..." : "Simpan Transaksi Kasir"}
         </button>
       </div>
     </main>

@@ -7,6 +7,7 @@ import type { Vehicle } from "@/lib/types";
 import { getVehicles } from "@/lib/vehicle-service";
 import { calculateTaxStatus, calculateServiceStatus } from "@/lib/vehicle-utils";
 import VehicleCard from "@/components/Kendaraan/VehicleCard";
+import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
 
 export default function KendaraanPage() {
@@ -289,8 +290,8 @@ export default function KendaraanPage() {
         >
           {[
             { id: "semua", label: "Semua" },
-            { id: "motor", label: "Motor" },
-            { id: "mobil", label: "Mobil" },
+            { id: "motor", label: "Motor", type: "Motor" },
+            { id: "mobil", label: "Mobil", type: "Mobil" },
             { id: "pajak", label: "Pajak" },
             { id: "servis", label: "Servis" },
           ].map((pill) => {
@@ -311,9 +312,13 @@ export default function KendaraanPage() {
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   transition: "all 0.15s ease",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
                 }}
               >
-                {pill.label}
+                {pill.type && <VehicleTypeIcon type={pill.type} size={16} />}
+                <span>{pill.label}</span>
               </button>
             );
           })}
@@ -321,8 +326,9 @@ export default function KendaraanPage() {
 
         {/* Vehicle List */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-            <div style={{ fontSize: "14px" }}>Memuat data kendaraan...</div>
+          <div style={{ textAlign: "center", padding: "60px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+            <img src="/logo/loading_spinner_animated.svg" alt="Memuat..." width={44} height={44} />
+            <div style={{ fontSize: "13.5px", color: "var(--navy)", fontWeight: 600 }}>Memuat data armada...</div>
           </div>
         ) : filteredVehicles.length === 0 ? (
           <div

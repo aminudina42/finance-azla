@@ -67,7 +67,7 @@ export default function PrintStrukPage() {
       const q = item.quantity || 1;
       const p = item.price    || 0;
       const d = item.discount || 0;
-      return sum + ((q * p) - d);
+      return sum + ((p - d) * q);
     }, 0),
   [items]);
 

@@ -196,7 +196,7 @@ export default function SakuBorrowModal({
               onClick={handleConfirm}
               style={{ background: "linear-gradient(135deg, var(--red), #c0344e)" }}
             >
-              ✅ Ya, Tarik Saku
+              Ya, Tarik Saku
             </button>
           </>
         )}

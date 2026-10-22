@@ -7,6 +7,7 @@ import { useApp } from "@/lib/store";
 import type { Transaction, Vehicle, VehicleFuelLog } from "@/lib/types";
 import { getVehicles, getFuelLogsByPosId } from "@/lib/vehicle-service";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
+import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
 
 function formatRp(n: number): string {
@@ -349,7 +350,7 @@ export default function PosDetailPage() {
                       minWidth: 0,
                     }}
                   >
-                    <div style={{ fontSize: "18px" }}>{v.vehicle_type === "Mobil" ? "🚗" : "🛵"}</div>
+                    <VehicleTypeIcon type={v.vehicle_type} size={28} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {v.brand} {v.model}
@@ -377,7 +378,6 @@ export default function PosDetailPage() {
                       boxShadow: "0 2px 6px rgba(245, 158, 11, 0.25)",
                     }}
                   >
-                    <span>⛽</span>
                     <span>Isi BBM</span>
                   </Link>
                 </div>
@@ -409,19 +409,19 @@ export default function PosDetailPage() {
               className={`fc ${selectedType === "all" ? "active" : ""}`}
               onClick={() => setSelectedType("all")}
             >
-              📊 Semua
+              Semua
             </div>
             <div
               className={`fc ${selectedType === "expense" ? "active" : ""}`}
               onClick={() => setSelectedType("expense")}
             >
-              📤 Pengeluaran
+              Pengeluaran
             </div>
             <div
               className={`fc ${selectedType === "income" ? "active" : ""}`}
               onClick={() => setSelectedType("income")}
             >
-              📥 Pemasukan
+              Pemasukan
             </div>
           </div>
         </div>
@@ -513,7 +513,7 @@ export default function PosDetailPage() {
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: "4px",
+                              gap: "5px",
                               marginTop: "4px",
                               padding: "2.5px 8px",
                               borderRadius: "6px",
@@ -525,7 +525,7 @@ export default function PosDetailPage() {
                               width: "fit-content",
                             }}
                           >
-                            <span>{vehicleForTx.vehicle_type === "Mobil" ? "🚗" : "🛵"}</span>
+                            <VehicleTypeIcon type={vehicleForTx.vehicle_type} size={16} />
                             <span>{vehicleForTx.brand} {vehicleForTx.model} ({vehicleForTx.plate_number})</span>
                             <span style={{ fontSize: "11px", marginLeft: "2px", opacity: 0.8 }}>›</span>
                           </div>
@@ -558,7 +558,10 @@ export default function PosDetailPage() {
                         }}
                         title="Hapus transaksi"
                       >
-                        🗑️
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
                       </button>
                     </div>
                   </div>

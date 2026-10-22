@@ -21,6 +21,7 @@ import {
   formatFuelEfficiency,
 } from "@/lib/vehicle-utils";
 import VehicleStatusBadge from "@/components/Kendaraan/VehicleStatusBadge";
+import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import { useApp } from "@/lib/store";
@@ -209,7 +210,11 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                     fontWeight: 650,
                   }}
                 >
-                  ✏️ Edit Identitas
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  <span>Edit Identitas</span>
                 </Link>
                 <button
                   type="button"
@@ -230,7 +235,12 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                     textAlign: "left",
                   }}
                 >
-                  📦 Arsipkan Kendaraan
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="21 8 21 21 3 21 3 8" />
+                    <rect x="1" y="3" width="22" height="5" />
+                    <line x1="10" y1="12" x2="14" y2="12" />
+                  </svg>
+                  <span>Arsipkan Kendaraan</span>
                 </button>
               </div>
             )}
@@ -274,20 +284,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                 border: "1.5px solid rgba(40, 127, 240, 0.2)",
               }}
             >
-              {vehicle.vehicle_type === "Mobil" ? (
-                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-                  <circle cx="7" cy="17" r="2" />
-                  <path d="M9 17h6" />
-                  <circle cx="17" cy="17" r="2" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="5.5" cy="17.5" r="3.5" />
-                  <circle cx="18.5" cy="17.5" r="3.5" />
-                  <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2" />
-                </svg>
-              )}
+              <VehicleTypeIcon type={vehicle.vehicle_type} size={48} />
             </div>
 
             <h1
@@ -395,7 +392,6 @@ export default function DetailKendaraanPage({ params }: PageProps) {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "18px" }}>⛽</span>
               <span>Catat Pengisian Bensin (BBM)</span>
             </div>
             <div
@@ -433,7 +429,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                 textDecoration: "none",
               }}
             >
-              🔧 Tambah Servis
+              Tambah Servis
             </Link>
 
             <Link
@@ -453,7 +449,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                 textDecoration: "none",
               }}
             >
-              💳 Bayar Pajak
+              Bayar Pajak
             </Link>
           </div>
         </div>
@@ -662,7 +658,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
               boxShadow: activeTab === "bbm" ? "0 2px 8px rgba(245, 158, 11, 0.15)" : "none",
             }}
           >
-            ⛽ BBM ({fuelLogs.length})
+            BBM ({fuelLogs.length})
           </button>
           <button
             type="button"
@@ -679,7 +675,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
               boxShadow: activeTab === "servis" ? "0 2px 8px rgba(40, 127, 240, 0.15)" : "none",
             }}
           >
-            🔧 Servis ({services.length})
+            Servis ({services.length})
           </button>
           <button
             type="button"
@@ -696,7 +692,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
               boxShadow: activeTab === "pajak" ? "0 2px 8px rgba(240, 68, 103, 0.15)" : "none",
             }}
           >
-            💳 Pajak ({taxPayments.length})
+            Pajak ({taxPayments.length})
           </button>
         </div>
 

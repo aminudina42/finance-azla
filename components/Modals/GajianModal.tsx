@@ -69,7 +69,7 @@ export default function GajianModal({
           Batal
         </button>
         <button className="m-save" onClick={handleSave}>
-          💾 Simpan
+          Simpan
         </button>
       </div>
     </Modal>

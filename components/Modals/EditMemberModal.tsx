@@ -517,7 +517,6 @@ export default function EditMemberModal({
                     gap: "6px"
                   }}
                 >
-                  <span>🚪</span>
                   <span>Keluarkan {member.display_name} dari Keluarga</span>
                 </button>
               ) : (
@@ -608,7 +607,6 @@ export default function EditMemberModal({
                     gap: "6px"
                   }}
                 >
-                  <span>🚶‍♂️</span>
                   <span>Keluar dari Keluarga Ini (Tinggalkan)</span>
                 </button>
               ) : (
