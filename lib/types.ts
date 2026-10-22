@@ -49,6 +49,14 @@ export interface Pos {
   goal_target: number;
 }
 
+export interface PosConfigItem {
+  id?: string;
+  name: string;
+  icon?: string;
+  monthly_target: number;
+  is_goal?: boolean;
+}
+
 export interface Transaction {
   id: string;
   keluarga_id?: string;

@@ -3970,3 +3970,25 @@
     transform: translateX(-5%);
   }
 }
+
+/* === Skeleton Loading Shimmer === */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--s2) 0%,
+    var(--s3) 45%,
+    var(--s2) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  display: block;
+}

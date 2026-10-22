@@ -13,7 +13,7 @@ import PageHeader from "@/components/PageHeader";
 type FuelCategory = "Pertalite" | "Pertamax" | "Pertamax Turbo" | "BP 92" | "Lainnya";
 
 export default function InputPage() {
-  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember, recalculateBalances, setIsMutating } = useApp();
+  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember, recalculateBalances, setIsMutating, isLoading } = useApp();
   const searchParams = useSearchParams();
 
   const [txType, setTxType] = useState<"expense" | "income">("expense");
@@ -499,7 +499,7 @@ export default function InputPage() {
                   cursor: "pointer",
                 }}
               >
-                <option value="">— Pilih Pos —</option>
+                <option value="">{isLoading ? "⏳ Memuat daftar amplop..." : "— Pilih Pos —"}</option>
                 {posList
                   .filter((p) => isIncome ? true : p.name !== "Tabungan")
                   .map((p) => {

@@ -9,6 +9,7 @@ import { calculateTaxStatus, calculateServiceStatus } from "@/lib/vehicle-utils"
 import VehicleCard from "@/components/Kendaraan/VehicleCard";
 import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 
 export default function KendaraanPage() {
   const router = useRouter();
@@ -169,8 +170,12 @@ export default function KendaraanPage() {
             </div>
             <div>
               <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>Pajak perlu dibayar</div>
-              <div style={{ fontSize: "17px", fontWeight: 800, color: stats.taxDueCount > 0 ? "#ef4444" : "var(--navy)" }}>
-                {stats.taxDueCount}
+              <div style={{ fontSize: "17px", fontWeight: 800, color: stats.taxDueCount > 0 ? "#ef4444" : "var(--navy)", minHeight: "22px" }}>
+                {loading ? (
+                  <Skeleton width="28px" height="20px" borderRadius="4px" style={{ marginTop: "2px" }} />
+                ) : (
+                  stats.taxDueCount
+                )}
               </div>
             </div>
           </div>
@@ -207,8 +212,12 @@ export default function KendaraanPage() {
             </div>
             <div>
               <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>Perlu servis</div>
-              <div style={{ fontSize: "17px", fontWeight: 800, color: stats.serviceDueCount > 0 ? "#ea580c" : "var(--navy)" }}>
-                {stats.serviceDueCount}
+              <div style={{ fontSize: "17px", fontWeight: 800, color: stats.serviceDueCount > 0 ? "#ea580c" : "var(--navy)", minHeight: "22px" }}>
+                {loading ? (
+                  <Skeleton width="28px" height="20px" borderRadius="4px" style={{ marginTop: "2px" }} />
+                ) : (
+                  stats.serviceDueCount
+                )}
               </div>
             </div>
           </div>
@@ -326,9 +335,36 @@ export default function KendaraanPage() {
 
         {/* Vehicle List */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-            <img src="/logo/loading_spinner_animated.svg" alt="Memuat..." width={44} height={44} />
-            <div style={{ fontSize: "13.5px", color: "var(--navy)", fontWeight: 600 }}>Memuat data armada...</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: "var(--surface)",
+                  borderRadius: "18px",
+                  border: "1px solid var(--border)",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Skeleton width="42px" height="42px" borderRadius="12px" />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <Skeleton width="130px" height="16px" borderRadius="4px" />
+                      <Skeleton width="90px" height="12px" borderRadius="4px" />
+                    </div>
+                  </div>
+                  <Skeleton width="80px" height="24px" borderRadius="6px" />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", paddingTop: "8px", borderTop: "1px solid var(--border)" }}>
+                  <Skeleton height="36px" borderRadius="8px" />
+                  <Skeleton height="36px" borderRadius="8px" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredVehicles.length === 0 ? (
           <div

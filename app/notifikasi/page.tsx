@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 import type { Vehicle, VehicleTaxPayment, VehicleService } from "@/lib/types";
 import { getVehicles, getVehicleTaxPayments, getVehicleServices } from "@/lib/vehicle-service";
 import {
@@ -185,8 +186,31 @@ export default function NotifikasiPage() {
 
         {/* Notif List */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--muted)" }}>
-            Memeriksa pengingat & notifikasi...
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: "var(--surface)",
+                  borderRadius: "14px",
+                  border: "1px solid var(--border)",
+                  padding: "14px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                }}
+              >
+                <Skeleton width="38px" height="38px" borderRadius="10px" />
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <Skeleton width="130px" height="15px" borderRadius="4px" />
+                    <Skeleton width="70px" height="12px" borderRadius="4px" />
+                  </div>
+                  <Skeleton width="100%" height="12px" borderRadius="4px" />
+                  <Skeleton width="75%" height="12px" borderRadius="4px" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <div

@@ -9,6 +9,7 @@ import { getVehicles, getFuelLogsByPosId } from "@/lib/vehicle-service";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -37,7 +38,7 @@ export default function PosDetailPage() {
   const params = useParams();
   const router = useRouter();
   const posId = params.id as string;
-  const { posList, transactions, cycles, cyclePosHistory, deleteTransaction } = useApp();
+  const { posList, transactions, cycles, cyclePosHistory, deleteTransaction, isLoading } = useApp();
 
   const pos = posList.find((p) => p.id === posId);
 
@@ -143,6 +144,74 @@ export default function PosDetailPage() {
   }, [filtered]);
 
   const shortLabel = (label: string) => label.replace(/\s\d{4}$/, "").replace(" – ", "–");
+
+  if (isLoading) {
+    return (
+      <main id="pg-pos-detail" className="page active" style={{ paddingBottom: "110px" }}>
+        <PageHeader title="Memuat Pos..." subtitle="Amplop Keuangan" backHref="/" />
+        <div style={{ padding: "16px 20px 0" }}>
+          {/* Hero Card Skeleton */}
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1.5px solid var(--border)",
+              borderRadius: "20px",
+              padding: "20px",
+              marginBottom: "16px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <Skeleton width="44px" height="44px" borderRadius="14px" />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Skeleton width="110px" height="11px" borderRadius="4px" />
+                <Skeleton width="150px" height="18px" borderRadius="4px" />
+              </div>
+            </div>
+            <Skeleton width="160px" height="32px" borderRadius="8px" style={{ marginBottom: "12px" }} />
+            <Skeleton width="100%" height="8px" borderRadius="99px" style={{ marginBottom: "8px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Skeleton width="90px" height="12px" borderRadius="4px" />
+              <Skeleton width="70px" height="12px" borderRadius="4px" />
+            </div>
+          </div>
+
+          {/* Filter Pills Skeleton */}
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+            <Skeleton width="70px" height="32px" borderRadius="99px" />
+            <Skeleton width="90px" height="32px" borderRadius="99px" />
+            <Skeleton width="80px" height="32px" borderRadius="99px" />
+          </div>
+
+          {/* Transaction items skeleton */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid var(--border)",
+                  borderRadius: "14px",
+                  padding: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                  <Skeleton width="36px" height="36px" borderRadius="10px" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px", flex: 1 }}>
+                    <Skeleton width="130px" height="14px" borderRadius="4px" />
+                    <Skeleton width="80px" height="10px" borderRadius="4px" />
+                  </div>
+                </div>
+                <Skeleton width="85px" height="16px" borderRadius="4px" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   if (!pos) {
     return (

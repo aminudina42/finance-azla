@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga } from "./types";
+import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga } from "./types";
 import GlobalLoader from "@/components/GlobalLoader";
 
 function formatLocalDate(d: Date): string {
@@ -69,7 +69,7 @@ interface AppState {
   addSakuBorrowTransaction: (amount: number, posId: string, userRole?: StatusKeluarga, description?: string, sakuId?: string, sakuWithdrawAmount?: number, userName?: string) => Promise<void>;
   addSakuReturnTransaction: (sakuId: string, amount: number, description: string) => Promise<void>;
   cyclePosHistory: CyclePosHistory[];
-  startNewCycle: (newBudgets?: Record<string, { monthly_target: number; goal_target: number }>) => void;
+  startNewCycle: (posConfigs?: PosConfigItem[], deletedPosIds?: string[]) => Promise<void>;
   // Debt management
   debts: Debt[];
   addDebt: (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number) => void;
@@ -103,7 +103,7 @@ interface AppState {
   // First cycle setup
   needsFirstCycleSetup: boolean;
   isWaitingForPayday: boolean;
-  createFirstCycle: (mode: "now" | "wait", availableBudget?: number, targetGajianDate?: number) => Promise<void>;
+  createFirstCycle: (mode: "now" | "wait", availableBudget?: number, targetGajianDate?: number, targetPosId?: string) => Promise<void>;
   // Quick Menu customization
   quickMenuItems: string[];
   updateQuickMenuItems: (items: string[]) => Promise<void>;
@@ -197,14 +197,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, [isLoading]);
   const [dbConnected, setDbConnected] = useState(false);
-  const [cycles, setCycles] = useState<Cycle[]>(FALLBACK_CYCLES);
+  const [cycles, setCycles] = useState<Cycle[]>([]);
   const [cycleIndex, setCycleIndex] = useState(0);
   const [gajianDate, setGajianDate] = useState(25);
-  const [posList, setPosList] = useState<Pos[]>(FALLBACK_POS);
-  const [transactions, setTransactions] = useState<Transaction[]>(FALLBACK_TX);
-  const [childrenList, setChildrenList] = useState<Child[]>(FALLBACK_CHILDREN);
-  const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>(FALLBACK_CHILD_TX);
-  const [debts, setDebts] = useState<Debt[]>(FALLBACK_DEBTS);
+  const [posList, setPosList] = useState<Pos[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [childrenList, setChildrenList] = useState<Child[]>([]);
+  const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
   const [firstSetupComplete, setFirstSetupComplete] = useState(false);
   const [firstSetupMode, setFirstSetupMode] = useState<"now" | "wait" | "completed" | null>(null);
@@ -296,9 +296,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             is_goal: p.is_goal ?? false,
             goal_target: p.goal_target ?? 0,
           }));
-          if (posData.length > 0) {
-            setPosList(posData);
-          }
+          setPosList(posData);
 
           // Ensure backward compatibility for transactions
           const txData = ((txRes.data as Transaction[]) ?? []).map((t) => ({
@@ -307,11 +305,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             saku_id: t.saku_id ?? null,
             saku_withdraw_amount: t.saku_withdraw_amount ?? null,
           }));
-          if (txData.length > 0) {
-            setTransactions(txData);
-          }
+          setTransactions(txData);
 
-          if (cycRes.data && cycRes.data.length > 0) {
+          if (cycRes.data && Array.isArray(cycRes.data)) {
             const sortedCycles = [...(cycRes.data as Cycle[])].sort((a, b) => {
               if (a.is_active && !b.is_active) return -1;
               if (!a.is_active && b.is_active) return 1;
@@ -327,9 +323,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             type: (c.type ?? "standalone") as "standalone" | "linked",
             linked_pos_id: c.linked_pos_id ?? null,
           }));
-          if (childData.length > 0) {
-            setChildrenList(childData);
-          }
+          setChildrenList(childData);
 
           if (ctxRes.data && Array.isArray(ctxRes.data)) {
             setChildTransactions(ctxRes.data.map((ct: any) => ({
@@ -339,7 +333,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             })));
           }
 
-          if (!debtRes?.error && Array.isArray(debtRes?.data) && debtRes.data.length > 0) {
+          if (!debtRes?.error && Array.isArray(debtRes?.data)) {
             const debtData = debtRes.data.map((d: any) => ({
               ...d,
               principal_amount: d.principal_amount ?? 0,
@@ -416,6 +410,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         }
       } catch (err) {
         console.warn("Supabase query timeout or error, using fallback data:", err);
+        setPosList(FALLBACK_POS);
+        setCycles(FALLBACK_CYCLES);
+        setChildrenList(FALLBACK_CHILDREN);
       } finally {
         setIsLoading(false);
       }
@@ -993,7 +990,10 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   }, [currentKeluarga?.id]);
 
   // ── Gajian Tiba! — Start New Cycle ──
-  const startNewCycle = useCallback(async (newBudgets?: Record<string, { monthly_target: number; goal_target: number }>) => {
+  const startNewCycle = useCallback(async (
+    posConfigs?: PosConfigItem[],
+    deletedPosIds?: string[]
+  ) => {
     setIsMutating(true);
     try {
       // 0. Snapshot current pos targets for the ending cycle
@@ -1013,38 +1013,83 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         if (snapErr) console.error("❌ Gagal simpan snapshot history:", snapErr.message);
       }
 
-      // Apply new budgets if provided
+      // 0b. Handle deleted pos
       let workingPosList = [...posList];
-      if (newBudgets) {
-        workingPosList = workingPosList.map(p => {
-          if (newBudgets[p.id]) {
-            return { ...p, monthly_target: newBudgets[p.id].monthly_target, goal_target: newBudgets[p.id].goal_target };
-          }
-          return p;
-        });
-        // Sync master budgets to DB
-        for (const p of workingPosList) {
-          if (newBudgets[p.id]) {
-            await supabase.from("pos").update({ monthly_target: p.monthly_target, goal_target: p.goal_target }).eq("id", p.id);
-          }
-        }
+      if (deletedPosIds && deletedPosIds.length > 0) {
+        await supabase.from("pos").delete().in("id", deletedPosIds);
+        workingPosList = workingPosList.filter(p => !deletedPosIds.includes(p.id));
       }
 
-      // 1. Calculate leftover from non-goal pos → sweep to Tabungan
-      const tabungan = workingPosList.find((p) => p.name === "Tabungan");
+      // 1. Calculate leftover from non-goal pos before updating -> sweep to Tabungan
+      const tabungan = workingPosList.find((p) => p.name === "Tabungan" || p.is_goal);
       const otherPos = workingPosList.filter((p) => p.name !== "Tabungan" && !p.is_goal);
       const leftover = otherPos.reduce((sum, p) => sum + Math.max(0, p.current_balance), 0);
 
-      // 1b. Handle Saku-Pos link: transfer surplus/deficit to linked Saku
+      // 1b. Apply posConfigs (name, icon, monthly_target) or insert new ones
+      if (posConfigs && posConfigs.length > 0) {
+        const updatedList: Pos[] = [];
+        for (const cfg of posConfigs) {
+          if (cfg.id && !cfg.id.startsWith("new_")) {
+            const existing = workingPosList.find(p => p.id === cfg.id);
+            const isTabungan = existing?.name === "Tabungan" || existing?.is_goal;
+            const updated: Pos = {
+              ...(existing || {} as Pos),
+              id: cfg.id,
+              name: cfg.name.trim() || existing?.name || "Pos",
+              icon: cfg.icon || existing?.icon || "📦",
+              monthly_target: cfg.monthly_target,
+              current_balance: isTabungan ? (existing?.current_balance ?? 0) + leftover : cfg.monthly_target,
+              is_goal: existing?.is_goal ?? false,
+              goal_target: existing?.goal_target ?? 0,
+              order_index: existing?.order_index ?? 0,
+            };
+            updatedList.push(updated);
+            await supabase.from("pos").update({
+              name: updated.name,
+              icon: updated.icon,
+              monthly_target: updated.monthly_target,
+              current_balance: updated.current_balance,
+            }).eq("id", cfg.id);
+          } else {
+            // New pos created by user
+            const { data: created } = await supabase.from("pos").insert({
+              name: cfg.name.trim() || "Pos Baru",
+              icon: cfg.icon || "📦",
+              sub: "",
+              monthly_target: cfg.monthly_target,
+              current_balance: cfg.monthly_target,
+              order_index: 99,
+              is_goal: false,
+              goal_target: 0,
+              keluarga_id: currentKeluarga?.id,
+            }).select().single();
+            if (created) {
+              updatedList.push(created as Pos);
+            }
+          }
+        }
+        workingPosList = updatedList;
+      } else {
+        // Fallback: reset non-goal pos to monthly_target, add leftover to Tabungan
+        workingPosList = workingPosList.map((p) => {
+          if (p.name === "Tabungan" || p.is_goal) {
+            return { ...p, current_balance: p.current_balance + leftover };
+          }
+          return { ...p, current_balance: p.monthly_target };
+        });
+        for (const p of workingPosList) {
+          await supabase.from("pos").update({ current_balance: p.current_balance }).eq("id", p.id);
+        }
+      }
+
+      setPosList(workingPosList);
+
+      // 1c. Handle Saku-Pos link: transfer surplus/deficit to linked Saku
       const sakuTransfers: { sakuId: string; delta: number; cycleId: string }[] = [];
       const updatedChildrenForCycle = [...childrenList];
       for (const saku of updatedChildrenForCycle) {
         if (saku.type !== "linked" || !saku.linked_pos_id) continue;
-        // Find all pos that link to this saku
-        const linkedPosList = workingPosList.filter((p) => {
-          // We check via child — one Saku can receive from many Pos
-          return saku.linked_pos_id === p.id;
-        });
+        const linkedPosList = workingPosList.filter((p) => saku.linked_pos_id === p.id);
         const totalDelta = linkedPosList.reduce((sum, p) => sum + p.current_balance, 0);
         if (totalDelta !== 0) {
           sakuTransfers.push({ sakuId: saku.id, delta: totalDelta, cycleId: activeCycle?.id ?? "" });
@@ -1061,20 +1106,6 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         setChildrenList(updatedChildren);
       }
 
-      // 2. Reset non-goal pos to monthly_target, add leftover to Tabungan
-      // Goal pos are NOT reset — they only accumulate
-      const updatedPos = workingPosList.map((p) => {
-        if (p.name === "Tabungan") {
-          return { ...p, current_balance: p.current_balance + leftover };
-        }
-        if (p.is_goal) {
-          // Goal pos: do not reset, keep accumulating
-          return p;
-        }
-        return { ...p, current_balance: p.monthly_target };
-      });
-      setPosList(updatedPos);
-
       // 3. Create new cycle
       const today = new Date();
       const endDate = new Date(today);
@@ -1086,6 +1117,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         end_date: formatLocalDate(endDate),
         is_active: true,
         label: `${today.getDate()} ${today.toLocaleDateString("id-ID", { month: "short" })} – ${endDate.getDate()} ${endDate.toLocaleDateString("id-ID", { month: "short" })} ${endDate.getFullYear()}`,
+        keluarga_id: currentKeluarga?.id,
       };
 
       // Deactivate old cycles, add new one
@@ -1094,15 +1126,18 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setCycleIndex(0);
 
       // 4. Sync to Supabase
-      for (const p of updatedPos) {
-        await supabase.from("pos").update({ current_balance: p.current_balance }).eq("id", p.id);
-      }
       await supabase.from("cycles").update({ is_active: false }).neq("id", "none");
       const { data: newCycleData } = await supabase.from("cycles").insert({
-        start_date: newCycle.start_date, end_date: newCycle.end_date,
-        is_active: true, label: newCycle.label,
+        start_date: newCycle.start_date,
+        end_date: newCycle.end_date,
+        is_active: true,
+        label: newCycle.label,
         keluarga_id: currentKeluarga?.id,
       }).select().single();
+
+      if (newCycleData) {
+        setCycles([newCycleData as Cycle, ...cycles.map((c) => ({ ...c, is_active: false }))]);
+      }
 
       // Ensure first setup is marked completed on normal cycle start
       setFirstSetupComplete(true);
@@ -1137,7 +1172,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const createFirstCycle = useCallback(async (
     mode: "now" | "wait",
     availableBudget?: number,
-    targetGajianDate?: number
+    targetGajianDate?: number,
+    targetPosId?: string
   ) => {
     setIsMutating(true);
     try {
@@ -1205,18 +1241,17 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         keluarga_id: effectiveKeluargaId,
       };
 
-      // Set pos balances based on available budget
+      // Set pos balances based on available budget (Level 2 Opsi B: Masukkan semua ke 1 pos)
       let updatedPos = [...posList];
-      if (availableBudget !== undefined && availableBudget > 0) {
-        // Distribute proportionally across non-goal pos
-        const nonGoalPos = updatedPos.filter(p => !p.is_goal);
-        const totalTarget = nonGoalPos.reduce((sum, p) => sum + p.monthly_target, 0);
+      const nonGoalPos = updatedPos.filter(p => !p.is_goal);
+      const chosenPosId = targetPosId || nonGoalPos[0]?.id;
 
+      if (availableBudget !== undefined && availableBudget > 0) {
         updatedPos = updatedPos.map(p => {
-          if (p.is_goal) return { ...p, current_balance: 0 };
-          if (totalTarget === 0) return { ...p, current_balance: 0 };
-          const proportion = p.monthly_target / totalTarget;
-          return { ...p, current_balance: Math.round(availableBudget * proportion) };
+          if (p.id === chosenPosId) {
+            return { ...p, current_balance: availableBudget };
+          }
+          return { ...p, current_balance: 0 };
         });
       } else {
         // No budget specified — set all to 0

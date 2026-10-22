@@ -10,6 +10,7 @@ import AlertModal from "@/components/Modals/AlertModal";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import EditMemberModal from "@/components/Modals/EditMemberModal";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -30,6 +31,7 @@ export default function ManagerPage() {
     updateMember,
     removeMember,
     leaveFamily,
+    isLoading,
   } = useApp();
 
   const handleUpdateType = async (type: "emoji" | "image") => {
@@ -99,6 +101,7 @@ export default function ManagerPage() {
   const [showEarlyPaydayConfirm, setShowEarlyPaydayConfirm] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, title: string, message: string}>({ isOpen: false, title: "", message: "" });
   const [membersList, setMembersList] = useState<Member[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -125,9 +128,13 @@ export default function ManagerPage() {
         .order("created_at", { ascending: true });
       if (data && data.length > 0) {
         setMembersList(data as Member[]);
+      } else if (data) {
+        setMembersList([]);
       }
     } catch (err) {
       console.error("Gagal memuat anggota keluarga:", err);
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -186,36 +193,22 @@ export default function ManagerPage() {
     }
   };
 
-  const inviteCode = currentKeluarga?.invite_code || "CK-DEFAULT";
+  const inviteCode = currentKeluarga?.invite_code || "-";
 
   const handleCopyInviteCode = () => {
+    if (!currentKeluarga?.invite_code) return;
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(inviteCode);
+      navigator.clipboard.writeText(currentKeluarga.invite_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const displayMembers: Member[] = membersList.length > 0 ? membersList : [
-    {
-      id: "admin-1",
-      keluarga_id: currentKeluarga?.id || "",
-      display_name: currentMember?.display_name || "Anda (Suami)",
-      role: "admin",
-      status_keluarga: "suami",
-      created_at: "",
-      updated_at: "",
-    },
-    {
-      id: "member-2",
-      keluarga_id: currentKeluarga?.id || "",
-      display_name: "Istri",
-      role: "member",
-      status_keluarga: "istri",
-      created_at: "",
-      updated_at: "",
-    },
-  ];
+  const displayMembers: Member[] = membersList.length > 0
+    ? membersList
+    : currentMember
+      ? [currentMember]
+      : [];
 
   return (
     <main id="pg-manager" className="page active" style={{ paddingBottom: "110px" }}>
@@ -228,7 +221,14 @@ export default function ManagerPage() {
         {/* 1. Mulai Siklus Baru */}
         <div className="gajian-card">
           <div className="gc-left">
-            <p>Gajian tiap tgl <strong style={{ color: "var(--text)" }}>{gajianDate}</strong></p>
+            <p style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <span>Gajian tiap tgl</span>
+              {isLoading ? (
+                <Skeleton width="22px" height="15px" borderRadius="4px" style={{ display: "inline-block" }} />
+              ) : (
+                <strong style={{ color: "var(--text)" }}>{gajianDate}</strong>
+              )}
+            </p>
             <h3>{isWaitingForPayday ? "🎉 Gaji sudah masuk?" : "🎉 Mulai siklus baru?"}</h3>
           </div>
           <button className="gc-btn" onClick={() => {
@@ -281,8 +281,12 @@ export default function ManagerPage() {
                   MULTI-TENANT
                 </span>
               </p>
-              <h3 style={{ fontSize: "18px", marginTop: "2px" }}>
-                {currentKeluarga?.nama_keluarga || "Keluarga Kami"}
+              <h3 style={{ fontSize: "18px", marginTop: "4px", minHeight: "22px" }}>
+                {isLoading || !currentKeluarga ? (
+                  <Skeleton width="180px" height="22px" borderRadius="6px" />
+                ) : (
+                  currentKeluarga?.nama_keluarga || "Keluarga Kami"
+                )}
               </h3>
             </div>
           </div>
@@ -309,62 +313,83 @@ export default function ManagerPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{
-                flex: 1,
-                padding: "10px 14px",
-                background: "var(--card, #ffffff)",
-                borderRadius: "8px",
-                border: "1.5px dashed var(--border)",
-                fontFamily: "monospace",
-                fontSize: "16px",
-                fontWeight: 750,
-                letterSpacing: "1.5px",
-                color: "var(--text)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between"
-              }}>
-                <span>{inviteCode}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyInviteCode}
-                style={{
-                  padding: "10px 16px",
-                  borderRadius: "10px",
-                  background: copied ? "var(--success, #16a89a)" : "var(--primary, #287ff0)",
-                  color: "#ffffff",
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  boxShadow: copied
-                    ? "0 2px 8px rgba(22, 168, 154, 0.25)"
-                    : "0 2px 8px rgba(40, 127, 240, 0.25)",
-                  transition: "all 0.18s ease",
-                  whiteSpace: "nowrap"
-                }}
-              >
-                {copied ? (
-                  <>
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    <span>Tersalin!</span>
-                  </>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                    </svg>
-                    <span>Salin Kode</span>
-                  </>
-                )}
-              </button>
+              {isLoading || !currentKeluarga ? (
+                <>
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "10px 14px",
+                      background: "var(--card, #ffffff)",
+                      borderRadius: "8px",
+                      border: "1.5px dashed var(--border)",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Skeleton width="140px" height="20px" borderRadius="4px" />
+                  </div>
+                  <Skeleton width="105px" height="42px" borderRadius="10px" />
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    flex: 1,
+                    padding: "10px 14px",
+                    background: "var(--card, #ffffff)",
+                    borderRadius: "8px",
+                    border: "1.5px dashed var(--border)",
+                    fontFamily: "monospace",
+                    fontSize: "16px",
+                    fontWeight: 750,
+                    letterSpacing: "1.5px",
+                    color: "var(--text)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between"
+                  }}>
+                    <span>{inviteCode}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyInviteCode}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: "10px",
+                      background: copied ? "var(--success, #16a89a)" : "var(--primary, #287ff0)",
+                      color: "#ffffff",
+                      border: "none",
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: copied
+                        ? "0 2px 8px rgba(22, 168, 154, 0.25)"
+                        : "0 2px 8px rgba(40, 127, 240, 0.25)",
+                      transition: "all 0.18s ease",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    {copied ? (
+                      <>
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span>Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        <span>Salin Kode</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -382,10 +407,18 @@ export default function ManagerPage() {
                     padding: "2px 7px",
                     borderRadius: "6px",
                     background: "rgba(40,127,240,0.12)",
-                    color: "var(--navy)"
+                    color: "var(--navy)",
+                    minWidth: "60px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {displayMembers.length} PENGGUNA
+                  {loadingMembers ? (
+                    <Skeleton width="48px" height="12px" borderRadius="3px" />
+                  ) : (
+                    `${displayMembers.length} PENGGUNA`
+                  )}
                 </span>
               </p>
               <h3 style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "19px", color: "var(--navy)", fontWeight: 750, marginTop: "2px" }}>
@@ -410,7 +443,37 @@ export default function ManagerPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
-            {displayMembers.map((m, idx) => {
+            {loadingMembers ? (
+              [1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 14px",
+                    borderRadius: "12px",
+                    background: "var(--s3)",
+                    border: "1px solid var(--border)",
+                    gap: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "11px", flex: 1 }}>
+                    <Skeleton width="38px" height="38px" borderRadius="50%" />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
+                      <Skeleton width="120px" height="14px" borderRadius="4px" />
+                      <Skeleton width="80px" height="11px" borderRadius="4px" />
+                    </div>
+                  </div>
+                  <Skeleton width="64px" height="26px" borderRadius="6px" />
+                </div>
+              ))
+            ) : displayMembers.length === 0 ? (
+              <div style={{ padding: "16px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                Belum ada anggota terdaftar
+              </div>
+            ) : (
+              displayMembers.map((m, idx) => {
               const isSelf = m.id === sessionUser?.id;
               const isTargetAdmin = m.role === "admin";
               const adminCount = displayMembers.filter((item) => item.role === "admin").length;
@@ -580,7 +643,7 @@ export default function ManagerPage() {
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
 
           <div style={{ fontSize: "11px", color: "var(--muted)", lineHeight: "1.4", marginTop: "2px" }}>
@@ -1013,8 +1076,8 @@ export default function ManagerPage() {
       <NewCycleModal
         isOpen={showNewCycleModal}
         onClose={() => setShowNewCycleModal(false)}
-        onConfirm={(newBudgets) => {
-          startNewCycle(newBudgets);
+        onConfirm={async (posConfigs, deletedPosIds) => {
+          await startNewCycle(posConfigs, deletedPosIds);
           setShowNewCycleModal(false);
           setShowConfirm(true);
           setTimeout(() => setShowConfirm(false), 3000);

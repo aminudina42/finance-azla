@@ -6,6 +6,7 @@ import SakuTxModal from "@/components/Modals/SakuTxModal";
 import AddSakuModal from "@/components/Modals/AddSakuModal";
 import EditSakuModal from "@/components/Modals/EditSakuModal";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 import type { Child, SakuTxType } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -23,7 +24,7 @@ const TX_TYPE_LABELS: Record<SakuTxType, { label: string; color: string; sign: s
 
 export default function SakuPage() {
   const {
-    children, childTransactions, posList,
+    children, childTransactions, posList, isLoading,
     addChildTransaction, addSaku, updateSaku, deleteSaku, addSakuReturnTransaction,
   } = useApp();
 
@@ -69,6 +70,64 @@ export default function SakuPage() {
   };
 
   const isNegative = (selectedSaku?.balance ?? 0) < 0;
+
+  if (isLoading) {
+    return (
+      <main id="pg-saku" className="page active" style={{ paddingBottom: "110px" }}>
+        <PageHeader
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <img
+                src="/logo/icon-menu-saku.png"
+                alt="Menu Saku"
+                style={{ width: "30px", height: "30px", objectFit: "contain" }}
+              />
+              <span>Saku</span>
+            </span>
+          }
+          subtitle="Tabungan & kantong keuangan pribadi"
+          backHref="/"
+        />
+        {/* Saku Chips Skeleton */}
+        <div style={{ display: "flex", gap: "8px", padding: "14px 20px 6px" }}>
+          <Skeleton width="100px" height="38px" borderRadius="12px" />
+          <Skeleton width="110px" height="38px" borderRadius="12px" />
+          <Skeleton width="80px" height="38px" borderRadius="12px" />
+        </div>
+        {/* Saku Hero Card Skeleton */}
+        <div style={{ padding: "10px 20px 0" }}>
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1.5px solid var(--border)",
+              borderRadius: "20px",
+              padding: "20px",
+              marginBottom: "16px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <Skeleton width="46px" height="46px" borderRadius="14px" />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Skeleton width="100px" height="11px" borderRadius="4px" />
+                <Skeleton width="140px" height="18px" borderRadius="4px" />
+              </div>
+            </div>
+            <Skeleton width="180px" height="34px" borderRadius="8px" style={{ marginBottom: "16px" }} />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Skeleton width="50%" height="42px" borderRadius="12px" />
+              <Skeleton width="50%" height="42px" borderRadius="12px" />
+            </div>
+          </div>
+          {/* Stats & Tx Skeleton */}
+          <Skeleton height="76px" borderRadius="14px" style={{ marginBottom: "16px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <Skeleton height="56px" borderRadius="12px" />
+            <Skeleton height="56px" borderRadius="12px" />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main id="pg-saku" className="page active" style={{ paddingBottom: "110px" }}>

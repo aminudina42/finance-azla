@@ -15,6 +15,8 @@ import QuickMenuGrid from "@/components/Dashboard/QuickMenuGrid";
 import ContentTabs from "@/components/Dashboard/ContentTabs";
 import PosCard from "@/components/Dashboard/PosCard";
 import FirstCycleSetupModal from "@/components/Modals/FirstCycleSetupModal";
+import NewCycleModal from "@/components/Modals/NewCycleModal";
+import Skeleton from "@/components/Skeleton";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -31,6 +33,7 @@ export default function Home() {
     setGajianDate,
     posList,
     updatePos,
+    startNewCycle,
     debts,
     dbConnected,
     isLoading,
@@ -44,6 +47,7 @@ export default function Home() {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showGajianModal, setShowGajianModal] = useState(false);
   const [showAllFeaturesModal, setShowAllFeaturesModal] = useState(false);
+  const [showNewCycleModal, setShowNewCycleModal] = useState(false);
   const [editingPos, setEditingPos] = useState<Pos | null>(null);
   const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -126,31 +130,92 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <main className="dash-main" style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div style={{ textAlign: "center", color: "var(--text-secondary)" }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                borderRadius: "20px",
-                background: "#ffffff",
-                boxShadow: "0 8px 24px rgba(40, 127, 240, 0.12)",
-                border: "1px solid var(--border)",
-                display: "grid",
-                placeItems: "center",
-                overflow: "hidden",
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo-icon.png"
-                alt="Catat Keluarga"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
+      <main className="dash-main" id="pg-dash">
+        {/* Header Skeleton */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px 10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Skeleton width="40px" height="40px" borderRadius="12px" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <Skeleton width="110px" height="15px" borderRadius="4px" />
+              <Skeleton width="75px" height="11px" borderRadius="4px" />
             </div>
           </div>
-          <div style={{ fontSize: "16px", fontWeight: 750, color: "var(--navy)" }}>Memuat Catat Keluarga...</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Skeleton width="120px" height="30px" borderRadius="20px" />
+            <Skeleton width="34px" height="34px" borderRadius="10px" />
+          </div>
+        </div>
+
+        {/* Hero Budget Card Skeleton */}
+        <div style={{ padding: "0 20px 16px" }}>
+          <div
+            style={{
+              background: "linear-gradient(115deg, #ffffff 0%, #f7fbff 72%, #eaf6ff 100%)",
+              border: "1.5px solid #c7e5fb",
+              borderRadius: "20px",
+              padding: "20px",
+              boxShadow: "0 10px 24px rgba(38, 111, 183, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Skeleton width="120px" height="11px" borderRadius="4px" />
+                <Skeleton width="180px" height="30px" borderRadius="6px" />
+                <Skeleton width="140px" height="12px" borderRadius="4px" />
+              </div>
+              <Skeleton width="70px" height="70px" borderRadius="50%" />
+            </div>
+            <div style={{ paddingTop: "14px", borderTop: "1px solid #d8eaf8", display: "flex", justifyContent: "space-between" }}>
+              <Skeleton width="130px" height="13px" borderRadius="4px" />
+              <Skeleton width="90px" height="13px" borderRadius="4px" />
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Menu Skeleton */}
+        <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+              <Skeleton width="54px" height="54px" borderRadius="16px" />
+              <Skeleton width="42px" height="10px" borderRadius="3px" />
+            </div>
+          ))}
+        </div>
+
+        {/* Content Tabs Skeleton */}
+        <div style={{ padding: "0 20px 14px", display: "flex", gap: "8px" }}>
+          <Skeleton width="90px" height="32px" borderRadius="20px" />
+          <Skeleton width="90px" height="32px" borderRadius="20px" />
+        </div>
+
+        {/* Pos Cards Skeleton */}
+        <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              style={{
+                background: "#ffffff",
+                border: "1px solid var(--border)",
+                borderRadius: "16px",
+                padding: "16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Skeleton width="40px" height="40px" borderRadius="12px" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <Skeleton width="120px" height="14px" borderRadius="4px" />
+                    <Skeleton width="80px" height="10px" borderRadius="4px" />
+                  </div>
+                </div>
+                <Skeleton width="75px" height="16px" borderRadius="4px" />
+              </div>
+              <Skeleton width="100%" height="6px" borderRadius="99px" />
+            </div>
+          ))}
         </div>
       </main>
     );
@@ -267,16 +332,29 @@ export default function Home() {
               <div style={{ fontSize: "14px", fontWeight: 750, color: "#b45309", marginBottom: "4px" }}>
                 Menunggu Gajian Tanggal {gajianDate}
               </div>
-              <p style={{ fontSize: "12px", color: "#92400e", margin: 0, lineHeight: 1.5 }}>
-                Pos anggaran sudah siap! Saat gaji masuk, buka menu{" "}
-                <strong
-                  onClick={() => router.push("/manager")}
-                  style={{ cursor: "pointer", textDecoration: "underline" }}
-                >
-                  Pengaturan
-                </strong>{" "}
-                dan tekan &ldquo;💰 Gajian Tiba!&rdquo; untuk memulai siklus pertama.
+              <p style={{ fontSize: "12px", color: "#92400e", margin: "0 0 10px 0", lineHeight: 1.5 }}>
+                Aplikasi siap digunakan saat gaji masuk tanggal {gajianDate}. Jika gaji Anda sudah masuk sekarang, tekan tombol di bawah untuk mengatur pos dan memulai siklus baru:
               </p>
+              <button
+                type="button"
+                onClick={() => setShowNewCycleModal(true)}
+                style={{
+                  background: "#d97706",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "9px 14px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: 750,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 2px 6px rgba(217, 119, 6, 0.2)",
+                }}
+              >
+                <span>🎉 Gaji Sudah Masuk! Atur Pos Sekarang →</span>
+              </button>
             </div>
           </div>
         </section>
@@ -374,6 +452,17 @@ export default function Home() {
       <FirstCycleSetupModal
         isOpen={needsFirstCycleSetup}
         onClose={() => {}}
+      />
+
+      {/* New Cycle Modal (Gajian Tiba - Atur Pos) */}
+      <NewCycleModal
+        isOpen={showNewCycleModal}
+        onClose={() => setShowNewCycleModal(false)}
+        onConfirm={async (posConfigs, deletedPosIds) => {
+          await startNewCycle(posConfigs, deletedPosIds);
+          setShowNewCycleModal(false);
+          showToast("🎉 Siklus baru berhasil dimulai!");
+        }}
       />
     </main>
   );

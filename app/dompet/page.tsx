@@ -6,6 +6,7 @@ import { useApp } from "@/lib/store";
 import EditPosModal from "@/components/Modals/EditPosModal";
 import AlertModal from "@/components/Modals/AlertModal";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 import type { Pos } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -14,7 +15,7 @@ function formatRp(n: number): string {
 }
 
 export default function DompetPage() {
-  const { posList, addPos, updatePos, deletePos } = useApp();
+  const { posList, addPos, updatePos, deletePos, isLoading } = useApp();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -97,6 +98,88 @@ export default function DompetPage() {
       },
     });
   };
+
+  if (isLoading) {
+    return (
+      <main id="pg-dompet" className="page active" style={{ paddingBottom: "110px", position: "relative" }}>
+        <PageHeader
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <img
+                src="/logo/icon-menu-dompet.png"
+                alt="Menu Dompet"
+                style={{ width: "30px", height: "30px", objectFit: "contain" }}
+              />
+              <span>Dompet &amp; Pos</span>
+            </span>
+          }
+          subtitle="Atur jatah dan amplop keuangan keluarga"
+          backHref="/"
+        />
+        <div className="mgr-body" style={{ padding: "16px 20px" }}>
+          {/* Summary Card Skeleton */}
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1px solid var(--border)",
+              borderRadius: "20px",
+              padding: "20px",
+              marginBottom: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <Skeleton width="160px" height="12px" borderRadius="4px" />
+                <Skeleton width="200px" height="28px" borderRadius="6px" />
+              </div>
+              <Skeleton width="85px" height="26px" borderRadius="20px" />
+            </div>
+            <div style={{ paddingTop: "12px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <Skeleton width="140px" height="14px" borderRadius="4px" />
+              <Skeleton width="90px" height="14px" borderRadius="4px" />
+            </div>
+          </div>
+
+          {/* Pos Cards Skeleton */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid var(--border)",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <Skeleton width="42px" height="42px" borderRadius="12px" />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <Skeleton width="130px" height="15px" borderRadius="4px" />
+                      <Skeleton width="90px" height="11px" borderRadius="4px" />
+                    </div>
+                  </div>
+                  <Skeleton width="80px" height="18px" borderRadius="4px" />
+                </div>
+                <Skeleton width="100%" height="6px" borderRadius="99px" />
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <Skeleton width="100px" height="12px" borderRadius="4px" />
+                  <Skeleton width="70px" height="12px" borderRadius="4px" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main id="pg-dompet" className="page active" style={{ paddingBottom: "110px", position: "relative" }}>

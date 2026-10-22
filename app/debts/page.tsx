@@ -6,6 +6,7 @@ import DebtModal from "@/components/Modals/DebtModal";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import PayDebtModal from "@/components/Modals/PayDebtModal";
 import PageHeader from "@/components/PageHeader";
+import Skeleton from "@/components/Skeleton";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -24,7 +25,7 @@ function getRemainingMonths(debt: { remaining_amount: number; tenor_months?: num
 }
 
 export default function DebtsPage() {
-  const { debts, posList, addDebt, updateDebt, deleteDebt, payDebt } = useApp();
+  const { debts, posList, addDebt, updateDebt, deleteDebt, payDebt, isLoading } = useApp();
 
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
@@ -108,6 +109,83 @@ export default function DebtsPage() {
       setDebtToDelete(null);
     }
   };
+
+  if (isLoading) {
+    return (
+      <main id="pg-debts" className="page active" style={{ paddingBottom: "110px" }}>
+        <PageHeader
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <img
+                src="/logo/icon-menu-hutang.png"
+                alt="Menu Hutang"
+                style={{ width: "30px", height: "30px", objectFit: "contain" }}
+              />
+              <span>Hutang &amp; Cicilan</span>
+            </span>
+          }
+          subtitle="Pantau kewajiban keuangan keluarga"
+          backHref="/"
+        />
+        <div style={{ padding: "16px 20px 0" }}>
+          {/* Summary Card Skeleton */}
+          <div
+            style={{
+              background: "#ffffff",
+              border: "1.5px solid var(--border)",
+              borderRadius: "20px",
+              padding: "18px 20px",
+              marginBottom: "16px",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "16px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <Skeleton width="110px" height="11px" borderRadius="4px" />
+              <Skeleton width="130px" height="24px" borderRadius="6px" />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <Skeleton width="110px" height="11px" borderRadius="4px" />
+              <Skeleton width="120px" height="24px" borderRadius="6px" />
+            </div>
+          </div>
+
+          {/* Debt Cards Skeleton */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid var(--border)",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Skeleton width="42px" height="42px" borderRadius="12px" />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <Skeleton width="140px" height="16px" borderRadius="4px" />
+                      <Skeleton width="100px" height="12px" borderRadius="4px" />
+                    </div>
+                  </div>
+                  <Skeleton width="60px" height="24px" borderRadius="6px" />
+                </div>
+                <Skeleton width="100%" height="48px" borderRadius="12px" />
+                <Skeleton width="100%" height="6px" borderRadius="99px" />
+                <Skeleton width="100%" height="38px" borderRadius="10px" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main id="pg-debts" className="page active" style={{ paddingBottom: "110px" }}>

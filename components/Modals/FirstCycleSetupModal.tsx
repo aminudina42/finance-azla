@@ -19,8 +19,9 @@ export default function FirstCycleSetupModal({
 }: FirstCycleSetupModalProps) {
   const { gajianDate, setGajianDate, createFirstCycle, posList } = useApp();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [localGajianDate, setLocalGajianDate] = useState(gajianDate);
+  const [localGajianDate, setLocalGajianDate] = useState(gajianDate || 25);
   const [availableBudget, setAvailableBudget] = useState("");
+  const [selectedPosId, setSelectedPosId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -28,6 +29,23 @@ export default function FirstCycleSetupModal({
       setLocalGajianDate(gajianDate);
     }
   }, [gajianDate]);
+
+  // Non-goal pos list for Option B single envelope allocation
+  const nonGoalPosList = useMemo(() => {
+    return posList.filter((p) => !p.is_goal);
+  }, [posList]);
+
+  // Auto-select sensible default pos (preference for "Belanja", "Bebas", or first non-goal pos)
+  useEffect(() => {
+    if (nonGoalPosList.length > 0 && !selectedPosId) {
+      const preferred =
+        nonGoalPosList.find((p) => /belanja|bebas/i.test(p.name)) ||
+        nonGoalPosList[0];
+      if (preferred) {
+        setSelectedPosId(preferred.id);
+      }
+    }
+  }, [nonGoalPosList, selectedPosId]);
 
   // Calculate days until next payday
   const daysInfo = useMemo(() => {
@@ -51,7 +69,7 @@ export default function FirstCycleSetupModal({
     return { daysUntil, isToday: false };
   }, [localGajianDate]);
 
-  // Calculate partial cycle end date for display
+  // Calculate temporary cycle end date for display
   const partialEndDate = useMemo(() => {
     const today = new Date();
     const gd = localGajianDate;
@@ -64,9 +82,11 @@ export default function FirstCycleSetupModal({
     return endDate;
   }, [localGajianDate]);
 
-  const totalMonthlyBudget = posList
-    .filter((p) => !p.is_goal)
-    .reduce((sum, p) => sum + p.monthly_target, 0);
+  const totalMonthlyBudget = nonGoalPosList.reduce((sum, p) => sum + p.monthly_target, 0);
+
+  const selectedPos = useMemo(() => {
+    return nonGoalPosList.find((p) => p.id === selectedPosId) || nonGoalPosList[0];
+  }, [nonGoalPosList, selectedPosId]);
 
   const handleStep1Next = async () => {
     const clamped = Math.max(1, Math.min(28, localGajianDate));
@@ -104,7 +124,7 @@ export default function FirstCycleSetupModal({
   const handleCreatePartialCycle = async (budget?: number) => {
     setIsSubmitting(true);
     try {
-      await createFirstCycle("now", budget, localGajianDate);
+      await createFirstCycle("now", budget, localGajianDate, selectedPosId);
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -143,15 +163,15 @@ export default function FirstCycleSetupModal({
                 margin: "0 0 6px 0",
               }}
             >
-              Setup Awal
+              Kapan Tanggal Gajian Anda?
             </h2>
             <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5, margin: 0 }}>
-              Sebelum mulai, kami perlu tahu kapan Anda menerima gaji setiap bulan.
+              Masukkan tanggal saat gaji bulanan keluarga Anda biasa masuk. Ini dipakai sebagai patokan pergantian siklus keuangan.
             </p>
           </div>
 
           <div className="fg" style={{ marginBottom: "16px" }}>
-            <div className="fl" style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)" }}>
+            <div className="fl" style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", textAlign: "center" }}>
               Tanggal Gajian Bulanan (1 – 28)
             </div>
             <input
@@ -163,16 +183,17 @@ export default function FirstCycleSetupModal({
               onChange={(e) => setLocalGajianDate(Number(e.target.value))}
               style={{
                 fontFamily: "'Fraunces', serif",
-                fontSize: "32px",
+                fontSize: "34px",
                 fontWeight: 900,
                 textAlign: "center",
                 padding: "12px",
+                borderRadius: "14px",
               }}
             />
           </div>
 
-          <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "16px", lineHeight: 1.4 }}>
-            * Maks tgl 28 untuk menghindari masalah di bulan Februari.
+          <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "20px", lineHeight: 1.4, textAlign: "center" }}>
+            * Maksimal tanggal 28 agar aman dan selalu tepat di semua bulan (termasuk Februari).
           </p>
 
           <button
@@ -180,14 +201,14 @@ export default function FirstCycleSetupModal({
             className="m-save"
             onClick={handleStep1Next}
             disabled={isSubmitting}
-            style={{ width: "100%", padding: "13px", fontSize: "14px", fontWeight: 750, borderRadius: "12px" }}
+            style={{ width: "100%", padding: "14px", fontSize: "14px", fontWeight: 750, borderRadius: "12px" }}
           >
-            {isSubmitting ? "Memproses..." : "Lanjutkan →"}
+            {isSubmitting ? "Menyiapkan..." : "Lanjutkan →"}
           </button>
         </div>
       )}
 
-      {/* Step 2: Choose Mode */}
+      {/* Step 2: Choose Mode (Level 1: Ramah pemula) */}
       {step === 2 && (
         <div>
           <div style={{ textAlign: "center", marginBottom: "20px" }}>
@@ -218,39 +239,54 @@ export default function FirstCycleSetupModal({
               Gajian Masih {daysInfo.daysUntil} Hari Lagi
             </h2>
             <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5, margin: 0 }}>
-              Anda mulai menggunakan aplikasi sebelum tanggal gajian. Bagaimana Anda ingin memulai?
+              Gaji Anda berikutnya masuk pada tanggal <strong>{localGajianDate}</strong>. Bagaimana Anda ingin memulai pencatatan?
             </p>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "8px" }}>
-            {/* Option A: Start Now */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+            {/* Option A: Start Now (Kelola Sisa Uang) */}
             <button
               type="button"
               onClick={handleStartNow}
               style={{
                 padding: "16px",
                 borderRadius: "14px",
-                border: "1.5px solid #c7e0f8",
-                background: "linear-gradient(135deg, #ffffff 0%, #f4f9ff 100%)",
+                border: "2px solid #38bdf8",
+                background: "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
                 cursor: "pointer",
                 textAlign: "left",
                 transition: "all 0.15s ease",
-                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.06)",
+                boxShadow: "0 3px 12px rgba(56, 189, 248, 0.12)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                 <span
                   style={{
-                    fontSize: "14px",
+                    fontSize: "15px",
                     fontWeight: 750,
                     color: "var(--navy)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
-                  Mulai Catat Sekarang
+                  <span>Mulai Catat Sekarang</span>
+                </span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 750,
+                    color: "#0369a1",
+                    background: "#e0f2fe",
+                    padding: "3px 8px",
+                    borderRadius: "20px",
+                  }}
+                >
+                  Disarankan
                 </span>
               </div>
-              <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>
-                Buat siklus parsial ({new Date().getDate()} {new Date().toLocaleDateString("id-ID", { month: "short" })} – {partialEndDate.getDate()} {partialEndDate.toLocaleDateString("id-ID", { month: "short" })}). Masukkan budget yang tersedia dan langsung catat pengeluaran.
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+                Punya sisa uang di rekening atau dompet? Masukkan jumlahnya dan langsung catat pengeluaran harian sampai gajian tiba ({partialEndDate.getDate()} {partialEndDate.toLocaleDateString("id-ID", { month: "short" })}).
               </p>
             </button>
 
@@ -269,7 +305,7 @@ export default function FirstCycleSetupModal({
                 transition: "all 0.15s ease",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
                 <span
                   style={{
                     fontSize: "14px",
@@ -277,11 +313,11 @@ export default function FirstCycleSetupModal({
                     color: "var(--navy)",
                   }}
                 >
-                  {isSubmitting ? "Menyimpan..." : "Tunggu Sampai Gajian"}
+                  {isSubmitting ? "Menyiapkan..." : "Tunggu Sampai Gajian Tiba"}
                 </span>
               </div>
               <p style={{ fontSize: "12px", color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>
-                Atur pos anggaran dulu sekarang. Saat gaji masuk tanggal {localGajianDate}, tekan &ldquo;Gajian Tiba!&rdquo; untuk memulai siklus pertama.
+                Mulai mencatat dari nol saat gaji bulan depan masuk. Saat gajian tiba di tanggal {localGajianDate}, Anda tinggal tekan tombol &ldquo;Gajian Tiba!&rdquo;.
               </p>
             </button>
           </div>
@@ -306,10 +342,10 @@ export default function FirstCycleSetupModal({
         </div>
       )}
 
-      {/* Step 3: Input Available Budget (for "Start Now") */}
+      {/* Step 3: Input Available Budget (Level 2 Opsi B: Masukkan semua ke 1 pos) */}
       {step === 3 && (
         <div>
-          <div style={{ textAlign: "center", marginBottom: "20px" }}>
+          <div style={{ textAlign: "center", marginBottom: "18px" }}>
             <div
               style={{
                 width: "60px",
@@ -334,40 +370,39 @@ export default function FirstCycleSetupModal({
                 margin: "0 0 6px 0",
               }}
             >
-              Budget Tersedia
+              Kelola Sisa Uang
             </h2>
             <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5, margin: 0 }}>
-              Berapa uang yang Anda punya saat ini untuk dikelola sampai gajian tanggal {localGajianDate}?
+              Berapa sisa uang Anda saat ini untuk kebutuhan sampai tanggal gajian ({localGajianDate})?
             </p>
           </div>
 
-          {/* Info box about partial cycle */}
+          {/* Simple banner info */}
           <div
             style={{
-              background: "var(--s1, #f8fbff)",
-              border: "1px solid var(--border)",
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
               borderRadius: "12px",
-              padding: "12px 14px",
+              padding: "10px 14px",
               marginBottom: "16px",
               fontSize: "12px",
-              color: "var(--text-secondary)",
+              color: "#166534",
               lineHeight: 1.5,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-              <span>📆</span>
-              <strong>Siklus Parsial:</strong>{" "}
-              {new Date().getDate()} {new Date().toLocaleDateString("id-ID", { month: "short" })} – {partialEndDate.getDate()} {partialEndDate.toLocaleDateString("id-ID", { month: "short" })} ({daysInfo.daysUntil} hari)
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span>💡</span>
-              <span>Budget akan didistribusikan proporsional ke setiap pos berdasarkan target bulanan masing-masing.</span>
-            </div>
+            <span style={{ fontSize: "16px" }}>📆</span>
+            <span>
+              <strong>Periode Sementara:</strong> {new Date().getDate()} {new Date().toLocaleDateString("id-ID", { month: "short" })} – {partialEndDate.getDate()} {partialEndDate.toLocaleDateString("id-ID", { month: "short" })} ({daysInfo.daysUntil} hari)
+            </span>
           </div>
 
-          <div className="fg" style={{ marginBottom: "16px" }}>
-            <div className="fl" style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)" }}>
-              Total Uang Tersedia Saat Ini
+          {/* 1. Sisa uang input */}
+          <div className="fg" style={{ marginBottom: "14px" }}>
+            <div className="fl" style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>
+              Sisa Uang Anda Saat Ini
             </div>
             <div className="amt-wrap">
               <span className="amt-pre" style={{ fontSize: "16px" }}>Rp</span>
@@ -380,54 +415,64 @@ export default function FirstCycleSetupModal({
                   setAvailableBudget(raw ? Number(raw).toLocaleString("id-ID") : "");
                 }}
                 placeholder="0"
+                autoFocus
                 style={{
                   paddingLeft: "48px",
                   fontFamily: "'Fraunces', serif",
                   fontSize: "24px",
                   fontWeight: 900,
+                  borderRadius: "12px",
                 }}
               />
             </div>
           </div>
 
-          {/* Preview distribution */}
-          {availableBudget && parseInt(availableBudget.replace(/\D/g, ""), 10) > 0 && (
-            <div
+          {/* 2. Level 2 Opsi B: Pos Target Selector */}
+          <div className="fg" style={{ marginBottom: "16px" }}>
+            <div className="fl" style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>
+              Pilih Pos untuk Memakai Sisa Uang Ini
+            </div>
+            <select
+              className="fi"
+              value={selectedPosId}
+              onChange={(e) => setSelectedPosId(e.target.value)}
               style={{
-                marginBottom: "16px",
-                maxHeight: "140px",
-                overflowY: "auto",
-                borderRadius: "10px",
-                border: "1px solid var(--border)",
+                fontSize: "14px",
+                fontWeight: 650,
+                color: "var(--navy)",
+                borderRadius: "12px",
+                padding: "10px 12px",
               }}
             >
-              {posList.filter(p => !p.is_goal).map((p) => {
-                const budgetNum = parseInt(availableBudget.replace(/\D/g, ""), 10) || 0;
-                const proportion = totalMonthlyBudget > 0 ? p.monthly_target / totalMonthlyBudget : 0;
-                const allocated = Math.round(budgetNum * proportion);
-                return (
-                  <div
-                    key={p.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "8px 12px",
-                      borderBottom: "1px solid var(--border)",
-                      fontSize: "12px",
-                    }}
-                  >
-                    <span style={{ color: "var(--text-secondary)" }}>
-                      {p.icon} {p.name}
-                    </span>
-                    <span style={{ fontWeight: 700, color: "var(--navy)", fontFamily: "var(--font-fraunces), serif" }}>
-                      {formatRp(allocated)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+              {nonGoalPosList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.icon} {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Explanation note */}
+          <div
+            style={{
+              background: "var(--s1, #f8fbff)",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              padding: "10px 12px",
+              marginBottom: "18px",
+              fontSize: "12px",
+              color: "var(--text-secondary)",
+              lineHeight: 1.5,
+            }}
+          >
+            💡 Seluruh sisa uang{" "}
+            <strong>
+              {availableBudget && parseInt(availableBudget.replace(/\D/g, ""), 10) > 0
+                ? formatRp(parseInt(availableBudget.replace(/\D/g, ""), 10))
+                : "Rp 0"}
+            </strong>{" "}
+            akan dimasukkan ke pos <strong>{selectedPos?.icon} {selectedPos?.name}</strong> untuk belanja kebutuhan harian sampai gajian. Pos lainnya akan mulai aktif saat gaji baru masuk!
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <button
@@ -440,13 +485,13 @@ export default function FirstCycleSetupModal({
               disabled={isSubmitting}
               style={{
                 width: "100%",
-                padding: "13px",
+                padding: "14px",
                 fontSize: "14px",
                 fontWeight: 750,
                 borderRadius: "12px",
               }}
             >
-              {isSubmitting ? "Membuat Siklus..." : "Mulai Siklus Parsial"}
+              {isSubmitting ? "Membuat Siklus..." : "Mulai Catat Sekarang →"}
             </button>
 
             <button
@@ -455,7 +500,7 @@ export default function FirstCycleSetupModal({
               disabled={isSubmitting}
               style={{
                 width: "100%",
-                padding: "10px",
+                padding: "9px",
                 border: "none",
                 background: "transparent",
                 color: "var(--muted)",
@@ -464,7 +509,7 @@ export default function FirstCycleSetupModal({
                 cursor: "pointer",
               }}
             >
-              Lewati, mulai dari Rp 0 →
+              Lewati, mulai dengan saldo Rp 0 →
             </button>
 
             <button
@@ -489,4 +534,3 @@ export default function FirstCycleSetupModal({
     </Modal>
   );
 }
-
