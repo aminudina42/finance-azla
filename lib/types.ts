@@ -74,6 +74,7 @@ export interface Cycle {
   end_date: string;
   is_active: boolean;
   label: string;
+  created_at?: string;
 }
 
 export interface Child {

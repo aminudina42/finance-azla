@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useApp } from "@/lib/store";
 import Modal from "@/components/Modal";
 
@@ -22,6 +22,12 @@ export default function FirstCycleSetupModal({
   const [localGajianDate, setLocalGajianDate] = useState(gajianDate);
   const [availableBudget, setAvailableBudget] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (gajianDate) {
+      setLocalGajianDate(gajianDate);
+    }
+  }, [gajianDate]);
 
   // Calculate days until next payday
   const daysInfo = useMemo(() => {
@@ -71,7 +77,7 @@ export default function FirstCycleSetupModal({
       // Today is payday — create normal cycle immediately
       setIsSubmitting(true);
       try {
-        await createFirstCycle("now", totalMonthlyBudget);
+        await createFirstCycle("now", totalMonthlyBudget, clamped);
         onClose();
       } finally {
         setIsSubmitting(false);
@@ -88,7 +94,7 @@ export default function FirstCycleSetupModal({
   const handleWait = async () => {
     setIsSubmitting(true);
     try {
-      await createFirstCycle("wait");
+      await createFirstCycle("wait", undefined, localGajianDate);
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -98,7 +104,7 @@ export default function FirstCycleSetupModal({
   const handleCreatePartialCycle = async (budget?: number) => {
     setIsSubmitting(true);
     try {
-      await createFirstCycle("now", budget);
+      await createFirstCycle("now", budget, localGajianDate);
       onClose();
     } finally {
       setIsSubmitting(false);
