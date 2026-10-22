@@ -3,6 +3,8 @@ import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import { AppProvider } from "@/lib/store";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -78,6 +80,8 @@ export default function RootLayout({
             <BottomNav />
           </div>
         </AppProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

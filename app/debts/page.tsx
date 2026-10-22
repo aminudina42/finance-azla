@@ -11,7 +11,7 @@ function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
-function getRemainingTimes(debt: { remaining_amount: number; tenor_months?: number; paid_months?: number; monthly_payment: number }): number {
+function getRemainingMonths(debt: { remaining_amount: number; tenor_months?: number; paid_months?: number; monthly_payment: number }): number {
   if (debt.remaining_amount <= 0) return 0;
   if ((debt.tenor_months || 0) > 0) {
     const sisa = (debt.tenor_months || 0) - (debt.paid_months || 0);
@@ -31,18 +31,16 @@ export default function DebtsPage() {
   const [editingDebt, setEditingDebt] = useState<any>(null);
   const [debtToDelete, setDebtToDelete] = useState<any>(null);
   const [payingDebt, setPayingDebt] = useState<any>(null);
-  const [sortBy, setSortBy] = useState<"sisa" | "nominal">("sisa");
 
   // Hanya hutang yang masih berjalan (belum lunas) yang masuk ke total cicilan & sisa hutang
   const activeDebts = useMemo(() => debts.filter((d) => d.remaining_amount > 0), [debts]);
   const totalDebt = useMemo(() => activeDebts.reduce((s, d) => s + d.remaining_amount, 0), [activeDebts]);
   const totalMonthly = useMemo(() => activeDebts.reduce((s, d) => s + d.monthly_payment, 0), [activeDebts]);
 
-  // Sorting hutang:
+  // Hirarki Sorting:
   // 1. Yang belum lunas selalu di atas, yang sudah lunas di paling bawah
-  // 2. Mode 'sisa' (default): urutkan dari sisa pembayaran terkecil berapa kali lagi (1x, 2x, dst).
-  //    Jika sama, urutkan dari nominal hutang terbesar.
-  // 3. Mode 'nominal': urutkan dari nominal hutang terbesar.
+  // 2. Berdasarkan sisa jumlah bulan pembayaran terkecil (1x, 2x, dst.)
+  // 3. Jika sisa bulan sama, urutkan dari cicilan paling besar (monthly_payment desc)
   const sortedDebts = useMemo(() => {
     return [...debts].sort((a, b) => {
       const isLunasA = a.remaining_amount <= 0;
@@ -59,33 +57,27 @@ export default function DebtsPage() {
       }
 
       // Keduanya belum lunas:
-      if (sortBy === "sisa") {
-        const timesA = getRemainingTimes(a);
-        const timesB = getRemainingTimes(b);
+      // Sisa jumlah bulan pembayaran terkecil
+      const monthsA = getRemainingMonths(a);
+      const monthsB = getRemainingMonths(b);
 
-        if (timesA !== timesB) {
-          return timesA - timesB;
-        }
-
-        // Jika sisa kali sama, dari nominal sisa hutang terbesar
-        if (b.remaining_amount !== a.remaining_amount) {
-          return b.remaining_amount - a.remaining_amount;
-        }
-        return (b.total_amount || 0) - (a.total_amount || 0);
-      } else {
-        // Mode nominal terbesar
-        if (b.remaining_amount !== a.remaining_amount) {
-          return b.remaining_amount - a.remaining_amount;
-        }
-        const timesA = getRemainingTimes(a);
-        const timesB = getRemainingTimes(b);
-        if (timesA !== timesB) {
-          return timesA - timesB;
-        }
-        return (b.total_amount || 0) - (a.total_amount || 0);
+      if (monthsA !== monthsB) {
+        return monthsA - monthsB;
       }
+
+      // Jika sisa bulan sama, urutkan dari yang cicilannya paling besar
+      if ((b.monthly_payment || 0) !== (a.monthly_payment || 0)) {
+        return (b.monthly_payment || 0) - (a.monthly_payment || 0);
+      }
+
+      // Jika cicilan juga sama, urutkan dari sisa hutang terbesar
+      if (b.remaining_amount !== a.remaining_amount) {
+        return b.remaining_amount - a.remaining_amount;
+      }
+
+      return (b.total_amount || 0) - (a.total_amount || 0);
     });
-  }, [debts, sortBy]);
+  }, [debts]);
 
   const openAdd = () => {
     setEditingDebt(null); setModalMode("add"); setShowModal(true);
@@ -193,45 +185,6 @@ export default function DebtsPage() {
 
       {/* Debt list */}
       <div style={{ padding: "16px 20px 0" }}>
-        {debts.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}>
-            <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)" }}>
-              Daftar Hutang
-              <span style={{ marginLeft: "6px", fontSize: "11px", fontWeight: 650, color: "var(--text-secondary)" }}>
-                ({activeDebts.length} aktif{debts.length - activeDebts.length > 0 ? ` · ${debts.length - activeDebts.length} lunas` : ""})
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: "6px" }}>
-              {[
-                { id: "sisa", label: "⚡ Sisa Kali (1x, 2x)" },
-                { id: "nominal", label: "💰 Nominal Terbesar" },
-              ].map((pill) => {
-                const active = sortBy === pill.id;
-                return (
-                  <button
-                    key={pill.id}
-                    type="button"
-                    onClick={() => setSortBy(pill.id as any)}
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: "999px",
-                      border: active ? "1.5px solid var(--primary)" : "1px solid var(--border)",
-                      background: active ? "rgba(40, 127, 240, 0.08)" : "#ffffff",
-                      color: active ? "var(--primary)" : "var(--text-secondary)",
-                      fontSize: "11px",
-                      fontWeight: active ? 750 : 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    {pill.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
         {debts.length === 0 && (
           <div style={{ textAlign: "center", padding: "40px 20px", background: "#ffffff", borderRadius: "16px", border: "1.5px dashed var(--border)", color: "var(--text-secondary)", marginTop: "8px" }}>
             <div style={{ fontSize: "40px", marginBottom: "10px" }}>💳</div>
@@ -340,7 +293,7 @@ export default function DebtsPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--border)", paddingBottom: "8px" }}>
                     <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>Sisa Tagihan</div>
                     <div style={{ fontSize: "14.5px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--danger)", fontVariantNumeric: "tabular-nums" }}>
-                      {formatRp(debt.remaining_amount)} {!isLunas && <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>(Sisa {getRemainingTimes(debt)}x)</span>}
+                      {formatRp(debt.remaining_amount)} {!isLunas && <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>(Sisa {getRemainingMonths(debt)}x)</span>}
                     </div>
                   </div>
                   {(debt.principal_amount || 0) > 0 && (
@@ -360,9 +313,9 @@ export default function DebtsPage() {
                     <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Sisa</div>
                     <div style={{ fontSize: "15px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--danger)", fontVariantNumeric: "tabular-nums", marginTop: "2px" }}>
                       {formatRp(debt.remaining_amount)}{" "}
-                      {!isLunas && getRemainingTimes(debt) < Infinity && (
+                      {!isLunas && getRemainingMonths(debt) < Infinity && (
                         <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>
-                          (Sisa {getRemainingTimes(debt)}x)
+                          (Sisa {getRemainingMonths(debt)}x)
                         </span>
                       )}
                     </div>

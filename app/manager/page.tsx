@@ -136,8 +136,9 @@ export default function ManagerPage() {
 
     // Subscribe ke realtime changes pada tabel members keluarga ini
     if (!currentKeluarga?.id) return;
+    const channelName = `family-members-mgr-${currentKeluarga.id}-${Date.now()}`;
     const channel = supabase
-      .channel(`family-members-mgr-${currentKeluarga.id}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {

@@ -179,6 +179,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       return () => clearTimeout(timer);
     }
   }, [isNavigating]);
+
+  // Safety timeout agar dashboard/initial loading tidak pernah macet
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
   const [dbConnected, setDbConnected] = useState(false);
   const [cycles, setCycles] = useState<Cycle[]>(FALLBACK_CYCLES);
   const [cycleIndex, setCycleIndex] = useState(0);
@@ -251,7 +261,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   useEffect(() => {
     async function loadData() {
       try {
-        const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes] = await Promise.all([
+        const queryPromise = Promise.all([
           supabase.from("pos").select("*").order("order_index"),
           supabase.from("cycles").select("*").order("start_date", { ascending: false }),
           supabase.from("transactions").select("*").order("created_at", { ascending: false }),
@@ -262,8 +272,15 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           supabase.from("app_settings").select("*"),
         ]);
 
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Supabase query timeout")), 3000)
+        );
+
+        const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes] =
+          await Promise.race([queryPromise, timeoutPromise]) as any;
+
         // If ANY query succeeds (no error), we're connected to Supabase
-        const connected = !posRes.error && !cycRes.error;
+        const connected = !posRes?.error && !cycRes?.error;
         if (connected) {
           setDbConnected(true);
           // Ensure backward compatibility — fill in default values for new fields
@@ -272,7 +289,10 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             is_goal: p.is_goal ?? false,
             goal_target: p.goal_target ?? 0,
           }));
-          setPosList(posData);
+          if (posData.length > 0) {
+            setPosList(posData);
+          }
+
           // Ensure backward compatibility for transactions
           const txData = ((txRes.data as Transaction[]) ?? []).map((t) => ({
             ...t,
@@ -280,22 +300,34 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             saku_id: t.saku_id ?? null,
             saku_withdraw_amount: t.saku_withdraw_amount ?? null,
           }));
-          setCycles((cycRes.data as Cycle[]) ?? FALLBACK_CYCLES);
-          setTransactions(txData);
+          if (txData.length > 0) {
+            setTransactions(txData);
+          }
+
+          if (cycRes.data && cycRes.data.length > 0) {
+            setCycles(cycRes.data as Cycle[]);
+          }
+
           // Backward compat for children — add type field if missing
           const childData = ((childRes.data as Child[]) ?? []).map((c) => ({
             ...c,
             type: (c.type ?? "standalone") as "standalone" | "linked",
             linked_pos_id: c.linked_pos_id ?? null,
           }));
-          setChildrenList(childData);
-          setChildTransactions((ctxRes.data as ChildTransaction[]).map(ct => ({
-            ...ct,
-            ref_cycle_id: ct.ref_cycle_id ?? null,
-            ref_transaction_id: ct.ref_transaction_id ?? null,
-          })) ?? []);
-          if (!debtRes.error) {
-            const debtData = ((debtRes.data as Debt[]) ?? []).map((d) => ({
+          if (childData.length > 0) {
+            setChildrenList(childData);
+          }
+
+          if (ctxRes.data && Array.isArray(ctxRes.data)) {
+            setChildTransactions(ctxRes.data.map((ct: any) => ({
+              ...ct,
+              ref_cycle_id: ct.ref_cycle_id ?? null,
+              ref_transaction_id: ct.ref_transaction_id ?? null,
+            })));
+          }
+
+          if (!debtRes?.error && Array.isArray(debtRes?.data) && debtRes.data.length > 0) {
+            const debtData = debtRes.data.map((d: any) => ({
               ...d,
               principal_amount: d.principal_amount ?? 0,
               tenor_months: d.tenor_months ?? 0,
@@ -303,12 +335,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             }));
             setDebts(debtData);
           }
-          if (!histRes.error) {
+
+          if (!histRes?.error && Array.isArray(histRes?.data) && histRes.data.length > 0) {
             setCyclePosHistory(histRes.data as CyclePosHistory[]);
           }
+
           // Load settings
-          if (!settingsRes.error && Array.isArray(settingsRes.data)) {
-            const settingsMap = new Map(settingsRes.data.map((s) => [s.key, s.value]));
+          if (!settingsRes?.error && Array.isArray(settingsRes?.data)) {
+            const settingsMap = new Map<string, string>(settingsRes.data.map((s: any) => [String(s.key), String(s.value ?? "")]));
             const gajianVal = settingsMap.get("gajian_date");
             if (gajianVal) setGajianDate(Number(gajianVal) || 25);
 
@@ -367,100 +401,133 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             }
           }
         }
-      } catch {
-        console.log("Supabase not available, using fallback data");
+      } catch (err) {
+        console.warn("Supabase query timeout or error, using fallback data:", err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
 
+    // Check session on mount
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSessionUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setSessionUser(u);
       setAuthLoading(false);
-      if (!session && pathname !== "/login") router.replace("/login");
-      if (session && pathname === "/login") router.replace("/");
+
+      if (!u) {
+        setIsLoading(false);
+        if (pathname !== "/login") router.replace("/login");
+        return;
+      }
+
+      if (pathname === "/login") router.replace("/");
+
+      // User session is ready, load data
+      loadData();
 
       // Ensure auth user exists in the `users` table & sync member profile
-      if (session?.user) {
-        const u = session.user;
-        const displayName = u.user_metadata?.name || u.email?.split("@")[0] || "User";
+      const displayName = u.user_metadata?.name || u.email?.split("@")[0] || "User";
+      try {
         await supabase.from("users").upsert(
           { id: u.id, name: displayName, role: "suami" },
           { onConflict: "id" }
         );
+      } catch (err) {
+        console.warn("Could not upsert user:", err);
+      }
 
-        try {
-          const { data: memberData } = await supabase
-            .from("members")
-            .select("*, keluarga:keluarga(*)")
-            .eq("id", u.id)
-            .maybeSingle();
+      try {
+        const { data: memberData } = await supabase
+          .from("members")
+          .select("*, keluarga:keluarga(*)")
+          .eq("id", u.id)
+          .maybeSingle();
 
-          if (memberData) {
-            setCurrentMember(memberData as unknown as Member);
-            if (memberData.keluarga) {
-              setCurrentKeluarga(memberData.keluarga as unknown as Keluarga);
-            }
-            if (pathname === "/onboarding" || pathname === "/login") {
-              router.replace("/");
-            }
-          } else {
-            // User baru (Google/Email) yang belum punya keluarga diarahkan ke onboarding
-            if (pathname !== "/onboarding" && pathname !== "/login") {
-              router.replace("/onboarding");
-            }
+        if (memberData) {
+          setCurrentMember(memberData as unknown as Member);
+          if (memberData.keluarga) {
+            setCurrentKeluarga(memberData.keluarga as unknown as Keluarga);
           }
-        } catch (err) {
-          console.warn("Could not load member/keluarga info:", err);
+          if (pathname === "/onboarding" || pathname === "/login") {
+            router.replace("/");
+          }
+        } else {
+          // User baru (Google/Email) yang belum punya keluarga diarahkan ke onboarding
+          if (pathname !== "/onboarding" && pathname !== "/login") {
+            router.replace("/onboarding");
+          }
         }
+      } catch (err) {
+        console.warn("Could not load member/keluarga info:", err);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionUser(session?.user ?? null);
-      if (!session && pathname !== "/login") router.replace("/login");
-      if (session && pathname === "/login") router.replace("/");
-    });
-
-    // Realtime member changes channel (e.g. kicked from family, promoted/demoted)
-    let memberChannel: any = null;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) {
-        memberChannel = supabase
-          .channel(`member-live-${session.user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "members",
-              filter: `id=eq.${session.user.id}`,
-            },
-            (payload) => {
-              if (payload.eventType === "DELETE") {
-                setCurrentMember(null);
-                setCurrentKeluarga(null);
-                if (window.location.pathname !== "/onboarding" && window.location.pathname !== "/login") {
-                  router.replace("/onboarding?reason=removed");
-                }
-              } else if (payload.eventType === "UPDATE") {
-                const updated = payload.new as Member;
-                setCurrentMember((prev) => (prev ? { ...prev, ...updated } : updated));
-              }
-            }
-          )
-          .subscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null;
+      setSessionUser(u);
+      if (!u) {
+        setCurrentMember(null);
+        setCurrentKeluarga(null);
+        setIsLoading(false);
+        if (pathname !== "/login") router.replace("/login");
+      } else {
+        if (pathname === "/login") router.replace("/");
+        loadData();
       }
     });
-
-    loadData();
 
     return () => {
       subscription.unsubscribe();
-      if (memberChannel) {
-        supabase.removeChannel(memberChannel);
-      }
     };
-  }, [pathname, router]);
+  }, []);
+
+  // ── Route guard on auth state / navigation ──
+  useEffect(() => {
+    if (authLoading) return;
+    if (!sessionUser && pathname !== "/login") {
+      router.replace("/login");
+    } else if (sessionUser && pathname === "/login") {
+      router.replace("/");
+    }
+  }, [authLoading, sessionUser, pathname, router]);
+
+  // ── Realtime member changes channel (e.g. kicked from family, promoted/demoted) ──
+  useEffect(() => {
+    if (!sessionUser?.id) return;
+
+    let isMounted = true;
+    const channelName = `member-live-${sessionUser.id}-${Date.now()}`;
+    const memberChannel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "members",
+          filter: `id=eq.${sessionUser.id}`,
+        },
+        (payload) => {
+          if (!isMounted) return;
+          if (payload.eventType === "DELETE") {
+            setCurrentMember(null);
+            setCurrentKeluarga(null);
+            if (window.location.pathname !== "/onboarding" && window.location.pathname !== "/login") {
+              router.replace("/onboarding?reason=removed");
+            }
+          } else if (payload.eventType === "UPDATE") {
+            const updated = payload.new as Member;
+            setCurrentMember((prev) => (prev ? { ...prev, ...updated } : updated));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(memberChannel);
+    };
+  }, [sessionUser?.id, router]);
 
   const shiftCycle = useCallback(
     (dir: number) => setCycleIndex((prev) => Math.max(0, Math.min(cycles.length - 1, prev + dir))),
