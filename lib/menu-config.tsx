@@ -271,6 +271,86 @@ export const AVAILABLE_MENUS: MenuItem[] = [
       />
     ),
   },
+  {
+    id: "kesehatan",
+    name: "Kesehatan",
+    desc: "Tumbuh kembang & medik",
+    path: "/kesehatan",
+    iconBg: "#ffe4e6",
+    quickClass: "rose-bg",
+    iconSrc: "/logo/icon-menu-kesehatan.png",
+    iconModal: (
+      <MenuIcon
+        src="/logo/icon-menu-kesehatan.png"
+        alt="Menu Kesehatan"
+        size={44}
+        fallbackSvg={
+          <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
+            <path
+              d="M16 28C16 28 4 20.5 4 11.5C4 7.5 7 4.5 11 4.5C13.5 4.5 15.2 6 16 7C16.8 6 18.5 4.5 21 4.5C25 4.5 28 7.5 28 11.5C28 20.5 16 28 16 28Z"
+              fill="#f43f5e"
+              opacity="0.18"
+            />
+            <path
+              d="M16 28C16 28 4 20.5 4 11.5C4 7.5 7 4.5 11 4.5C13.5 4.5 15.2 6 16 7C16.8 6 18.5 4.5 21 4.5C25 4.5 28 7.5 28 11.5C28 20.5 16 28 16 28Z"
+              stroke="#e11d48"
+              strokeWidth="2.2"
+              strokeLinejoin="round"
+            />
+            <path d="M16 11V19M12 15H20" stroke="#e11d48" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        }
+      />
+    ),
+    iconQuick: (
+      <MenuIcon
+        src="/logo/icon-menu-kesehatan.png"
+        alt="Menu Kesehatan"
+        size={42}
+        fallbackSvg={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            <path d="M12 9v6m-3-3h6" />
+          </svg>
+        }
+      />
+    ),
+  },
+  {
+    id: "wisata",
+    name: "Wisata",
+    desc: "Itinerary & liburan",
+    path: "/wisata",
+    iconBg: "#e0f2fe",
+    quickClass: "sky-bg",
+    iconSrc: "/logo/icon-menu-wisata.png",
+    iconModal: (
+      <MenuIcon
+        src="/logo/icon-menu-wisata.png"
+        alt="Menu Wisata"
+        size={44}
+        fallbackSvg={
+          <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
+            <circle cx="16" cy="16" r="12" stroke="#0284c7" strokeWidth="2" />
+            <path d="m11 21 3-8 8-3-3 8-8 3z" fill="#0284c7" />
+          </svg>
+        }
+      />
+    ),
+    iconQuick: (
+      <MenuIcon
+        src="/logo/icon-menu-wisata.png"
+        alt="Menu Wisata"
+        size={42}
+        fallbackSvg={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+          </svg>
+        }
+      />
+    ),
+  },
 ];
 
 export const DEFAULT_QUICK_MENU = ["saku", "struk", "hutang", "dompet"];

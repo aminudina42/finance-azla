@@ -49,6 +49,7 @@ export default function PayDebtModal({
   const [paymentDate, setPaymentDate] = useState(getTodayString());
   const [notes, setNotes] = useState("");
   const [copied, setCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +58,7 @@ export default function PayDebtModal({
       setPaymentDate(getTodayString());
       setNotes("");
       setCopied(false);
+      setSubmitting(false);
     }
   }, [isOpen, monthlyPayment]);
 
@@ -76,18 +78,24 @@ export default function PayDebtModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const amount = Number(amountStr.replace(/\D/g, ""));
-    if (!amount || !posId) return;
-    onPay(posId, amount, notes.trim(), paymentDate);
-    onClose();
+    if (!amount || !posId || submitting) return;
+    setSubmitting(true);
+    try {
+      await onPay(posId, amount, notes.trim(), paymentDate);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setSubmitting(false);
+    }
   };
 
   const nextCicilan = paidMonths + 1;
   const availablePos = posList.filter((p) => !p.is_goal);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} isLocked={submitting}>
       <div style={{ textAlign: "center", marginBottom: "16px" }}>
         <div style={{ fontSize: "36px", marginBottom: "6px" }}>{debtIcon}</div>
         <div style={{ fontSize: "16.5px", fontWeight: 800, color: "var(--navy)" }}>{debtName}</div>
@@ -213,9 +221,9 @@ export default function PayDebtModal({
       </div>
 
       <div className="m-actions" style={{ marginTop: "18px" }}>
-        <button className="m-cancel" onClick={onClose}>Batal</button>
-        <button className="m-save" onClick={handleConfirm} disabled={!posId || !amountStr}>
-          Konfirmasi Bayar
+        <button className="m-cancel" onClick={onClose} disabled={submitting}>Batal</button>
+        <button className="m-save" onClick={handleConfirm} disabled={!posId || !amountStr || submitting}>
+          {submitting ? "Memproses..." : "Konfirmasi Bayar"}
         </button>
       </div>
     </Modal>

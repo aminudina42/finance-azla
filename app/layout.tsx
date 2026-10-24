@@ -59,20 +59,6 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${dmSans.variable} ${fraunces.variable} font-sans antialiased`}
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  document.documentElement.setAttribute('data-theme', 'light');
-                  localStorage.setItem('theme', 'light');
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
       <body className={dmSans.variable + " " + fraunces.variable}>
         <AppProvider>
           <div className="shell">

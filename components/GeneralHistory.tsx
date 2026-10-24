@@ -35,6 +35,7 @@ export default function GeneralHistory() {
   const [selectedPos, setSelectedPos] = useState("Semua");
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const posFilters = useMemo(() => {
     return ["Semua", ...posList.map((p) => `${p.icon} ${p.name}`)];
@@ -102,8 +103,11 @@ export default function GeneralHistory() {
 
   const confirmDelete = () => {
     if (deleteTarget) {
+      const desc = deleteTarget.description;
       deleteTransaction(deleteTarget.id);
       setDeleteTarget(null);
+      setToastMessage(`Transaksi "${desc}" berhasil dihapus.`);
+      setTimeout(() => setToastMessage(null), 2500);
     }
   };
 
@@ -247,6 +251,32 @@ export default function GeneralHistory() {
         onCancel={() => setDeleteTarget(null)}
         isDanger={true}
       />
+
+      {/* Toast Feedback */}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            zIndex: 400,
+            left: "50%",
+            bottom: "95px",
+            transform: "translateX(-50%)",
+            padding: "10px 18px",
+            background: "var(--navy)",
+            color: "#ffffff",
+            borderRadius: "12px",
+            fontSize: "13px",
+            fontWeight: 600,
+            boxShadow: "0 10px 24px rgba(16, 45, 85, 0.2)",
+            whiteSpace: "nowrap",
+            animation: "fadeIn .2s ease",
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

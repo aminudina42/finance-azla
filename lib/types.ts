@@ -291,6 +291,135 @@ export interface VehicleNotification {
   created_at: string;
 }
 
+// ═══ Modul Kesehatan Keluarga ═══
+
+export type HealthRelationRole = "suami" | "istri" | "anak" | "orang_tua" | "lainnya";
+export type HealthGender = "male" | "female";
+export type HealthBloodType = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-" | "unknown";
+
+export interface HealthFamilyMember {
+  id: string;
+  keluarga_id: string;
+  auth_member_id?: string | null;
+  name: string;
+  relation_role: HealthRelationRole;
+  gender: HealthGender;
+  birth_date: string;
+  is_premature?: boolean;
+  gestational_weeks?: number | null;
+  blood_type: HealthBloodType;
+  allergies: string[];
+  chronic_conditions: string[];
+  bpjs_number?: string | null;
+  avatar_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthGrowthLog {
+  id: string;
+  keluarga_id: string;
+  family_member_id: string;
+  measured_at: string;
+  weight_kg: number;
+  height_cm: number;
+  head_circ_cm?: number | null;
+  arm_circ_cm?: number | null;
+  measurement_position: "recumbent" | "standing";
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+export type HealthVitalType = "blood_pressure" | "blood_sugar" | "cholesterol" | "uric_acid" | "body_temp";
+
+export interface BloodPressureData {
+  systolic: number;
+  diastolic: number;
+  pulse?: number;
+}
+
+export interface BloodSugarData {
+  value: number;
+  category: "fasting" | "postprandial" | "random" | "hba1c";
+}
+
+export interface CholesterolData {
+  total: number;
+  ldl?: number;
+  hdl?: number;
+  triglycerides?: number;
+}
+
+export interface UricAcidData {
+  value: number;
+}
+
+export interface BodyTempData {
+  celsius: number;
+}
+
+export type HealthVitalData =
+  | BloodPressureData
+  | BloodSugarData
+  | CholesterolData
+  | UricAcidData
+  | BodyTempData;
+
+export interface HealthVitalLog {
+  id: string;
+  keluarga_id: string;
+  family_member_id: string;
+  measured_at: string;
+  vital_type: HealthVitalType;
+  data: HealthVitalData;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+export interface HealthMedicalRecord {
+  id: string;
+  keluarga_id: string;
+  family_member_id: string;
+  illness_name: string;
+  diagnosis?: string | null;
+  symptoms?: string | null;
+  start_date: string;
+  end_date?: string | null;
+  is_cured: boolean;
+  doctor_name?: string | null;
+  clinic_hospital?: string | null;
+  payment_method: "pribadi" | "bpjs" | "asuransi_kantor" | "asuransi_swasta";
+  cost_amount: number;
+  transaction_id?: string | null;
+  attachment_urls: string[];
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined field
+  medications?: HealthMedication[];
+}
+
+export interface HealthMedication {
+  id: string;
+  keluarga_id: string;
+  medical_record_id?: string | null;
+  family_member_id: string;
+  medicine_name: string;
+  is_antibiotic: boolean;
+  dosage: string;
+  frequency: string;
+  timing_rule?: string | null;
+  start_date: string;
+  end_date?: string | null;
+  is_active: boolean;
+  stopped_reason?: "finished" | "cured" | "side_effects" | "doctor_order" | null;
+  notes?: string | null;
+  created_at: string;
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {

@@ -45,11 +45,17 @@ export default function BayarPajakPage({ params }: PageProps) {
       const year = v.next_tax_due_date.split("-")[0];
       setTaxPeriod(year);
 
-      // Default next due date: +1 year from current due date
+      // Default next due date: +1 year from current due date (dengan penanganan tahun kabisat)
       const parts = v.next_tax_due_date.split("T")[0].split("-");
       if (parts.length === 3) {
         const nextYear = parseInt(parts[0], 10) + 1;
-        setNextDueDate(`${nextYear}-${parts[1]}-${parts[2]}`);
+        const month = parts[1];
+        let day = parts[2];
+        if (month === "02" && day === "29") {
+          const isLeap = (nextYear % 4 === 0 && nextYear % 100 !== 0) || (nextYear % 400 === 0);
+          if (!isLeap) day = "28";
+        }
+        setNextDueDate(`${nextYear}-${month}-${day}`);
       }
     }
 
@@ -94,6 +100,10 @@ export default function BayarPajakPage({ params }: PageProps) {
     }
     if (!nextDueDate) {
       setErrorMsg("Tanggal pajak berikutnya wajib dipilih");
+      return;
+    }
+    if (nextDueDate <= paymentDate) {
+      setErrorMsg("Tanggal pajak berikutnya harus setelah tanggal pembayaran.");
       return;
     }
     if (!numericAmount || numericAmount <= 0) {

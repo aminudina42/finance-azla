@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -85,8 +86,6 @@ interface AppState {
     image: string;
   };
   updateLogoSettings: (settings: { type: "emoji" | "image"; emoji: string; bg: string; image: string }) => Promise<void>;
-  theme: "dark" | "light";
-  updateTheme: (t: "dark" | "light") => Promise<void>;
   isLoading: boolean;
   dbConnected: boolean;
   isNavigating: boolean;
@@ -132,6 +131,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [isLoading, setIsLoading] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
+  const isMutatingCycleRef = useRef(false);
 
   // Global click interceptor for relative route links (Perpindahan halaman)
   useEffect(() => {
@@ -212,24 +212,6 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
   const [firstSetupComplete, setFirstSetupComplete] = useState(false);
   const [firstSetupMode, setFirstSetupMode] = useState<"now" | "wait" | "completed" | null>(null);
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("theme");
-        if (cached === "dark" || cached === "light") return cached;
-      } catch {
-        // ignore
-      }
-    }
-    return "dark";
-  });
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      document.documentElement.setAttribute("data-theme", theme);
-    }
-  }, [theme]);
-
   const [logoSettings, setLogoSettings] = useState<{
     type: "emoji" | "image";
     emoji: string;
@@ -377,16 +359,6 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           const setupMode = settingsMap.get("first_setup_mode");
           if (setupMode === "wait" || setupMode === "now" || setupMode === "completed") {
             setFirstSetupMode(setupMode);
-          }
-
-          const dbTheme = settingsMap.get("theme");
-          if (dbTheme === "dark" || dbTheme === "light") {
-            setTheme(dbTheme);
-            try {
-              localStorage.setItem("theme", dbTheme);
-            } catch {
-              // ignore
-            }
           }
 
           const lType = settingsMap.get("website_logo_type") as "emoji" | "image" | undefined;
@@ -569,15 +541,17 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const addPos = useCallback(async (name: string, icon: string, sub: string, amount: number, isGoal: boolean = false, goalTarget: number = 0) => {
     setIsMutating(true);
     try {
-      const newPos: Pos = { id: "p" + Date.now(), name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99, is_goal: isGoal, goal_target: goalTarget };
+      const kId = currentKeluarga?.id;
+      const newPos: Pos = { id: "p" + Date.now(), name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99, is_goal: isGoal, goal_target: goalTarget, keluarga_id: kId };
       setPosList((prev) => [...prev, newPos]);
 
-      const { data } = await supabase.from("pos").insert({ name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99, is_goal: isGoal, goal_target: goalTarget }).select().single();
+      const { data } = await supabase.from("pos").insert({ name, icon, sub, monthly_target: amount, current_balance: amount, order_index: 99, is_goal: isGoal, goal_target: goalTarget, keluarga_id: kId }).select().single();
       if (data) setPosList((prev) => prev.map((p) => (p.id === newPos.id ? { ...data, is_goal: data.is_goal ?? false, goal_target: data.goal_target ?? 0 } as Pos : p)));
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
-  }, []);
+  }, [currentKeluarga?.id]);
 
   const updatePos = useCallback(async (id: string, name: string, icon: string, sub: string, amount: number, isGoal: boolean = false, goalTarget: number = 0) => {
     setIsMutating(true);
@@ -618,6 +592,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         })
         .eq("id", id);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [posList]);
@@ -628,6 +603,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setPosList((prev) => prev.filter((p) => p.id !== id));
       await supabase.from("pos").delete().eq("id", id);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, []);
@@ -674,12 +650,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         }).select().single();
         if (txErr) {
           console.error("❌ Gagal simpan transaksi:", txErr.message, txErr.details, txErr.hint);
+          throw new Error(txErr.message || "Gagal menyimpan transaksi ke database.");
         } else if (insertedTx) {
           setTransactions((prev) => prev.map((t) => (t.id === newTx.id ? (insertedTx as Transaction) : t)));
         }
 
         const { error: posErr } = await supabase.from("pos").update({ current_balance: newBalance }).eq("id", posId);
-        if (posErr) console.error("❌ Gagal update saldo pos:", posErr.message);
+        if (posErr) {
+          console.error("❌ Gagal update saldo pos:", posErr.message);
+          throw new Error(posErr.message || "Gagal memperbarui saldo pos.");
+        }
       } finally {
         setIsMutating(false);
       }
@@ -731,6 +711,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       const { data } = await supabase.from("children").insert({ name, icon, balance: initialBalance, type, linked_pos_id: linkedPosId }).select().single();
       if (data) setChildrenList((prev) => prev.map((c) => (c.id === localChild.id ? { ...data, type: data.type ?? "standalone", linked_pos_id: data.linked_pos_id ?? null } as Child : c)));
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, []);
@@ -741,6 +722,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setChildrenList((prev) => prev.map((c) => c.id === id ? { ...c, name, icon, type, linked_pos_id: linkedPosId } : c));
       await supabase.from("children").update({ name, icon, type, linked_pos_id: linkedPosId }).eq("id", id);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, []);
@@ -751,6 +733,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setChildrenList((prev) => prev.filter((c) => c.id !== id));
       await supabase.from("children").delete().eq("id", id);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, []);
@@ -816,8 +799,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         const effectiveName = userName || currentMember?.display_name || (effectiveRole === "suami" ? "Suami" : effectiveRole === "istri" ? "Istri" : "Anak");
         const authUserId = sessionUser?.id ?? "unknown";
 
-        // 1. Update Pos balance (expense as usual — can go negative)
-        const newPosBalance = pos.current_balance - amount;
+        // 1. Update Pos balance (only deduct portion not covered by Saku to prevent double deduction)
+        const posDeduction = Math.max(0, amount - sakuWithdrawAmount);
+        const newPosBalance = pos.current_balance - posDeduction;
         setPosList((prev) => prev.map((p) => (p.id === posId ? { ...p, current_balance: newPosBalance } : p)));
 
         // 2. Deduct from Saku
@@ -957,6 +941,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       }).select().single();
       if (data) setDebts((prev) => prev.map((d) => (d.id === localDebt.id ? { ...data } as Debt : d)));
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [currentKeluarga?.id]);
@@ -1008,6 +993,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         notes,
       }).eq("id", id);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, []);
@@ -1019,6 +1005,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setDebtPayments((prev) => prev.filter((p) => p.debt_id !== id));
       await supabase.from("debts").delete().eq("id", id);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, []);
@@ -1134,6 +1121,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         setDebtPayments((prev) => prev.map((p) => (p.id === tempPaymentId ? { ...insertedPay, pos_name: pos.name, user_name: effectiveName } : p)));
       }
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [debts, posList, sessionUser, currentMember, currentKeluarga]);
@@ -1173,6 +1161,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setDebtPayments((prev) => prev.filter((p) => p.id !== paymentId));
       await supabase.from("debt_payments").delete().eq("id", paymentId);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [debtPayments, debts, posList]);
@@ -1220,6 +1209,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     posConfigs?: PosConfigItem[],
     deletedPosIds?: string[]
   ) => {
+    if (isMutatingCycleRef.current) return;
+    isMutatingCycleRef.current = true;
     setIsMutating(true);
     try {
       // 0. Snapshot current pos targets for the ending cycle
@@ -1402,6 +1393,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         });
       }
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [posList, cycles, childrenList, currentKeluarga, upsertSetting]);
@@ -1527,6 +1519,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       await upsertSetting("first_setup_complete", "true", effectiveKeluargaId);
       await upsertSetting("first_setup_mode", "now", effectiveKeluargaId);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [posList, gajianDate, currentKeluarga, sessionUser, upsertSetting]);
@@ -1539,6 +1532,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       setGajianDate(validDate);
       await upsertSetting("gajian_date", String(validDate));
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [upsertSetting]);
@@ -1565,21 +1559,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         upsertSetting("website_logo_image", newSettings.image),
       ]);
     } finally {
-      setIsMutating(false);
-    }
-  }, [upsertSetting]);
-
-  const updateTheme = useCallback(async (newTheme: "dark" | "light") => {
-    setIsMutating(true);
-    try {
-      setTheme(newTheme);
-      try {
-        localStorage.setItem("theme", newTheme);
-      } catch {
-        // ignore
-      }
-      await upsertSetting("theme", newTheme);
-    } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [upsertSetting]);
@@ -1598,6 +1578,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     } catch (err) {
       console.error("Gagal simpan quick_menu_items:", err);
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [upsertSetting]);
@@ -1642,6 +1623,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
 
       console.log("✅ Semua saldo pos berhasil disinkronisasi dari data transaksi.");
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [posList, transactions, cycles]);
@@ -1763,6 +1745,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     } catch (err: any) {
       return { success: false, error: err?.message || "Gagal memperbarui anggota." };
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [currentKeluarga?.id, currentMember?.id]);
@@ -1822,6 +1805,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     } catch (err: any) {
       return { success: false, error: err?.message || "Gagal mengeluarkan anggota." };
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [sessionUser?.id]);
@@ -1874,6 +1858,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     } catch (err: any) {
       return { success: false, error: err?.message || "Gagal keluar dari keluarga." };
     } finally {
+      isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
   }, [sessionUser?.id, currentKeluarga?.id, currentMember?.role, router]);
@@ -1905,7 +1890,6 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     cyclePosHistory, startNewCycle,
     debts, debtPayments, addDebt, updateDebt, deleteDebt, payDebt, rollbackDebtPayment,
     logoSettings, updateLogoSettings,
-    theme, updateTheme,
     isLoading, dbConnected,
     isNavigating, setIsNavigating,
     isMutating, setIsMutating,

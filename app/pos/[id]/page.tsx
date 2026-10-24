@@ -645,11 +645,6 @@ export default function PosDetailPage() {
         )}
       </div>
 
-      {/* FAB — Add Transaction */}
-      <Link href={`/input?pos=${posId}`} className="pos-detail-fab">
-        ＋
-      </Link>
-
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteTarget}

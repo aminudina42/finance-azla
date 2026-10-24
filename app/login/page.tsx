@@ -44,38 +44,52 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setErrorMsg(error.message);
+      if (error) {
+        setErrorMsg(error.message);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal terhubung ke server. Periksa koneksi internet Anda.";
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignUp = async (e: React.MouseEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
 
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    if (error) {
-      setErrorMsg(error.message);
-    } else if (data.user) {
-      setSuccessMsg("Pendaftaran berhasil! Silakan login (atau cek email jika konfirmasi aktif).");
+      if (error) {
+        setErrorMsg(error.message);
+      } else if (data.user) {
+        setSuccessMsg("Pendaftaran berhasil! Silakan login (atau cek email jika konfirmasi aktif).");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal terhubung ke server. Periksa koneksi internet Anda.";
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleGoogleLogin = async () => {

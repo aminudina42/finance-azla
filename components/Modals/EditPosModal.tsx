@@ -40,6 +40,7 @@ export default function EditPosModal({
   const [amountStr, setAmountStr] = useState(posAmount ? posAmount.toLocaleString("id-ID") : "");
   const [isGoal, setIsGoal] = useState(posIsGoal);
   const [goalTargetStr, setGoalTargetStr] = useState(posGoalTarget ? posGoalTarget.toLocaleString("id-ID") : "");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setName(posName);
@@ -48,13 +49,21 @@ export default function EditPosModal({
     setAmountStr(posAmount ? posAmount.toLocaleString("id-ID") : "");
     setIsGoal(posIsGoal);
     setGoalTargetStr(posGoalTarget ? posGoalTarget.toLocaleString("id-ID") : "");
+    setSubmitting(false);
   }, [posName, posEmoji, posSub, posAmount, posIsGoal, posGoalTarget, isOpen]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!name.trim() || submitting) return;
     const rawNum = Number(amountStr.replace(/\D/g, ""));
     const rawGoal = Number(goalTargetStr.replace(/\D/g, ""));
-    onSave(name, emoji, sub, rawNum, isGoal, isGoal ? rawGoal : 0);
-    onClose();
+    setSubmitting(true);
+    try {
+      await onSave(name.trim(), emoji, sub, rawNum, isGoal, isGoal ? rawGoal : 0);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setSubmitting(false);
+    }
   };
 
   const handleAmtChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +85,7 @@ export default function EditPosModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} isLocked={submitting}>
       <div className="mt">{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         <div className="fg">
@@ -215,11 +224,11 @@ export default function EditPosModal({
         )}
       </div>
       <div className="m-actions">
-        <button className="m-cancel" onClick={onClose}>
+        <button className="m-cancel" onClick={onClose} disabled={submitting}>
           Batal
         </button>
-        <button className="m-save" onClick={handleSave}>
-          Simpan
+        <button className="m-save" onClick={handleSave} disabled={!name.trim() || submitting}>
+          {submitting ? "Menyimpan..." : "Simpan"}
         </button>
       </div>
     </Modal>

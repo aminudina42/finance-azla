@@ -28,6 +28,7 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [pickingEmojiIndex, setPickingEmojiIndex] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,6 +36,7 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
       setDeletedIds([]);
       setPickingEmojiIndex(null);
       setErrorMsg(null);
+      setIsSubmitting(false);
 
       // Populate with existing pos list
       const initialItems: PosConfigItem[] = posList.map((p) => ({
@@ -116,6 +118,17 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
     ]);
   };
 
+  const handleFinalConfirm = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onConfirm(items, deletedIds);
+    } catch (err) {
+      console.error(err);
+      setIsSubmitting(false);
+    }
+  };
+
   const handleProceed = () => {
     // Validate empty names
     const emptyPos = items.find((i) => !i.name.trim());
@@ -132,12 +145,12 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
     if (hasSakuTransfers) {
       setStep("saku_preview");
     } else {
-      onConfirm(items, deletedIds);
+      handleFinalConfirm();
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} isLocked={isSubmitting}>
       {/* Step 1: Mandatory Pos & Budget Configuration */}
       {step === "configure" && (
         <div>
@@ -418,11 +431,11 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
           </div>
 
           <div className="m-actions">
-            <button className="m-cancel" onClick={onClose}>
+            <button className="m-cancel" onClick={onClose} disabled={isSubmitting}>
               Batal
             </button>
-            <button className="m-save" onClick={handleProceed}>
-              {hasSakuTransfers ? "Lanjut ke Transfer Saku →" : "Mulai Siklus Baru →"}
+            <button className="m-save" disabled={isSubmitting} onClick={handleProceed}>
+              {isSubmitting ? "Memproses..." : hasSakuTransfers ? "Lanjut ke Transfer Saku →" : "Mulai Siklus Baru →"}
             </button>
           </div>
         </div>
@@ -499,14 +512,15 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
           </div>
 
           <div className="m-actions">
-            <button className="m-cancel" onClick={() => setStep("configure")}>
+            <button className="m-cancel" onClick={() => setStep("configure")} disabled={isSubmitting}>
               ← Kembali
             </button>
             <button
               className="m-save"
-              onClick={() => onConfirm(items, deletedIds)}
+              disabled={isSubmitting}
+              onClick={handleFinalConfirm}
             >
-              Mulai Siklus Baru
+              {isSubmitting ? "Memproses..." : "Mulai Siklus Baru"}
             </button>
           </div>
         </div>

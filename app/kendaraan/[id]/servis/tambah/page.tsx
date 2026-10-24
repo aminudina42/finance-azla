@@ -108,6 +108,10 @@ export default function TambahServisWizardPage({ params }: PageProps) {
       setErrorMsg("Kilometer saat servis harus berupa angka valid");
       return;
     }
+    if (vehicle && vehicle.last_odometer > 0 && odo < vehicle.last_odometer) {
+      setErrorMsg(`Kilometer saat servis (${odo.toLocaleString("id-ID")} km) tidak boleh lebih kecil dari odometer tercatat (${vehicle.last_odometer.toLocaleString("id-ID")} km).`);
+      return;
+    }
     if (!serviceDescription.trim()) {
       setErrorMsg("Keterangan pekerjaan yang diservis wajib diisi");
       return;

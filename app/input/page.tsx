@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/store";
 import type { StatusKeluarga, Vehicle, VehicleFuelLog } from "@/lib/types";
 import { getVehicles, getLastFuelLog, recordVehicleFuelTx } from "@/lib/vehicle-service";
@@ -13,8 +13,19 @@ import PageHeader from "@/components/PageHeader";
 type FuelCategory = "Pertalite" | "Pertamax" | "Pertamax Turbo" | "BP 92" | "Lainnya";
 
 export default function InputPage() {
-  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember, refreshData, setIsMutating, isLoading } = useApp();
+  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember, refreshData, setIsMutating, setIsNavigating, isLoading } = useApp();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Bersihkan timer redirect jika unmount
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   const [txType, setTxType] = useState<"expense" | "income">("expense");
   const [nominal, setNominal] = useState("");
@@ -205,10 +216,11 @@ export default function InputPage() {
   }, [deltaKm, parsedLiters]);
 
   const isOdoInvalid = lastFuelLog && parsedOdo > 0 && parsedOdo <= lastFuelLog.odometer_km;
+  const isFormLocked = isSubmitting || saved;
 
   const handleSave = async () => {
     setFuelErrorMsg("");
-    if (!amount || !posId || isSubmitting) return;
+    if (!amount || !posId || isFormLocked) return;
 
     // A. JIKA MODE BBM AKTIF PADA POS TERHUBUNG KENDARAAN
     if (isFuelMode) {
@@ -260,24 +272,35 @@ export default function InputPage() {
 
         if (error) {
           setFuelErrorMsg(error.message || "Gagal mencatat pengisian bensin.");
+          setIsSubmitting(false);
+          setIsMutating(false);
           return;
         }
 
         await refreshData();
         setSaved(true);
-        setTimeout(() => {
-          setSaved(false);
-          setNominal("");
-          setPosId("");
-          setKeterangan("");
-          setOdometerKm("");
-          setLitersStr("");
-          setFuelErrorMsg("");
-        }, 2000);
+        // Reset seluruh form input segera untuk mencegah double submit
+        setNominal("");
+        setPosId("");
+        setKeterangan("");
+        setOdometerKm("");
+        setLitersStr("");
+        setFuelErrorMsg("");
+
+        redirectTimerRef.current = setTimeout(() => {
+          setIsNavigating(true);
+          const posParam = searchParams.get("pos");
+          if (posParam) {
+            router.push(`/pos/${posParam}`);
+          } else {
+            router.push("/");
+          }
+        }, 900);
       } catch (err: any) {
         setFuelErrorMsg(err.message || "Terjadi kesalahan saat menyimpan data.");
-      } finally {
         setIsSubmitting(false);
+        setSaved(false);
+      } finally {
         setIsMutating(false);
       }
       return;
@@ -288,31 +311,53 @@ export default function InputPage() {
     try {
       await addTransaction(amount, posId, userRole, keterangan, txType, userName);
       setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-        setNominal("");
-        setPosId("");
-        setKeterangan("");
-      }, 2000);
-    } finally {
+      // Reset seluruh form input segera untuk mencegah double submit
+      setNominal("");
+      setPosId("");
+      setKeterangan("");
+
+      redirectTimerRef.current = setTimeout(() => {
+        setIsNavigating(true);
+        const posParam = searchParams.get("pos");
+        if (posParam) {
+          router.push(`/pos/${posParam}`);
+        } else {
+          router.push("/");
+        }
+      }, 900);
+    } catch (err: any) {
+      console.error("Gagal simpan transaksi:", err);
+      alert(err.message || "Gagal menyimpan transaksi. Periksa koneksi internet Anda.");
       setIsSubmitting(false);
+      setSaved(false);
     }
   };
 
   const handleSaveWithSakuBorrow = async (sakuId: string, sakuWithdrawAmount: number) => {
-    if (!amount || !posId || isSubmitting) return;
+    if (!amount || !posId || isFormLocked) return;
     setIsSubmitting(true);
     try {
       await addSakuBorrowTransaction(amount, posId, userRole, keterangan, sakuId, sakuWithdrawAmount, userName);
       setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-        setNominal("");
-        setPosId("");
-        setKeterangan("");
-      }, 2000);
-    } finally {
+      // Reset seluruh form input segera untuk mencegah double submit
+      setNominal("");
+      setPosId("");
+      setKeterangan("");
+
+      redirectTimerRef.current = setTimeout(() => {
+        setIsNavigating(true);
+        const posParam = searchParams.get("pos");
+        if (posParam) {
+          router.push(`/pos/${posParam}`);
+        } else {
+          router.push("/");
+        }
+      }, 900);
+    } catch (err: any) {
+      console.error("Gagal simpan transaksi pinjam saku:", err);
+      alert(err.message || "Gagal menyimpan transaksi. Periksa koneksi internet Anda.");
       setIsSubmitting(false);
+      setSaved(false);
     }
   };
 
@@ -347,6 +392,7 @@ export default function InputPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "#f1f8fd", padding: "4px", borderRadius: "12px", border: "1px solid var(--border)" }}>
               <button
                 type="button"
+                disabled={isFormLocked}
                 onClick={() => setTxType("expense")}
                 style={{
                   padding: "9px 12px",
@@ -356,19 +402,21 @@ export default function InputPage() {
                   color: txType === "expense" ? "var(--danger)" : "var(--text-secondary)",
                   fontWeight: 750,
                   fontSize: "12.5px",
-                  cursor: "pointer",
+                  cursor: isFormLocked ? "not-allowed" : "pointer",
                   boxShadow: txType === "expense" ? "0 2px 8px rgba(240, 68, 103, 0.15)" : "none",
                   transition: "all 0.16s ease",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
+                  opacity: isFormLocked ? 0.6 : 1,
                 }}
               >
                 Pengeluaran
               </button>
               <button
                 type="button"
+                disabled={isFormLocked}
                 onClick={() => setTxType("income")}
                 style={{
                   padding: "9px 12px",
@@ -378,13 +426,14 @@ export default function InputPage() {
                   color: txType === "income" ? "var(--teal)" : "var(--text-secondary)",
                   fontWeight: 750,
                   fontSize: "12.5px",
-                  cursor: "pointer",
+                  cursor: isFormLocked ? "not-allowed" : "pointer",
                   boxShadow: txType === "income" ? "0 2px 8px rgba(22, 168, 154, 0.15)" : "none",
                   transition: "all 0.16s ease",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
+                  opacity: isFormLocked ? 0.6 : 1,
                 }}
               >
                 Pemasukan
@@ -469,6 +518,7 @@ export default function InputPage() {
                 type="tel"
                 placeholder="0"
                 value={nominal}
+                disabled={isFormLocked}
                 onChange={handleNominalChange}
                 style={{
                   width: "100%",
@@ -480,6 +530,8 @@ export default function InputPage() {
                   background: "transparent",
                   fontVariantNumeric: "tabular-nums",
                   letterSpacing: "-0.5px",
+                  cursor: isFormLocked ? "not-allowed" : "text",
+                  opacity: isFormLocked ? 0.6 : 1,
                 }}
               />
             </div>
@@ -493,6 +545,7 @@ export default function InputPage() {
             <div style={{ position: "relative" }}>
               <select
                 value={posId}
+                disabled={isFormLocked}
                 onChange={(e) => setPosId(e.target.value)}
                 style={{
                   width: "100%",
@@ -505,7 +558,8 @@ export default function InputPage() {
                   fontWeight: 650,
                   outline: "none",
                   appearance: "none",
-                  cursor: "pointer",
+                  cursor: isFormLocked ? "not-allowed" : "pointer",
+                  opacity: isFormLocked ? 0.6 : 1,
                 }}
               >
                 <option value="">{isLoading ? "⏳ Memuat daftar amplop..." : "— Pilih Pos —"}</option>
@@ -639,6 +693,7 @@ export default function InputPage() {
                             <button
                               key={v.id}
                               type="button"
+                              disabled={isFormLocked}
                               onClick={() => setSelectedVehicleId(v.id)}
                               style={{
                                 padding: "8px 12px",
@@ -648,10 +703,11 @@ export default function InputPage() {
                                 color: isSelected ? "#b45309" : "var(--navy)",
                                 fontWeight: 750,
                                 fontSize: "12px",
-                                cursor: "pointer",
+                                cursor: isFormLocked ? "not-allowed" : "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "6px",
+                                opacity: isFormLocked ? 0.6 : 1,
                               }}
                             >
                               <VehicleTypeIcon type={v.vehicle_type} size={18} />
@@ -718,6 +774,7 @@ export default function InputPage() {
                           inputMode="numeric"
                           placeholder={lastFuelLog ? `Contoh: ${(lastFuelLog.odometer_km + 200).toLocaleString("id-ID")}` : "Contoh: 15.000"}
                           value={odometerKm}
+                          disabled={isFormLocked}
                           onChange={(e) => {
                             const raw = e.target.value.replace(/\D/g, "");
                             setOdometerKm(raw ? Number(raw).toLocaleString("id-ID") : "");
@@ -733,6 +790,8 @@ export default function InputPage() {
                             color: "var(--navy)",
                             outline: "none",
                             boxSizing: "border-box",
+                            cursor: isFormLocked ? "not-allowed" : "text",
+                            opacity: isFormLocked ? 0.6 : 1,
                           }}
                         />
                         <span
@@ -768,6 +827,7 @@ export default function InputPage() {
                             <button
                               key={cat}
                               type="button"
+                              disabled={isFormLocked}
                               onClick={() => setFuelCategory(cat)}
                               style={{
                                 padding: "8px 6px",
@@ -777,8 +837,9 @@ export default function InputPage() {
                                 color: isSelected ? "#b45309" : "var(--navy)",
                                 fontWeight: 750,
                                 fontSize: "11.5px",
-                                cursor: "pointer",
+                                cursor: isFormLocked ? "not-allowed" : "pointer",
                                 textAlign: "center",
+                                opacity: isFormLocked ? 0.6 : 1,
                               }}
                             >
                               {cat === "Pertalite" ? "Pertalite" : cat === "Pertamax" ? "Pertamax" : cat === "Pertamax Turbo" ? "Turbo" : cat === "BP 92" ? "BP 92" : "Lainnya"}
@@ -792,6 +853,7 @@ export default function InputPage() {
                           type="text"
                           placeholder="Nama bensin (misal: Shell Super, Dexlite)"
                           value={customFuelName}
+                          disabled={isFormLocked}
                           onChange={(e) => setCustomFuelName(e.target.value)}
                           style={{
                             width: "100%",
@@ -805,6 +867,8 @@ export default function InputPage() {
                             color: "var(--navy)",
                             outline: "none",
                             boxSizing: "border-box",
+                            cursor: isFormLocked ? "not-allowed" : "text",
+                            opacity: isFormLocked ? 0.6 : 1,
                           }}
                         />
                       )}
@@ -828,7 +892,7 @@ export default function InputPage() {
                           <input
                             type="text"
                             inputMode="numeric"
-                            disabled={fuelCategory === "Pertalite"}
+                            disabled={isFormLocked || fuelCategory === "Pertalite"}
                             value={costPerLiterStr}
                             onChange={handleCostPerLiterChange}
                             style={{
@@ -836,12 +900,13 @@ export default function InputPage() {
                               padding: "9px 10px 9px 30px",
                               borderRadius: "10px",
                               border: "1.5px solid var(--border)",
-                              background: fuelCategory === "Pertalite" ? "#f1f5f9" : "var(--s1)",
-                              color: fuelCategory === "Pertalite" ? "#64748b" : "var(--navy)",
+                              background: fuelCategory === "Pertalite" || isFormLocked ? "#f1f5f9" : "var(--s1)",
+                              color: fuelCategory === "Pertalite" || isFormLocked ? "#64748b" : "var(--navy)",
                               fontSize: "13px",
                               fontWeight: 750,
                               outline: "none",
                               boxSizing: "border-box",
+                              cursor: isFormLocked || fuelCategory === "Pertalite" ? "not-allowed" : "text",
                             }}
                           />
                         </div>
@@ -857,6 +922,7 @@ export default function InputPage() {
                             inputMode="decimal"
                             placeholder="5.00"
                             value={litersStr}
+                            disabled={isFormLocked}
                             onChange={handleLitersChange}
                             style={{
                               width: "100%",
@@ -869,6 +935,8 @@ export default function InputPage() {
                               fontWeight: 750,
                               outline: "none",
                               boxSizing: "border-box",
+                              cursor: isFormLocked ? "not-allowed" : "text",
+                              opacity: isFormLocked ? 0.6 : 1,
                             }}
                           />
                           <span style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", fontSize: "11px", fontWeight: 700, color: "var(--muted)" }}>L</span>
@@ -925,6 +993,7 @@ export default function InputPage() {
               </div>
               <button
                 type="button"
+                disabled={isFormLocked}
                 onClick={() => setShowSakuBorrow(true)}
                 style={{
                   width: "100%",
@@ -935,8 +1004,9 @@ export default function InputPage() {
                   color: "#fff",
                   fontWeight: 750,
                   fontSize: "13px",
-                  cursor: "pointer",
+                  cursor: isFormLocked ? "not-allowed" : "pointer",
                   boxShadow: "0 2px 8px rgba(244, 163, 59, 0.3)",
+                  opacity: isFormLocked ? 0.6 : 1,
                 }}
               >
                 Pinjam dari Saku
@@ -958,6 +1028,7 @@ export default function InputPage() {
                     : "Contoh: Beli beras 5kg di pasar…"
               }
               value={keterangan}
+              disabled={isFormLocked}
               onChange={(e) => setKeterangan(e.target.value)}
               rows={3}
               style={{
@@ -971,6 +1042,8 @@ export default function InputPage() {
                 outline: "none",
                 fontFamily: "inherit",
                 resize: "vertical",
+                cursor: isFormLocked ? "not-allowed" : "text",
+                opacity: isFormLocked ? 0.6 : 1,
               }}
             ></textarea>
           </div>
@@ -983,31 +1056,35 @@ export default function InputPage() {
               padding: "14px",
               borderRadius: "14px",
               border: "none",
-              background: isIncome
-                ? "linear-gradient(135deg, var(--teal), #108e82)"
-                : isFuelMode
-                  ? "linear-gradient(135deg, #f59e0b, #d97706)"
-                  : "linear-gradient(135deg, #287ff0, #1769d2)",
+              background: saved
+                ? "linear-gradient(135deg, #10b981, #059669)"
+                : isIncome
+                  ? "linear-gradient(135deg, var(--teal), #108e82)"
+                  : isFuelMode
+                    ? "linear-gradient(135deg, #f59e0b, #d97706)"
+                    : "linear-gradient(135deg, #287ff0, #1769d2)",
               color: "#ffffff",
               fontWeight: 800,
               fontSize: "15px",
               letterSpacing: "-0.2px",
-              cursor: isSubmitting || saved || Boolean(isFuelMode && isOdoInvalid) ? "default" : "pointer",
-              boxShadow: isIncome
-                ? "0 4px 16px rgba(22, 168, 154, 0.3)"
-                : isFuelMode
-                  ? "0 4px 16px rgba(245, 158, 11, 0.35)"
-                  : "0 4px 16px rgba(40, 127, 240, 0.35)",
-              opacity: isSubmitting || (isFuelMode && isOdoInvalid) ? 0.6 : 1,
-              transition: "transform 0.15s ease, opacity 0.15s ease",
+              cursor: isFormLocked || Boolean(isFuelMode && isOdoInvalid) ? "not-allowed" : "pointer",
+              boxShadow: saved
+                ? "0 4px 16px rgba(16, 185, 129, 0.35)"
+                : isIncome
+                  ? "0 4px 16px rgba(22, 168, 154, 0.3)"
+                  : isFuelMode
+                    ? "0 4px 16px rgba(245, 158, 11, 0.35)"
+                    : "0 4px 16px rgba(40, 127, 240, 0.35)",
+              opacity: (isSubmitting || (isFuelMode && isOdoInvalid)) && !saved ? 0.7 : 1,
+              transition: "transform 0.15s ease, opacity 0.15s ease, background 0.2s ease",
             }}
             onClick={handleSave}
-            disabled={isSubmitting || saved || Boolean(isFuelMode && isOdoInvalid)}
+            disabled={isFormLocked || Boolean(isFuelMode && isOdoInvalid)}
           >
             {saved
-              ? "Berhasil Disimpan!"
+              ? "✓ Berhasil Disimpan!"
               : isSubmitting
-                ? "Menyimpan..."
+                ? "Menyimpan Transaksi..."
                 : isIncome
                   ? "Simpan Pemasukan"
                   : isFuelMode

@@ -18,21 +18,29 @@ export default function SakuTxModal({
 }: SakuTxModalProps) {
   const [amountStr, setAmountStr] = useState("");
   const [desc, setDesc] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setAmountStr("");
       setDesc("");
+      setSubmitting(false);
     }
   }, [isOpen]);
 
   const isOut = type === "out";
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const rawNum = Number(amountStr.replace(/\D/g, ""));
-    if (rawNum > 0) {
-      onSave(rawNum, desc, type);
-      onClose();
+    if (rawNum > 0 && !submitting) {
+      setSubmitting(true);
+      try {
+        await onSave(rawNum, desc, type);
+        onClose();
+      } catch (err) {
+        console.error(err);
+        setSubmitting(false);
+      }
     }
   };
 
@@ -46,7 +54,7 @@ export default function SakuTxModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} isLocked={submitting}>
       <div className="mt">
         {isOut ? "➖ Pengeluaran Saku" : "➕ Pemasukan Saku"}
       </div>
@@ -77,19 +85,20 @@ export default function SakuTxModal({
         </div>
       </div>
       <div className="m-actions">
-        <button className="m-cancel" onClick={onClose}>
+        <button className="m-cancel" onClick={onClose} disabled={submitting}>
           Batal
         </button>
         <button
           className="m-save"
           onClick={handleSave}
+          disabled={submitting || !amountStr}
           style={{
             background: isOut
               ? "linear-gradient(135deg,var(--red),#c0344e)"
               : "linear-gradient(135deg,var(--teal),#009b80)",
           }}
         >
-          Simpan
+          {submitting ? "Memproses..." : "Simpan"}
         </button>
       </div>
     </Modal>

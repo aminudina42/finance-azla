@@ -61,6 +61,7 @@ function OnboardingContent() {
   // Submit Handler: Buat Keluarga Baru
   const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (!namaKeluarga.trim()) {
       setErrorMsg("Nama keluarga wajib diisi.");
       return;
@@ -97,6 +98,7 @@ function OnboardingContent() {
   // Submit Handler: Gabung Keluarga
   const handleJoinFamily = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (!inviteCode.trim()) {
       setErrorMsg("Kode undangan wajib diisi.");
       return;
