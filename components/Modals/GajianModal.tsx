@@ -19,7 +19,8 @@ export default function GajianModal({
   const [date, setDate] = useState(currentDate);
 
   const handleSave = () => {
-    const clamped = Math.max(1, Math.min(28, date));
+    const num = isNaN(date) || !date ? 25 : date;
+    const clamped = Math.max(1, Math.min(28, num));
     onSave(clamped);
     onClose();
   };

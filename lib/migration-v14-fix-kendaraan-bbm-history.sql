@@ -266,17 +266,19 @@ BEGIN
     RAISE EXCEPTION 'Akses ditolak: Catatan bensin bukan milik keluarga Anda';
   END IF;
 
-  -- 2. Kembalikan saldo pos keuangan jika ada transaksi terkait
+  -- 2. Kembalikan saldo pos keuangan HANYA jika transaksi terkait masih ada (anti-double refund)
   IF v_log_record.finance_pos_id IS NOT NULL AND v_log_record.total_cost > 0 THEN
-    UPDATE public.pos
-    SET current_balance = current_balance + v_log_record.total_cost
-    WHERE id = v_log_record.finance_pos_id;
-  END IF;
+    IF v_log_record.finance_transaction_id IS NOT NULL THEN
+      IF EXISTS (SELECT 1 FROM public.transactions WHERE id = v_log_record.finance_transaction_id) THEN
+        UPDATE public.pos
+        SET current_balance = current_balance + v_log_record.total_cost
+        WHERE id = v_log_record.finance_pos_id;
 
-  -- 3. Hapus transaksi keuangan terkait
-  IF v_log_record.finance_transaction_id IS NOT NULL THEN
-    DELETE FROM public.transactions 
-    WHERE id = v_log_record.finance_transaction_id;
+        -- 3. Hapus transaksi keuangan terkait
+        DELETE FROM public.transactions 
+        WHERE id = v_log_record.finance_transaction_id;
+      END IF;
+    END IF;
   END IF;
 
   -- 4. Hapus log bensin
@@ -336,10 +338,10 @@ BEGIN
         ELSE 'BBM'
       END;
 
-      -- Ekstrak kilometer jika ada pola '@ 1234 km'
+      -- Ekstrak kilometer jika ada pola '@ 1234 km' atau '@ 12.345 km'
       v_odo_extracted := NULL;
       BEGIN
-        v_odo_extracted := substring(r.description from '@ ([0-9]+) km')::INT;
+        v_odo_extracted := replace(substring(r.description from '@ ([0-9\.]+) km'), '.', '')::INT;
       EXCEPTION WHEN OTHERS THEN
         v_odo_extracted := NULL;
       END;

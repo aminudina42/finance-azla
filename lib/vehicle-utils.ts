@@ -70,13 +70,14 @@ export function calculateMonthlyFuelStats(
 
   const totalDistanceKm = validDistanceLogs.reduce((sum, l) => sum + Number(l.distance_km || 0), 0);
   const validLiters = validDistanceLogs.reduce((sum, l) => sum + Number(l.fuel_liters || 0), 0);
+  const validDistanceCost = validDistanceLogs.reduce((sum, l) => sum + Number(l.total_cost || 0), 0);
 
   const averageKmL = validLiters > 0 && totalDistanceKm > 0 
     ? Math.round((totalDistanceKm / validLiters) * 10) / 10 
     : null;
 
-  const costPerKm = totalDistanceKm > 0 && totalCost > 0 
-    ? Math.round(totalCost / totalDistanceKm) 
+  const costPerKm = totalDistanceKm > 0 && validDistanceCost > 0 
+    ? Math.round(validDistanceCost / totalDistanceKm) 
     : null;
 
   const hasBaselineOnly = filteredLogs.length === 1 && validDistanceLogs.length === 0;
@@ -214,11 +215,18 @@ export function calculateTaxStatus(nextDueDateStr?: string | null): TaxStatus {
 
   if (isNaN(dueDate.getTime())) return "Data Belum Lengkap";
 
-  if (today.getTime() > dueDate.getTime()) {
+  const diffTime = dueDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
     return "Terlambat";
   }
 
-  return "Belum Bayar";
+  if (diffDays <= 30) {
+    return "Belum Bayar";
+  }
+
+  return "Lunas";
 }
 
 /**

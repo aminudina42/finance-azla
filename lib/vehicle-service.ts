@@ -638,7 +638,18 @@ export async function deleteVehicleFuelTx(
       .single();
 
     if (logRecord) {
-      if (logRecord.finance_pos_id && logRecord.total_cost > 0) {
+      let txExists = false;
+      if (logRecord.finance_transaction_id) {
+        const { data: txRecord } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("id", logRecord.finance_transaction_id)
+          .maybeSingle();
+        txExists = Boolean(txRecord);
+      }
+
+      // Only refund POS balance if the transaction actually existed and was not previously deleted (anti-double refund)
+      if (txExists && logRecord.finance_pos_id && logRecord.total_cost > 0) {
         const { data: pos } = await supabase
           .from("pos")
           .select("current_balance")
@@ -653,7 +664,7 @@ export async function deleteVehicleFuelTx(
         }
       }
 
-      if (logRecord.finance_transaction_id) {
+      if (logRecord.finance_transaction_id && txExists) {
         await supabase
           .from("transactions")
           .delete()

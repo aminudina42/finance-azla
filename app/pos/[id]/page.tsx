@@ -249,11 +249,13 @@ export default function PosDetailPage() {
     ? Math.min(100, Math.max(0, (displayBalance / displayGoalTarget) * 100))
     : displayBalance < 0
       ? 100
-      : Math.min(100, Math.max(0, (displayBalance / displayTarget) * 100));
+      : displayTarget > 0
+        ? Math.min(100, Math.max(0, (displayBalance / displayTarget) * 100))
+        : 0;
 
   const balanceClass = displayBalance < 0
     ? "negative"
-    : displayBalance / displayTarget <= 0.25
+    : displayTarget > 0 && displayBalance / displayTarget <= 0.25
       ? "warning"
       : "positive";
 
@@ -265,7 +267,9 @@ export default function PosDetailPage() {
     ? `${Math.round((displayBalance / displayGoalTarget) * 100)}% tercapai`
     : displayBalance < 0
       ? "Overbudget!"
-      : `${Math.round(fillWidth)}% tersisa`;
+      : displayTarget > 0
+        ? `${Math.round(fillWidth)}% tersisa`
+        : "–";
 
   return (
     <main id="pg-pos-detail" className="page active" style={{ paddingBottom: "110px" }}>

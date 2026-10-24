@@ -87,20 +87,24 @@ export default function CatatBbmPage({ params }: PageProps) {
 
   // Efek perubahan Jenis Bahan Bakar
   useEffect(() => {
+    let newPrice = 0;
     if (fuelCategory === "Pertalite") {
-      setCostPerLiterStr(PERTALITE_PRICE_PER_LITER.toLocaleString("id-ID"));
-      // Recalculate if nominal already filled
+      newPrice = PERTALITE_PRICE_PER_LITER;
+    } else if (fuelCategory === "Pertamax") {
+      newPrice = 12950;
+    } else if (fuelCategory === "Pertamax Turbo") {
+      newPrice = 14400;
+    } else if (fuelCategory === "BP 92") {
+      newPrice = 13500;
+    }
+
+    if (newPrice > 0) {
+      setCostPerLiterStr(newPrice.toLocaleString("id-ID"));
       const rawNominal = parseInt(nominalStr.replace(/\D/g, ""), 10) || 0;
       if (rawNominal > 0) {
-        const computedLiters = (rawNominal / PERTALITE_PRICE_PER_LITER).toFixed(2);
+        const computedLiters = (rawNominal / newPrice).toFixed(2);
         setLitersStr(computedLiters);
       }
-    } else if (fuelCategory === "Pertamax") {
-      setCostPerLiterStr("12.950");
-    } else if (fuelCategory === "Pertamax Turbo") {
-      setCostPerLiterStr("14.400");
-    } else if (fuelCategory === "BP 92") {
-      setCostPerLiterStr("13.500");
     } else {
       setCostPerLiterStr("");
     }
@@ -126,7 +130,11 @@ export default function CatatBbmPage({ params }: PageProps) {
 
   // Handler: Ubah Volume Liter -> Otomatis hitung Rupiah
   const handleLitersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/[^0-9.]/g, "");
+    let val = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
+    const parts = val.split(".");
+    if (parts.length > 2) {
+      val = parts[0] + "." + parts.slice(1).join("");
+    }
     setLitersStr(val);
 
     const numLiters = parseFloat(val);
@@ -176,8 +184,8 @@ export default function CatatBbmPage({ params }: PageProps) {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!parsedOdo || parsedOdo <= 0) {
-      setErrorMsg("Kilometer odometer saat pengisian wajib diisi");
+    if (!odometerKm.trim() || isNaN(parsedOdo) || parsedOdo < 0) {
+      setErrorMsg("Kilometer odometer saat pengisian wajib diisi (minimal 0 km)");
       return;
     }
 
@@ -367,6 +375,7 @@ export default function CatatBbmPage({ params }: PageProps) {
                   <input
                     type="date"
                     value={logDate}
+                    max={new Date().toISOString().split("T")[0]}
                     onChange={(e) => setLogDate(e.target.value)}
                     style={{
                       width: "100%",

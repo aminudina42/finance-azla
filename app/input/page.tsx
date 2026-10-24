@@ -13,7 +13,7 @@ import PageHeader from "@/components/PageHeader";
 type FuelCategory = "Pertalite" | "Pertamax" | "Pertamax Turbo" | "BP 92" | "Lainnya";
 
 export default function InputPage() {
-  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember, recalculateBalances, setIsMutating, isLoading } = useApp();
+  const { posList, addTransaction, addSakuBorrowTransaction, children, currentMember, refreshData, setIsMutating, isLoading } = useApp();
   const searchParams = useSearchParams();
 
   const [txType, setTxType] = useState<"expense" | "income">("expense");
@@ -110,18 +110,23 @@ export default function InputPage() {
 
   // Efek perubahan jenis bahan bakar -> update harga per liter & hitung ulang liter jika nominal ada
   useEffect(() => {
+    let newPrice = 0;
     if (fuelCategory === "Pertalite") {
-      setCostPerLiterStr(PERTALITE_PRICE_PER_LITER.toLocaleString("id-ID"));
+      newPrice = PERTALITE_PRICE_PER_LITER;
+    } else if (fuelCategory === "Pertamax") {
+      newPrice = 12950;
+    } else if (fuelCategory === "Pertamax Turbo") {
+      newPrice = 14400;
+    } else if (fuelCategory === "BP 92") {
+      newPrice = 13500;
+    }
+
+    if (newPrice > 0) {
+      setCostPerLiterStr(newPrice.toLocaleString("id-ID"));
       const rawNominal = parseInt(nominal.replace(/\D/g, ""), 10) || 0;
       if (rawNominal > 0) {
-        setLitersStr((rawNominal / PERTALITE_PRICE_PER_LITER).toFixed(2));
+        setLitersStr((rawNominal / newPrice).toFixed(2));
       }
-    } else if (fuelCategory === "Pertamax") {
-      setCostPerLiterStr("12.950");
-    } else if (fuelCategory === "Pertamax Turbo") {
-      setCostPerLiterStr("14.400");
-    } else if (fuelCategory === "BP 92") {
-      setCostPerLiterStr("13.500");
     } else {
       setCostPerLiterStr("");
     }
@@ -153,7 +158,11 @@ export default function InputPage() {
 
   // Handler: Ubah Volume Liter -> Otomatis sinkronkan nominal rupiah
   const handleLitersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/[^0-9.]/g, "");
+    let val = e.target.value.replace(",", ".").replace(/[^0-9.]/g, "");
+    const parts = val.split(".");
+    if (parts.length > 2) {
+      val = parts[0] + "." + parts.slice(1).join("");
+    }
     setLitersStr(val);
 
     const numLiters = parseFloat(val);
@@ -208,8 +217,8 @@ export default function InputPage() {
         setFuelErrorMsg("Pilih kendaraan yang akan diisi bensin");
         return;
       }
-      if (!parsedOdo || parsedOdo <= 0) {
-        setFuelErrorMsg("Kilometer odometer saat pengisian bensin wajib diisi");
+      if (!odometerKm.trim() || isNaN(parsedOdo) || parsedOdo < 0) {
+        setFuelErrorMsg("Kilometer odometer saat pengisian bensin wajib diisi (minimal 0 km)");
         return;
       }
       if (lastFuelLog && parsedOdo <= lastFuelLog.odometer_km) {
@@ -254,7 +263,7 @@ export default function InputPage() {
           return;
         }
 
-        await recalculateBalances();
+        await refreshData();
         setSaved(true);
         setTimeout(() => {
           setSaved(false);

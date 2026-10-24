@@ -107,9 +107,9 @@ export default function NewStrukPage() {
 
   const total = useMemo(() =>
     items.reduce((sum, item) => {
-      const q = item.quantity || 1;
-      const p = item.price    || 0;
-      const d = item.discount || 0;
+      const q = Math.max(1, item.quantity || 1);
+      const p = Math.max(0, item.price || 0);
+      const d = Math.min(p, Math.max(0, item.discount || 0));
       return sum + ((p - d) * q);
     }, 0),
   [items]);
@@ -203,6 +203,8 @@ export default function NewStrukPage() {
   const handleSave = async () => {
     if (!storeName.trim()) { alert("Isi nama toko terlebih dahulu."); return; }
     if (items.some(i => !i.item_name?.trim())) { alert("Semua nama barang wajib diisi."); return; }
+    if (items.some(i => (i.quantity ?? 1) <= 0)) { alert("Jumlah barang (qty) minimal 1."); return; }
+    if (items.some(i => (i.discount || 0) > (i.price || 0))) { alert("Diskon per barang tidak boleh melebihi harga jual."); return; }
 
     setIsSaving(true);
     setIsMutating(true);

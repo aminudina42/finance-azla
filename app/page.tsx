@@ -68,29 +68,51 @@ export default function Home() {
     const cycleStart = new Date(selectedCycle.start_date + "T00:00:00");
     const cycleEnd = new Date(selectedCycle.end_date + "T23:59:59");
 
-    return posList.map((p) => {
-      const hist = historyForCycle.find((h) => h.pos_id === p.id);
-      const target = hist ? hist.monthly_target : p.monthly_target;
-      const goalTarget = hist ? hist.goal_target : p.goal_target;
+    // Kumpulkan semua ID pos yang relevan di siklus ini (pos aktif maupun pos yang sudah dihapus)
+    const allPosIds = new Set<string>();
+    posList.forEach((p) => allPosIds.add(p.id));
+    historyForCycle.forEach((h) => allPosIds.add(h.pos_id));
+
+    const result: Pos[] = [];
+    allPosIds.forEach((posId) => {
+      const activePos = posList.find((p) => p.id === posId);
+      const hist = historyForCycle.find((h) => h.pos_id === posId);
 
       const txs = transactions.filter((t) => {
         const d = new Date(t.created_at);
-        return t.pos_id === p.id && d >= cycleStart && d <= cycleEnd;
+        return t.pos_id === posId && d >= cycleStart && d <= cycleEnd;
       });
+
+      // Jika pos tidak aktif, tidak ada di snapshot, dan tidak ada transaksi di siklus ini, lewati
+      if (!activePos && !hist && txs.length === 0) return;
+
+      const target = hist ? hist.monthly_target : (activePos?.monthly_target ?? 0);
+      const goalTarget = hist ? hist.goal_target : (activePos?.goal_target ?? 0);
+      const isGoal = activePos ? activePos.is_goal : goalTarget > 0;
+
       const incomes = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
       const expenses = txs.filter((t) => t.type !== "income").reduce((s, t) => s + t.amount, 0);
 
-      // Untuk siklus lalu, kita hitung saldo dengan menganggap saldo awal = target bulanan
-      // Ini memberikan gambaran yang akurat tentang sisa budget/penggunaan di bulan tsb
+      // Untuk siklus lalu, hitung saldo dari target bulanan + pemasukan - pengeluaran
       const computedBalance = target + incomes - expenses;
 
-      return {
-        ...p,
+      const posName = activePos?.name || txs[0]?.pos_name || "Pos (Dihapus)";
+      const posIcon = activePos?.icon || txs[0]?.pos_icon || "📦";
+
+      result.push({
+        id: posId,
+        name: posName,
+        icon: posIcon,
+        sub: activePos?.sub || (activePos ? "" : "Pos siklus lampau"),
         monthly_target: target,
         goal_target: goalTarget,
         current_balance: computedBalance,
-      };
+        is_goal: isGoal,
+        order_index: activePos?.order_index ?? 999,
+      });
     });
+
+    return result.sort((a, b) => a.order_index - b.order_index);
   }, [cycleIndex, selectedCycle, posList, cyclePosHistory, transactions]);
 
   const totalBudget = displayPosList

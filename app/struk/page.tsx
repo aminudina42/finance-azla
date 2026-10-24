@@ -130,6 +130,7 @@ export default function StrukListPage() {
       }
       if (filterType === "month") {
         const targetDate = new Date();
+        targetDate.setDate(1);
         targetDate.setMonth(targetDate.getMonth() + offset);
         return (
           rDate.getMonth() === targetDate.getMonth() &&
@@ -164,6 +165,7 @@ export default function StrukListPage() {
       return `${startOfWeek.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} - ${endOfWeek.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}`;
     }
     if (filterType === "month") {
+      targetDate.setDate(1);
       targetDate.setMonth(targetDate.getMonth() + offset);
       if (offset === 0) return "Bulan Ini";
       if (offset === -1) return "Bulan Lalu";
