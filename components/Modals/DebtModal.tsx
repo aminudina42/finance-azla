@@ -21,7 +21,23 @@ interface DebtModalProps {
   debtPrincipal?: number;
   debtTenor?: number;
   debtPaidMonths?: number;
-  onSave: (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number) => void;
+  debtCreditor?: string;
+  debtAccountNumber?: string;
+  debtNotes?: string;
+  onSave: (
+    name: string,
+    icon: string,
+    totalAmount: number,
+    remainingAmount: number,
+    monthlyPayment: number,
+    dueDate: number,
+    principalAmount?: number,
+    tenorMonths?: number,
+    paidMonths?: number,
+    creditorName?: string,
+    accountNumber?: string,
+    notes?: string
+  ) => void;
 }
 
 export default function DebtModal({
@@ -37,6 +53,9 @@ export default function DebtModal({
   debtPrincipal = 0,
   debtTenor = 0,
   debtPaidMonths = 0,
+  debtCreditor = "",
+  debtAccountNumber = "",
+  debtNotes = "",
   onSave,
 }: DebtModalProps) {
   const [name, setName] = useState(debtName);
@@ -50,6 +69,9 @@ export default function DebtModal({
   const [principalStr, setPrincipalStr] = useState(debtPrincipal ? debtPrincipal.toLocaleString("id-ID") : "");
   const [tenor, setTenor] = useState(debtTenor);
   const [paidMonths, setPaidMonths] = useState(debtPaidMonths);
+  const [creditor, setCreditor] = useState(debtCreditor);
+  const [accountNumber, setAccountNumber] = useState(debtAccountNumber);
+  const [notes, setNotes] = useState(debtNotes);
 
   useEffect(() => {
     setName(debtName);
@@ -62,7 +84,24 @@ export default function DebtModal({
     setPrincipalStr(debtPrincipal ? debtPrincipal.toLocaleString("id-ID") : "");
     setTenor(debtTenor);
     setPaidMonths(debtPaidMonths);
-  }, [debtName, debtIcon, debtTotal, debtRemaining, debtMonthly, debtDueDate, debtPrincipal, debtTenor, debtPaidMonths, isOpen]);
+    setCreditor(debtCreditor);
+    setAccountNumber(debtAccountNumber);
+    setNotes(debtNotes);
+  }, [
+    debtName,
+    debtIcon,
+    debtTotal,
+    debtRemaining,
+    debtMonthly,
+    debtDueDate,
+    debtPrincipal,
+    debtTenor,
+    debtPaidMonths,
+    debtCreditor,
+    debtAccountNumber,
+    debtNotes,
+    isOpen,
+  ]);
 
   const handleSave = () => {
     let total = Number(totalStr.replace(/\D/g, ""));
@@ -88,13 +127,29 @@ export default function DebtModal({
     }
 
     if (!name || !total) return;
-    onSave(name, icon, total, Math.max(0, remaining), monthly, dueNum, principal, tenorM, paidM);
+    onSave(
+      name,
+      icon,
+      total,
+      Math.max(0, remaining),
+      monthly,
+      dueNum,
+      principal,
+      tenorM,
+      paidM,
+      creditor.trim(),
+      accountNumber.trim(),
+      notes.trim()
+    );
     onClose();
   };
 
   const handleAmtChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, "");
-    if (!rawValue) { setter(""); return; }
+    if (!rawValue) {
+      setter("");
+      return;
+    }
     setter(Number(rawValue).toLocaleString("id-ID"));
   };
 
@@ -104,20 +159,63 @@ export default function DebtModal({
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         
         <div className="fg" style={{ flexDirection: "row", alignItems: "center", gap: "8px", background: "var(--bg)", padding: "10px", borderRadius: "8px" }}>
-          <input type="checkbox" id="iskredit" checked={isKredit} onChange={(e) => setIsKredit(e.target.checked)} style={{ width: "18px", height: "18px", accentColor: "var(--teal)" }} />
-          <label htmlFor="iskredit" style={{ fontSize: "14px", fontWeight: 600, color: "var(--teal)", cursor: "pointer" }}>Skema Kredit Berbunga (KPR, dll)</label>
+          <input
+            type="checkbox"
+            id="iskredit"
+            checked={isKredit}
+            onChange={(e) => setIsKredit(e.target.checked)}
+            style={{ width: "18px", height: "18px", accentColor: "var(--teal)" }}
+          />
+          <label htmlFor="iskredit" style={{ fontSize: "14px", fontWeight: 600, color: "var(--teal)", cursor: "pointer" }}>
+            Skema Kredit Berbunga (KPR, Leasing, dll)
+          </label>
         </div>
 
         <div className="fg">
           <div className="fl">Nama Hutang / Cicilan</div>
-          <input type="text" className="fi" value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Cicilan Motor, KPR…" />
+          <input
+            type="text"
+            className="fi"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Contoh: Cicilan Motor, KPR Rumah…"
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div className="fg">
+            <div className="fl">Kreditur / Lembaga</div>
+            <input
+              type="text"
+              className="fi"
+              value={creditor}
+              onChange={(e) => setCreditor(e.target.value)}
+              placeholder="BCA, BTN, dll"
+            />
+          </div>
+          <div className="fg">
+            <div className="fl">No. VA / Rekening / Kontrak</div>
+            <input
+              type="text"
+              className="fi"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              placeholder="No. VA / Kontrak"
+            />
+          </div>
         </div>
         
         <div className="fg">
           <div className="fl">Icon</div>
           <div className="epick">
             {DEBT_ICONS.map((em) => (
-              <div key={em} className={`eo ${em === icon ? "sel" : ""}`} onClick={() => setIcon(em)}>{em}</div>
+              <div
+                key={em}
+                className={`eo ${em === icon ? "sel" : ""}`}
+                onClick={() => setIcon(em)}
+              >
+                {em}
+              </div>
             ))}
           </div>
         </div>
@@ -128,17 +226,40 @@ export default function DebtModal({
               <div className="fl">Pokok Pinjaman (Asli)</div>
               <div className="amt-wrap">
                 <span className="amt-pre" style={{ fontSize: "14px" }}>Rp</span>
-                <input type="tel" className="fi" value={principalStr} onChange={handleAmtChange(setPrincipalStr)} style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+                <input
+                  type="tel"
+                  className="fi"
+                  value={principalStr}
+                  onChange={handleAmtChange(setPrincipalStr)}
+                  style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                  placeholder="0"
+                />
               </div>
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
               <div className="fg" style={{ flex: 1 }}>
                 <div className="fl">Tenor (Bulan)</div>
-                <input type="number" className="fi" value={tenor || ""} onChange={(e) => setTenor(Number(e.target.value))} min={0} style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+                <input
+                  type="number"
+                  className="fi"
+                  value={tenor || ""}
+                  onChange={(e) => setTenor(Number(e.target.value))}
+                  min={0}
+                  style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                  placeholder="0"
+                />
               </div>
               <div className="fg" style={{ flex: 1 }}>
                 <div className="fl">Cicilan Ke-</div>
-                <input type="number" className="fi" value={paidMonths || ""} onChange={(e) => setPaidMonths(Number(e.target.value))} min={0} style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+                <input
+                  type="number"
+                  className="fi"
+                  value={paidMonths || ""}
+                  onChange={(e) => setPaidMonths(Number(e.target.value))}
+                  min={0}
+                  style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                  placeholder="0"
+                />
               </div>
             </div>
           </>
@@ -147,7 +268,14 @@ export default function DebtModal({
             <div className="fl">Total Hutang</div>
             <div className="amt-wrap">
               <span className="amt-pre" style={{ fontSize: "14px" }}>Rp</span>
-              <input type="tel" className="fi" value={totalStr} onChange={handleAmtChange(setTotalStr)} style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+              <input
+                type="tel"
+                className="fi"
+                value={totalStr}
+                onChange={handleAmtChange(setTotalStr)}
+                style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                placeholder="0"
+              />
             </div>
           </div>
         )}
@@ -157,7 +285,14 @@ export default function DebtModal({
             <div className="fl">Sisa Hutang</div>
             <div className="amt-wrap">
               <span className="amt-pre" style={{ fontSize: "14px" }}>Rp</span>
-              <input type="tel" className="fi" value={remainingStr} onChange={handleAmtChange(setRemainingStr)} style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+              <input
+                type="tel"
+                className="fi"
+                value={remainingStr}
+                onChange={handleAmtChange(setRemainingStr)}
+                style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                placeholder="0"
+              />
             </div>
           </div>
         )}
@@ -166,11 +301,27 @@ export default function DebtModal({
           <div style={{ display: "flex", gap: "10px" }}>
             <div className="fg" style={{ flex: 1 }}>
               <div className="fl">Tenor (Bulan)</div>
-              <input type="number" className="fi" value={tenor || ""} onChange={(e) => setTenor(Number(e.target.value))} min={0} style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+              <input
+                type="number"
+                className="fi"
+                value={tenor || ""}
+                onChange={(e) => setTenor(Number(e.target.value))}
+                min={0}
+                style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                placeholder="0"
+              />
             </div>
             <div className="fg" style={{ flex: 1 }}>
               <div className="fl">Cicilan Ke-</div>
-              <input type="number" className="fi" value={paidMonths || ""} onChange={(e) => setPaidMonths(Number(e.target.value))} min={0} style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+              <input
+                type="number"
+                className="fi"
+                value={paidMonths || ""}
+                onChange={(e) => setPaidMonths(Number(e.target.value))}
+                min={0}
+                style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+                placeholder="0"
+              />
             </div>
           </div>
         )}
@@ -179,7 +330,14 @@ export default function DebtModal({
           <div className="fl">Cicilan per Bulan</div>
           <div className="amt-wrap">
             <span className="amt-pre" style={{ fontSize: "14px" }}>Rp</span>
-            <input type="tel" className="fi" value={monthlyStr} onChange={handleAmtChange(setMonthlyStr)} style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} placeholder="0" />
+            <input
+              type="tel"
+              className="fi"
+              value={monthlyStr}
+              onChange={handleAmtChange(setMonthlyStr)}
+              style={{ paddingLeft: "42px", fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+              placeholder="0"
+            />
           </div>
           {isKredit && tenor > 0 && monthlyStr && (
             <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
@@ -190,7 +348,26 @@ export default function DebtModal({
 
         <div className="fg">
           <div className="fl">Tanggal Jatuh Tempo (1–31)</div>
-          <input type="number" className="fi" value={dueDateStr} onChange={(e) => setDueDateStr(e.target.value)} min={1} max={31} style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }} />
+          <input
+            type="number"
+            className="fi"
+            value={dueDateStr}
+            onChange={(e) => setDueDateStr(e.target.value)}
+            min={1}
+            max={31}
+            style={{ fontFamily: "'Fraunces', serif", fontSize: "20px", fontWeight: 900 }}
+          />
+        </div>
+
+        <div className="fg">
+          <div className="fl">Catatan Tambahan (Opsional)</div>
+          <input
+            type="text"
+            className="fi"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Contoh: Bunga flat 6% p.a, kontak PIC Pak Joko"
+          />
         </div>
 
       </div>

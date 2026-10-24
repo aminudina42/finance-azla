@@ -134,6 +134,25 @@ export interface Debt {
   principal_amount?: number;
   tenor_months?: number;
   paid_months?: number;
+  creditor_name?: string;
+  account_number?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface DebtPayment {
+  id: string;
+  keluarga_id?: string;
+  debt_id: string;
+  pos_id?: string | null;
+  pos_name?: string | null;
+  transaction_id?: string | null;
+  payment_number: number;
+  amount: number;
+  payment_date: string;
+  notes?: string | null;
+  created_by?: string | null;
+  user_name?: string | null;
   created_at: string;
 }
 
@@ -323,6 +342,14 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Debt>;
+      };
+      debt_payments: {
+        Row: DebtPayment;
+        Insert: Omit<DebtPayment, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<DebtPayment>;
       };
       cycle_pos_history: {
         Row: CyclePosHistory;

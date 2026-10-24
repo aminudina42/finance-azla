@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga } from "./types";
+import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, DebtPayment, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga } from "./types";
 import GlobalLoader from "@/components/GlobalLoader";
 
 function formatLocalDate(d: Date): string {
@@ -72,10 +72,12 @@ interface AppState {
   startNewCycle: (posConfigs?: PosConfigItem[], deletedPosIds?: string[]) => Promise<void>;
   // Debt management
   debts: Debt[];
-  addDebt: (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number) => void;
-  updateDebt: (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number) => void;
-  deleteDebt: (id: string) => void;
-  payDebt: (debtId: string, amount: number, posId: string) => void;
+  debtPayments: DebtPayment[];
+  addDebt: (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number, creditorName?: string, accountNumber?: string, notes?: string) => Promise<void>;
+  updateDebt: (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number, creditorName?: string, accountNumber?: string, notes?: string) => Promise<void>;
+  deleteDebt: (id: string) => Promise<void>;
+  payDebt: (debtId: string, amount: number, posId: string, notes?: string, paymentDate?: string) => Promise<void>;
+  rollbackDebtPayment: (paymentId: string) => Promise<void>;
   logoSettings: {
     type: "emoji" | "image";
     emoji: string;
@@ -206,6 +208,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [childrenList, setChildrenList] = useState<Child[]>([]);
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
   const [firstSetupComplete, setFirstSetupComplete] = useState(false);
   const [firstSetupMode, setFirstSetupMode] = useState<"now" | "wait" | "completed" | null>(null);
@@ -277,13 +280,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         supabase.from("debts").select("*").order("created_at", { ascending: false }),
         supabase.from("cycle_pos_history").select("*"),
         supabase.from("app_settings").select("*"),
+        supabase.from("debt_payments").select("*").order("payment_date", { ascending: false }),
       ]);
 
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Supabase query timeout")), 3000)
       );
 
-      const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes] =
+      const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes, debtPayRes] =
         await Promise.race([queryPromise, timeoutPromise]) as any;
 
       // If ANY query succeeds (no error), we're connected to Supabase
@@ -339,8 +343,22 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             principal_amount: d.principal_amount ?? 0,
             tenor_months: d.tenor_months ?? 0,
             paid_months: d.paid_months ?? 0,
+            creditor_name: d.creditor_name ?? "",
+            account_number: d.account_number ?? "",
+            notes: d.notes ?? "",
           }));
           setDebts(debtData);
+        }
+
+        if (!debtPayRes?.error && Array.isArray(debtPayRes?.data)) {
+          const payments = (debtPayRes.data as any[]).map((p) => {
+            const matchedPos = posData.find((posItem: Pos) => posItem.id === p.pos_id);
+            return {
+              ...p,
+              pos_name: p.pos_name || matchedPos?.name || "Pos",
+            } as DebtPayment;
+          });
+          setDebtPayments(payments);
         }
 
         if (!histRes?.error && Array.isArray(histRes?.data) && histRes.data.length > 0) {
@@ -887,34 +905,108 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   );
 
   // ── Debt actions ──
-  const addDebt = useCallback(async (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount = 0, tenorMonths = 0, paidMonths = 0) => {
+  const addDebt = useCallback(async (
+    name: string,
+    icon: string,
+    totalAmount: number,
+    remainingAmount: number,
+    monthlyPayment: number,
+    dueDate: number,
+    principalAmount = 0,
+    tenorMonths = 0,
+    paidMonths = 0,
+    creditorName = "",
+    accountNumber = "",
+    notes = ""
+  ) => {
     setIsMutating(true);
     try {
       const localDebt: Debt = {
-        id: "d" + Date.now(), name, icon,
-        total_amount: totalAmount, remaining_amount: remainingAmount,
-        monthly_payment: monthlyPayment, due_date: dueDate,
-        principal_amount: principalAmount, tenor_months: tenorMonths, paid_months: paidMonths,
+        id: "d" + Date.now(),
+        name,
+        icon,
+        total_amount: totalAmount,
+        remaining_amount: remainingAmount,
+        monthly_payment: monthlyPayment,
+        due_date: dueDate,
+        principal_amount: principalAmount,
+        tenor_months: tenorMonths,
+        paid_months: paidMonths,
+        creditor_name: creditorName,
+        account_number: accountNumber,
+        notes,
         created_at: new Date().toISOString(),
+        keluarga_id: currentKeluarga?.id,
       };
       setDebts((prev) => [...prev, localDebt]);
 
       const { data } = await supabase.from("debts").insert({
-        name, icon, total_amount: totalAmount, remaining_amount: remainingAmount,
-        monthly_payment: monthlyPayment, due_date: dueDate,
-        principal_amount: principalAmount, tenor_months: tenorMonths, paid_months: paidMonths,
+        name,
+        icon,
+        total_amount: totalAmount,
+        remaining_amount: remainingAmount,
+        monthly_payment: monthlyPayment,
+        due_date: dueDate,
+        principal_amount: principalAmount,
+        tenor_months: tenorMonths,
+        paid_months: paidMonths,
+        creditor_name: creditorName,
+        account_number: accountNumber,
+        notes,
+        keluarga_id: currentKeluarga?.id,
       }).select().single();
       if (data) setDebts((prev) => prev.map((d) => (d.id === localDebt.id ? { ...data } as Debt : d)));
     } finally {
       setIsMutating(false);
     }
-  }, []);
+  }, [currentKeluarga?.id]);
 
-  const updateDebt = useCallback(async (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount = 0, tenorMonths = 0, paidMonths = 0) => {
+  const updateDebt = useCallback(async (
+    id: string,
+    name: string,
+    icon: string,
+    totalAmount: number,
+    remainingAmount: number,
+    monthlyPayment: number,
+    dueDate: number,
+    principalAmount = 0,
+    tenorMonths = 0,
+    paidMonths = 0,
+    creditorName = "",
+    accountNumber = "",
+    notes = ""
+  ) => {
     setIsMutating(true);
     try {
-      setDebts((prev) => prev.map((d) => (d.id === id ? { ...d, name, icon, total_amount: totalAmount, remaining_amount: remainingAmount, monthly_payment: monthlyPayment, due_date: dueDate, principal_amount: principalAmount, tenor_months: tenorMonths, paid_months: paidMonths } : d)));
-      await supabase.from("debts").update({ name, icon, total_amount: totalAmount, remaining_amount: remainingAmount, monthly_payment: monthlyPayment, due_date: dueDate, principal_amount: principalAmount, tenor_months: tenorMonths, paid_months: paidMonths }).eq("id", id);
+      setDebts((prev) => prev.map((d) => (d.id === id ? {
+        ...d,
+        name,
+        icon,
+        total_amount: totalAmount,
+        remaining_amount: remainingAmount,
+        monthly_payment: monthlyPayment,
+        due_date: dueDate,
+        principal_amount: principalAmount,
+        tenor_months: tenorMonths,
+        paid_months: paidMonths,
+        creditor_name: creditorName,
+        account_number: accountNumber,
+        notes,
+      } : d)));
+      await supabase.from("debts").update({
+        name,
+        icon,
+        total_amount: totalAmount,
+        remaining_amount: remainingAmount,
+        monthly_payment: monthlyPayment,
+        due_date: dueDate,
+        principal_amount: principalAmount,
+        tenor_months: tenorMonths,
+        paid_months: paidMonths,
+        creditor_name: creditorName,
+        account_number: accountNumber,
+        notes,
+      }).eq("id", id);
     } finally {
       setIsMutating(false);
     }
@@ -924,13 +1016,20 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     setIsMutating(true);
     try {
       setDebts((prev) => prev.filter((d) => d.id !== id));
+      setDebtPayments((prev) => prev.filter((p) => p.debt_id !== id));
       await supabase.from("debts").delete().eq("id", id);
     } finally {
       setIsMutating(false);
     }
   }, []);
 
-  const payDebt = useCallback(async (debtId: string, amount: number, posId: string) => {
+  const payDebt = useCallback(async (
+    debtId: string,
+    amount: number,
+    posId: string,
+    paymentNotes = "",
+    customPaymentDate?: string
+  ) => {
     setIsMutating(true);
     try {
       const debt = debts.find((d) => d.id === debtId);
@@ -950,30 +1049,133 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       const effectiveRole: StatusKeluarga = currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri");
       const effectiveName = currentMember?.display_name || (effectiveRole === "suami" ? "Suami" : effectiveRole === "istri" ? "Istri" : "Anak");
 
+      const paymentDateIso = customPaymentDate
+        ? new Date(customPaymentDate).toISOString()
+        : new Date().toISOString();
+
+      const txDesc = `Bayar cicilan ke-${newPaidMonths}: ${debt.name}${paymentNotes ? ` (${paymentNotes})` : ""}`;
+      const tempTxId = "t" + Date.now();
       const newTx: Transaction = {
-        id: "t" + Date.now(), amount, type: "expense",
-        pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-        user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
-        description: `Bayar cicilan: ${debt.name}`,
-        created_at: new Date().toISOString(),
+        id: tempTxId,
+        amount,
+        type: "expense",
+        pos_id: posId,
+        pos_name: pos.name,
+        pos_icon: pos.icon,
+        user_id: authUserId,
+        user_name: effectiveName,
+        user_role: effectiveRole,
+        description: txDesc,
+        created_at: paymentDateIso,
         keluarga_id: currentKeluarga?.id,
       };
       setTransactions((prev) => [newTx, ...prev]);
 
+      const tempPaymentId = "dp" + Date.now();
+      const newPayment: DebtPayment = {
+        id: tempPaymentId,
+        debt_id: debtId,
+        pos_id: posId,
+        pos_name: pos.name,
+        transaction_id: tempTxId,
+        payment_number: newPaidMonths,
+        amount,
+        payment_date: paymentDateIso,
+        notes: paymentNotes || null,
+        created_by: authUserId,
+        user_name: effectiveName,
+        created_at: new Date().toISOString(),
+        keluarga_id: currentKeluarga?.id,
+      };
+      setDebtPayments((prev) => [newPayment, ...prev]);
+
       // Sync to Supabase
       await supabase.from("debts").update({ remaining_amount: newRemaining, paid_months: newPaidMonths }).eq("id", debtId);
       await supabase.from("pos").update({ current_balance: newBalance }).eq("id", posId);
-      const { error: debtTxErr } = await supabase.from("transactions").insert({
-        amount, type: "expense", pos_id: posId, pos_name: pos.name, pos_icon: pos.icon,
-        user_id: authUserId, user_name: effectiveName, user_role: effectiveRole,
+
+      const { data: insertedTx, error: debtTxErr } = await supabase.from("transactions").insert({
+        amount,
+        type: "expense",
+        pos_id: posId,
+        pos_name: pos.name,
+        pos_icon: pos.icon,
+        user_id: authUserId,
+        user_name: effectiveName,
+        user_role: effectiveRole,
         description: newTx.description,
+        created_at: paymentDateIso,
         keluarga_id: currentKeluarga?.id,
-      });
-      if (debtTxErr) console.error("❌ Gagal simpan transaksi cicilan:", debtTxErr.message, debtTxErr.details, debtTxErr.hint);
+      }).select().single();
+
+      if (debtTxErr) {
+        console.error("❌ Gagal simpan transaksi cicilan:", debtTxErr.message);
+      }
+
+      const realTxId = insertedTx?.id || tempTxId;
+      if (insertedTx) {
+        setTransactions((prev) => prev.map((t) => (t.id === tempTxId ? { ...t, id: realTxId } : t)));
+      }
+
+      const { data: insertedPay, error: payErr } = await supabase.from("debt_payments").insert({
+        debt_id: debtId,
+        pos_id: posId,
+        transaction_id: realTxId,
+        payment_number: newPaidMonths,
+        amount,
+        payment_date: paymentDateIso,
+        notes: paymentNotes || null,
+        created_by: authUserId,
+        keluarga_id: currentKeluarga?.id,
+      }).select().single();
+
+      if (payErr) {
+        console.error("❌ Gagal simpan riwayat angsuran:", payErr.message);
+      } else if (insertedPay) {
+        setDebtPayments((prev) => prev.map((p) => (p.id === tempPaymentId ? { ...insertedPay, pos_name: pos.name, user_name: effectiveName } : p)));
+      }
     } finally {
       setIsMutating(false);
     }
   }, [debts, posList, sessionUser, currentMember, currentKeluarga]);
+
+  const rollbackDebtPayment = useCallback(async (paymentId: string) => {
+    setIsMutating(true);
+    try {
+      const payment = debtPayments.find((p) => p.id === paymentId);
+      if (!payment) return;
+
+      const debt = debts.find((d) => d.id === payment.debt_id);
+      const pos = payment.pos_id ? posList.find((p) => p.id === payment.pos_id) : null;
+
+      // 1. Restore debt remaining_amount and decrement paid_months
+      const newRemaining = debt ? debt.remaining_amount + payment.amount : payment.amount;
+      const newPaidMonths = debt ? Math.max(0, (debt.paid_months || 0) - 1) : 0;
+
+      if (debt) {
+        setDebts((prev) => prev.map((d) => (d.id === debt.id ? { ...d, remaining_amount: newRemaining, paid_months: newPaidMonths } : d)));
+        await supabase.from("debts").update({ remaining_amount: newRemaining, paid_months: newPaidMonths }).eq("id", debt.id);
+      }
+
+      // 2. Restore pos balance
+      if (pos) {
+        const newBalance = pos.current_balance + payment.amount;
+        setPosList((prev) => prev.map((p) => (p.id === pos.id ? { ...p, current_balance: newBalance } : p)));
+        await supabase.from("pos").update({ current_balance: newBalance }).eq("id", pos.id);
+      }
+
+      // 3. Remove transaction if linked
+      if (payment.transaction_id) {
+        setTransactions((prev) => prev.filter((t) => t.id !== payment.transaction_id));
+        await supabase.from("transactions").delete().eq("id", payment.transaction_id);
+      }
+
+      // 4. Remove debt_payment
+      setDebtPayments((prev) => prev.filter((p) => p.id !== paymentId));
+      await supabase.from("debt_payments").delete().eq("id", paymentId);
+    } finally {
+      setIsMutating(false);
+    }
+  }, [debtPayments, debts, posList]);
 
   // ── Helper to persist settings per family ──
   const upsertSetting = useCallback(async (key: string, value: string, targetKeluargaId?: string) => {
@@ -1701,7 +1903,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     childTransactions, addChildTransaction,
     addSakuBorrowTransaction, addSakuReturnTransaction,
     cyclePosHistory, startNewCycle,
-    debts, addDebt, updateDebt, deleteDebt, payDebt,
+    debts, debtPayments, addDebt, updateDebt, deleteDebt, payDebt, rollbackDebtPayment,
     logoSettings, updateLogoSettings,
     theme, updateTheme,
     isLoading, dbConnected,
