@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, DebtPayment, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga } from "./types";
+import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, DebtPayment, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga, DeveloperSettings, MenuIconOverrides } from "./types";
 import GlobalLoader from "@/components/GlobalLoader";
 
 function formatLocalDate(d: Date): string {
@@ -109,6 +109,12 @@ interface AppState {
   // Quick Menu customization
   quickMenuItems: string[];
   updateQuickMenuItems: (items: string[]) => Promise<void>;
+  // Superadmin
+  isSuperadmin: boolean;
+  developerSettings: DeveloperSettings;
+  menuIconOverrides: MenuIconOverrides;
+  updateDeveloperSettings: (settings: Partial<DeveloperSettings>) => Promise<void>;
+  updateMenuIconOverride: (menuId: string, iconUrl: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -250,6 +256,22 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     return ["saku", "struk", "hutang", "dompet"];
   });
 
+  // ── Superadmin & Global Developer Settings ──
+  const DEFAULT_DEV_SETTINGS: DeveloperSettings = {
+    show_qris: false,
+    qris_url: "",
+    qris_name: "Developer CatatKeluarga",
+    banks: [
+      { enabled: false, name: "BCA", account: "", holder: "" },
+      { enabled: false, name: "GoPay / OVO", account: "", holder: "" },
+      { enabled: false, name: "BNI", account: "", holder: "" },
+    ],
+    message: "Terima kasih sudah menggunakan CatatKeluarga! ❤️",
+  };
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [developerSettings, setDeveloperSettings] = useState<DeveloperSettings>(DEFAULT_DEV_SETTINGS);
+  const [menuIconOverrides, setMenuIconOverrides] = useState<MenuIconOverrides>({});
+
   // ── Load from Supabase callback ──
   const loadData = useCallback(async () => {
     try {
@@ -263,16 +285,70 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         supabase.from("cycle_pos_history").select("*"),
         supabase.from("app_settings").select("*"),
         supabase.from("debt_payments").select("*").order("payment_date", { ascending: false }),
+        // Global settings (Traktir Dev + Menu Icon Overrides)
+        supabase.from("global_settings").select("key, value"),
+        // Superadmin check — will fail gracefully if not superadmin
+        supabase.from("superadmins").select("user_id").maybeSingle(),
       ]);
 
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Supabase query timeout")), 3000)
       );
 
-      const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes, debtPayRes] =
+      const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes, debtPayRes,
+             globalSettingsRes, superadminRes] =
         await Promise.race([queryPromise, timeoutPromise]) as any;
 
-      // If ANY query succeeds (no error), we're connected to Supabase
+      // ── Load Superadmin status ──
+      if (!superadminRes?.error && superadminRes?.data) {
+        setIsSuperadmin(true);
+      } else {
+        setIsSuperadmin(false);
+      }
+
+      // ── Load Global Settings (Traktir Dev & Menu Icon Overrides) ──
+      if (!globalSettingsRes?.error && Array.isArray(globalSettingsRes?.data)) {
+        const gMap = new Map<string, string>(
+          globalSettingsRes.data.map((s: { key: string; value: string }) => [s.key, s.value])
+        );
+        const parsedDev: DeveloperSettings = {
+          show_qris: gMap.get("dev_show_qris") === "true",
+          qris_url: gMap.get("dev_qris_url") || "",
+          qris_name: gMap.get("dev_qris_name") || "Developer CatatKeluarga",
+          banks: [
+            {
+              enabled: gMap.get("dev_bank_1_enabled") === "true",
+              name: gMap.get("dev_bank_1_name") || "BCA",
+              account: gMap.get("dev_bank_1_account") || "",
+              holder: gMap.get("dev_bank_1_holder") || "",
+            },
+            {
+              enabled: gMap.get("dev_bank_2_enabled") === "true",
+              name: gMap.get("dev_bank_2_name") || "GoPay / OVO",
+              account: gMap.get("dev_bank_2_account") || "",
+              holder: gMap.get("dev_bank_2_holder") || "",
+            },
+            {
+              enabled: gMap.get("dev_bank_3_enabled") === "true",
+              name: gMap.get("dev_bank_3_name") || "BNI",
+              account: gMap.get("dev_bank_3_account") || "",
+              holder: gMap.get("dev_bank_3_holder") || "",
+            },
+          ],
+          message: gMap.get("dev_message") || "Terima kasih sudah menggunakan CatatKeluarga! ❤️",
+        };
+        setDeveloperSettings(parsedDev);
+
+        const overrides: MenuIconOverrides = {};
+        for (const [key, value] of gMap.entries()) {
+          if (key.startsWith("menu_icon_") && value.trim() !== "") {
+            overrides[key.replace("menu_icon_", "")] = value;
+          }
+        }
+        setMenuIconOverrides(overrides);
+      }
+
+      // If ANY query succeeds (no error), we are connected to Supabase
       const connected = !posRes?.error && !cycRes?.error;
       if (connected) {
         setDbConnected(true);
@@ -1583,6 +1659,66 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, [upsertSetting]);
 
+  // ── Superadmin: Update Developer Settings via RPC ──
+  const updateDeveloperSettings = useCallback(async (partial: Partial<DeveloperSettings>) => {
+    setIsMutating(true);
+    try {
+      const merged: DeveloperSettings = { ...developerSettings, ...partial };
+      // banks override
+      if (partial.banks) merged.banks = partial.banks;
+      setDeveloperSettings(merged);
+
+      const batch: Record<string, string> = {
+        dev_show_qris: merged.show_qris ? "true" : "false",
+        dev_qris_url: merged.qris_url,
+        dev_qris_name: merged.qris_name,
+        dev_message: merged.message,
+        dev_bank_1_enabled: merged.banks[0].enabled ? "true" : "false",
+        dev_bank_1_name: merged.banks[0].name,
+        dev_bank_1_account: merged.banks[0].account,
+        dev_bank_1_holder: merged.banks[0].holder,
+        dev_bank_2_enabled: merged.banks[1].enabled ? "true" : "false",
+        dev_bank_2_name: merged.banks[1].name,
+        dev_bank_2_account: merged.banks[1].account,
+        dev_bank_2_holder: merged.banks[1].holder,
+        dev_bank_3_enabled: merged.banks[2].enabled ? "true" : "false",
+        dev_bank_3_name: merged.banks[2].name,
+        dev_bank_3_account: merged.banks[2].account,
+        dev_bank_3_holder: merged.banks[2].holder,
+      };
+
+      const { error } = await supabase.rpc("upsert_global_settings_batch", {
+        p_settings: batch,
+      });
+      if (error) {
+        console.error("❌ Gagal update developer settings:", error.message);
+        throw new Error(error.message);
+      }
+    } finally {
+      isMutatingCycleRef.current = false;
+      setIsMutating(false);
+    }
+  }, [developerSettings]);
+
+  // ── Superadmin: Update single Menu Icon Override via RPC ──
+  const updateMenuIconOverride = useCallback(async (menuId: string, iconUrl: string) => {
+    setIsMutating(true);
+    try {
+      setMenuIconOverrides((prev) => ({ ...prev, [menuId]: iconUrl }));
+      const { error } = await supabase.rpc("upsert_global_setting", {
+        p_key: `menu_icon_${menuId}`,
+        p_value: iconUrl,
+      });
+      if (error) {
+        console.error(`❌ Gagal update menu icon [${menuId}]:`, error.message);
+        throw new Error(error.message);
+      }
+    } finally {
+      isMutatingCycleRef.current = false;
+      setIsMutating(false);
+    }
+  }, []);
+
   // ── Recalculate all pos balances from transactions ──
   const recalculateBalances = useCallback(async () => {
     setIsMutating(true);
@@ -1900,6 +2036,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     updateMember, removeMember, leaveFamily, refreshMember,
     needsFirstCycleSetup, isWaitingForPayday, createFirstCycle,
     quickMenuItems, updateQuickMenuItems,
+    isSuperadmin, developerSettings, menuIconOverrides,
+    updateDeveloperSettings, updateMenuIconOverride,
   };
 
   if (authLoading) return null; // Or a loading spinner

@@ -351,6 +351,45 @@ export const AVAILABLE_MENUS: MenuItem[] = [
       />
     ),
   },
+  {
+    id: "traktir",
+    name: "Traktir Dev",
+    desc: "Support pengembang",
+    path: "/traktir",
+    iconBg: "#fff8e1",
+    quickClass: "amber-bg",
+    iconSrc: "/logo/icon-menu-traktir.png",
+    iconModal: (
+      <MenuIcon
+        src="/logo/icon-menu-traktir.png"
+        alt="Traktir Developer"
+        size={44}
+        fallbackSvg={
+          <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
+            <path d="M9 8h12v11a5 5 0 0 1-10 0V8H9Z" fill="#f59e0b" opacity="0.2" stroke="#d97706" strokeWidth="2.2" strokeLinejoin="round"/>
+            <path d="M21 11h2.5a2.5 2.5 0 0 1 0 5H21" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round"/>
+            <path d="M12 25h8" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round"/>
+            <path d="M13 5c0-1.5 3-1.5 3 0s3 1.5 3 0" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+          </svg>
+        }
+      />
+    ),
+    iconQuick: (
+      <MenuIcon
+        src="/logo/icon-menu-traktir.png"
+        alt="Traktir Developer"
+        size={42}
+        fallbackSvg={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M7 6h10v8a4 4 0 0 1-8 0V6H7Z" />
+            <path d="M17 9h2a2 2 0 1 1 0 4h-2" />
+            <path d="M9 19h6" />
+            <path d="M10 4c0-1 2-1 2 0s2 1 2 0" />
+          </svg>
+        }
+      />
+    ),
+  },
 ];
 
 export const DEFAULT_QUICK_MENU = ["saku", "struk", "hutang", "dompet"];
@@ -377,4 +416,12 @@ export function getQuickMenuItems(ids: string[]): MenuItem[] {
   }
 
   return result;
+}
+
+// Returns the effective icon src, using override if set, fallback to default
+export function getEffectiveIconSrc(menuId: string, overrides: Record<string, string>): string | null {
+  const override = overrides[menuId];
+  if (override && override.trim() !== "") return override;
+  const item = getMenuItem(menuId);
+  return item?.iconSrc ?? null;
 }

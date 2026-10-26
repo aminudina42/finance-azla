@@ -3,14 +3,14 @@
 import React from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
-import { getQuickMenuItems } from "@/lib/menu-config";
+import { getQuickMenuItems, MenuIcon } from "@/lib/menu-config";
 
 interface QuickMenuGridProps {
   onOpenAllFeatures?: () => void;
 }
 
 export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps) {
-  const { quickMenuItems } = useApp();
+  const { quickMenuItems, menuIconOverrides } = useApp();
   const activeMenus = getQuickMenuItems(quickMenuItems);
 
   return (
@@ -38,20 +38,32 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
             : undefined
         }
       >
-        {activeMenus.map((item) => (
-          <Link
-            key={item.id}
-            href={item.path}
-            className="quick-card"
-            aria-label={`Menu ${item.name}: ${item.desc}`}
-          >
-            <span className={`quick-icon ${item.quickClass}`}>
-              {item.iconQuick}
-            </span>
-            <span className="quick-name">{item.name}</span>
-            <span className="quick-desc">{item.desc}</span>
-          </Link>
-        ))}
+        {activeMenus.map((item) => {
+          const customIconUrl = menuIconOverrides?.[item.id];
+          return (
+            <Link
+              key={item.id}
+              href={item.path}
+              className="quick-card"
+              aria-label={`Menu ${item.name}: ${item.desc}`}
+            >
+              <span className={`quick-icon ${item.quickClass}`}>
+                {customIconUrl ? (
+                  <MenuIcon
+                    src={customIconUrl}
+                    alt={item.name}
+                    size={42}
+                    fallbackSvg={item.iconQuick}
+                  />
+                ) : (
+                  item.iconQuick
+                )}
+              </span>
+              <span className="quick-name">{item.name}</span>
+              <span className="quick-desc">{item.desc}</span>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

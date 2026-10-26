@@ -482,6 +482,32 @@ export interface TripChecklist {
   created_at: string;
 }
 
+// ═══ Superadmin & Global Settings ═══
+
+export interface SuperadminRow {
+  user_id: string;
+  created_at: string;
+}
+
+export interface DeveloperBank {
+  enabled: boolean;
+  name: string;
+  account: string;
+  holder: string;
+}
+
+export interface DeveloperSettings {
+  show_qris: boolean;
+  qris_url: string;
+  qris_name: string;
+  banks: [DeveloperBank, DeveloperBank, DeveloperBank];
+  message: string;
+}
+
+export interface MenuIconOverrides {
+  [menuId: string]: string; // menuId -> custom iconSrc URL or empty string
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {

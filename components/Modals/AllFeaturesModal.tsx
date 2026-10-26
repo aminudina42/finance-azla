@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import AlertModal from "@/components/Modals/AlertModal";
 import { useApp } from "@/lib/store";
-import { AVAILABLE_MENUS, getMenuItem } from "@/lib/menu-config";
+import { AVAILABLE_MENUS, getMenuItem, MenuIcon } from "@/lib/menu-config";
 
 interface AllFeaturesModalProps {
   isOpen: boolean;
@@ -17,7 +17,7 @@ export default function AllFeaturesModal({
   onClose,
 }: AllFeaturesModalProps) {
   const router = useRouter();
-  const { sessionUser, currentMember, currentKeluarga, logout, quickMenuItems, updateQuickMenuItems } = useApp();
+  const { sessionUser, currentMember, currentKeluarga, logout, quickMenuItems, updateQuickMenuItems, menuIconOverrides } = useApp();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -333,7 +333,18 @@ export default function AllFeaturesModal({
                             marginBottom: "4px",
                           }}
                         >
-                          <div style={{ transform: "scale(0.7)" }}>{item.iconModal}</div>
+                          <div style={{ transform: "scale(0.7)" }}>
+                            {menuIconOverrides?.[item.id] ? (
+                              <MenuIcon
+                                src={menuIconOverrides[item.id]}
+                                alt={item.name}
+                                size={44}
+                                fallbackSvg={item.iconModal}
+                              />
+                            ) : (
+                              item.iconModal
+                            )}
+                          </div>
                         </div>
 
                         {/* Name */}
@@ -474,7 +485,18 @@ export default function AllFeaturesModal({
                             flexShrink: 0,
                           }}
                         >
-                          <div style={{ transform: "scale(0.7)" }}>{m.iconModal}</div>
+                          <div style={{ transform: "scale(0.7)" }}>
+                            {menuIconOverrides?.[m.id] ? (
+                              <MenuIcon
+                                src={menuIconOverrides[m.id]}
+                                alt={m.name}
+                                size={44}
+                                fallbackSvg={m.iconModal}
+                              />
+                            ) : (
+                              m.iconModal
+                            )}
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: "13px", fontWeight: 750, color: "var(--navy)" }}>
@@ -714,7 +736,16 @@ export default function AllFeaturesModal({
                       e.currentTarget.style.boxShadow = "none";
                     }}
                   >
-                    {item.iconModal}
+                    {menuIconOverrides?.[item.id] ? (
+                      <MenuIcon
+                        src={menuIconOverrides[item.id]}
+                        alt={item.name}
+                        size={44}
+                        fallbackSvg={item.iconModal}
+                      />
+                    ) : (
+                      item.iconModal
+                    )}
                   </div>
 
                   {/* Label */}

@@ -12,6 +12,9 @@ import ConfirmModal from "@/components/Modals/ConfirmModal";
 import EditMemberModal from "@/components/Modals/EditMemberModal";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
+import SuperadminBadge from "@/components/Superadmin/SuperadminBadge";
+import TraktirEditorPanel from "@/components/Superadmin/TraktirEditorPanel";
+import MenuIconEditorPanel from "@/components/Superadmin/MenuIconEditorPanel";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -33,9 +36,15 @@ export default function ManagerPage() {
     removeMember,
     leaveFamily,
     isLoading,
+    isSuperadmin,
+    developerSettings,
+    menuIconOverrides,
+    updateDeveloperSettings,
+    updateMenuIconOverride,
   } = useApp();
 
   const isAdmin = currentMember?.role === "admin";
+  const [superadminActiveTab, setSuperadminActiveTab] = useState<"traktir" | "icons">("traktir");
 
   // State untuk Pengaturan Logo & Branding
   const [emojiInput, setEmojiInput] = useState(logoSettings.emoji);
@@ -1103,6 +1112,115 @@ export default function ManagerPage() {
             Pengaturan rincian pos keuangan, jatah bulanan, dan target tabungan sekarang dapat diakses langsung melalui menu <strong>Dompet</strong>.
           </div>
         </div>
+
+        {/* ── SUPERADMIN ONLY SECTION ── */}
+        {isSuperadmin && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+              marginTop: "4px",
+              marginBottom: "6px",
+            }}
+          >
+            <SuperadminBadge />
+
+            {/* Sub-tabs: Traktir Dev vs Icon Menu */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+                background: "var(--s2, #f1f5f9)",
+                padding: "4px",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSuperadminActiveTab("traktir")}
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: "9px",
+                  border: "none",
+                  background:
+                    superadminActiveTab === "traktir" ? "#ffffff" : "transparent",
+                  color:
+                    superadminActiveTab === "traktir"
+                      ? "var(--navy)"
+                      : "var(--muted)",
+                  fontWeight: 800,
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  boxShadow:
+                    superadminActiveTab === "traktir"
+                      ? "0 2px 6px rgba(0,0,0,0.06)"
+                      : "none",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
+              >
+                <span>☕</span>
+                <span>Konten Traktir</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSuperadminActiveTab("icons")}
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: "9px",
+                  border: "none",
+                  background:
+                    superadminActiveTab === "icons" ? "#ffffff" : "transparent",
+                  color:
+                    superadminActiveTab === "icons"
+                      ? "var(--navy)"
+                      : "var(--muted)",
+                  fontWeight: 800,
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  boxShadow:
+                    superadminActiveTab === "icons"
+                      ? "0 2px 6px rgba(0,0,0,0.06)"
+                      : "none",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
+              >
+                <span>🎨</span>
+                <span>Icon Menu</span>
+              </button>
+            </div>
+
+            {/* Tab content */}
+            {superadminActiveTab === "traktir" ? (
+              <TraktirEditorPanel
+                settings={developerSettings}
+                onUpdate={updateDeveloperSettings}
+                onShowAlert={(title, message) =>
+                  setAlertConfig({ isOpen: true, title, message })
+                }
+              />
+            ) : (
+              <MenuIconEditorPanel
+                overrides={menuIconOverrides}
+                onUpdate={updateMenuIconOverride}
+                onShowAlert={(title, message) =>
+                  setAlertConfig({ isOpen: true, title, message })
+                }
+              />
+            )}
+          </div>
+        )}
 
         {/* 5. Sesi & Akun Pengguna (Art-directed Passport Card) */}
         <div
