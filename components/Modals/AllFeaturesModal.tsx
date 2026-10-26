@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import AlertModal from "@/components/Modals/AlertModal";
 import { useApp } from "@/lib/store";
-import { AVAILABLE_MENUS, getMenuItem, MenuIcon } from "@/lib/menu-config";
+import { AVAILABLE_MENUS, getMenuItem, MenuIcon, DEFAULT_QUICK_MENU } from "@/lib/menu-config";
 
 interface AllFeaturesModalProps {
   isOpen: boolean;
@@ -25,18 +25,20 @@ export default function AllFeaturesModal({
   // Quick Menu Customization State
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(quickMenuItems);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const [isSaving, setIsSaving] = useState(false);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
 
-  // Sync selectedIds whenever modal opens or quickMenuItems updates
-  useEffect(() => {
+  // Sync selectedIds whenever modal opens
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
-      const valid = (quickMenuItems && quickMenuItems.length > 0 ? quickMenuItems : ["saku", "struk", "hutang", "dompet"])
+      const valid = (quickMenuItems && quickMenuItems.length > 0 ? quickMenuItems : DEFAULT_QUICK_MENU)
         .filter((id) => AVAILABLE_MENUS.some((m) => m.id === id));
-      setSelectedIds(valid.length > 0 ? valid : ["saku", "struk", "hutang", "dompet"]);
+      setSelectedIds(valid.length > 0 ? valid : DEFAULT_QUICK_MENU);
       setIsCustomizing(false);
     }
-  }, [isOpen, quickMenuItems]);
+  }
 
   const showToast = (msg: string) => {
     setToastNotice(msg);
@@ -70,8 +72,8 @@ export default function AllFeaturesModal({
 
   const handleAdd = (id: string) => {
     if (selectedIds.includes(id)) return;
-    if (selectedIds.length >= 4) {
-      showToast("Maksimal 4 menu! Hapus salah satu menu terlebih dahulu.");
+    if (selectedIds.length >= 5) {
+      showToast("Maksimal 5 menu! Hapus salah satu menu terlebih dahulu.");
       return;
     }
     setSelectedIds([...selectedIds, id]);
@@ -181,11 +183,11 @@ export default function AllFeaturesModal({
                   fontWeight: 800,
                   padding: "3px 8px",
                   borderRadius: "12px",
-                  background: selectedIds.length === 4 ? "#dcfce7" : "#e0f2fe",
-                  color: selectedIds.length === 4 ? "#15803d" : "#0284c7",
+                  background: selectedIds.length === 5 ? "#dcfce7" : "#e0f2fe",
+                  color: selectedIds.length === 5 ? "#15803d" : "#0284c7",
                 }}
               >
-                {selectedIds.length}/4
+                {selectedIds.length}/5
               </span>
             </div>
 
@@ -202,10 +204,10 @@ export default function AllFeaturesModal({
                 lineHeight: 1.35,
               }}
             >
-              <strong>💡 Petunjuk:</strong> Pilih maksimal <strong>4 menu</strong> untuk Beranda. Gunakan tanda panah <strong>◀ ▶</strong> untuk mengatur urutan posisinya.
+              <strong>💡 Petunjuk:</strong> Pilih maksimal <strong>5 menu</strong> untuk Beranda. Gunakan tanda panah <strong>◀ ▶</strong> untuk mengatur urutan posisinya.
             </div>
 
-            {/* Section 1: Preview Urutan di Menu Cepat (4 Slots) */}
+            {/* Section 1: Preview Urutan di Menu Cepat (5 Slots) */}
             <div
               style={{
                 background: "var(--s2, #f8fafc)",
@@ -226,7 +228,7 @@ export default function AllFeaturesModal({
                 }}
               >
                 <span style={{ fontSize: "12px", fontWeight: 750, color: "var(--navy)" }}>
-                  Urutan di Menu Cepat (Maks. 4):
+                  Urutan di Menu Cepat (Maks. 5):
                 </span>
                 {selectedIds.length > 0 && (
                   <button
@@ -249,11 +251,11 @@ export default function AllFeaturesModal({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
-                  gap: "6px",
+                  gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+                  gap: "4px",
                 }}
               >
-                {[0, 1, 2, 3].map((idx) => {
+                {[0, 1, 2, 3, 4].map((idx) => {
                   const id = selectedIds[idx];
                   const item = id ? getMenuItem(id) : null;
 
@@ -537,16 +539,16 @@ export default function AllFeaturesModal({
                           style={{
                             padding: "6px 12px",
                             borderRadius: "8px",
-                            background: selectedIds.length >= 4 ? "var(--s2, #f1f5f9)" : "var(--primary, #287ff0)",
-                            color: selectedIds.length >= 4 ? "var(--muted, #94a3b8)" : "#ffffff",
+                            background: selectedIds.length >= 5 ? "var(--s2, #f1f5f9)" : "var(--primary, #287ff0)",
+                            color: selectedIds.length >= 5 ? "var(--muted, #94a3b8)" : "#ffffff",
                             border: "none",
                             fontSize: "12px",
                             fontWeight: 700,
-                            cursor: selectedIds.length >= 4 ? "not-allowed" : "pointer",
-                            boxShadow: selectedIds.length >= 4 ? "none" : "0 2px 6px rgba(40, 127, 240, 0.22)",
+                            cursor: selectedIds.length >= 5 ? "not-allowed" : "pointer",
+                            boxShadow: selectedIds.length >= 5 ? "none" : "0 2px 6px rgba(40, 127, 240, 0.22)",
                           }}
                         >
-                          {selectedIds.length >= 4 ? "Penuh" : "+ Pilih"}
+                          {selectedIds.length >= 5 ? "Penuh" : "+ Pilih"}
                         </button>
                       )}
                     </div>
@@ -567,7 +569,7 @@ export default function AllFeaturesModal({
             >
               <button
                 type="button"
-                onClick={() => setSelectedIds(["saku", "struk", "hutang", "dompet"])}
+                onClick={() => setSelectedIds(DEFAULT_QUICK_MENU)}
                 style={{
                   padding: "10px 14px",
                   borderRadius: "10px",
@@ -641,9 +643,9 @@ export default function AllFeaturesModal({
               <button
                 type="button"
                 onClick={() => {
-                  const valid = (quickMenuItems && quickMenuItems.length > 0 ? quickMenuItems : ["saku", "struk", "hutang", "dompet"])
+                  const valid = (quickMenuItems && quickMenuItems.length > 0 ? quickMenuItems : DEFAULT_QUICK_MENU)
                     .filter((id) => AVAILABLE_MENUS.some((m) => m.id === id));
-                  setSelectedIds(valid.length > 0 ? valid : ["saku", "struk", "hutang", "dompet"]);
+                  setSelectedIds(valid.length > 0 ? valid : DEFAULT_QUICK_MENU);
                   setIsCustomizing(true);
                 }}
                 style={{

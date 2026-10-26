@@ -508,6 +508,44 @@ export interface MenuIconOverrides {
   [menuId: string]: string; // menuId -> custom iconSrc URL or empty string
 }
 
+// ═══ User Feedback & Bug Report ═══
+
+export type FeedbackType = "bug" | "saran" | "pertanyaan";
+export type FeedbackPriority = "High" | "Medium" | "Low";
+export type FeedbackStatus = "baru" | "ditinjau" | "proses" | "selesai" | "ditolak";
+export type NotionSyncState = "pending" | "synced" | "failed" | "disabled";
+
+export interface UserFeedback {
+  id: string;
+  keluarga_id?: string | null;
+  user_id?: string | null;
+  user_name: string;
+  user_email: string;
+  type: FeedbackType;
+  priority: FeedbackPriority;
+  title: string;
+  description: string;
+  steps_to_reproduce?: string | null;
+  current_url?: string | null;
+  app_version?: string;
+  device_info?: {
+    os?: string;
+    browser?: string;
+    screenSize?: string;
+    userAgent?: string;
+  };
+  attachment_url?: string | null;
+  status: FeedbackStatus;
+  admin_notes?: string | null;
+  notion_page_id?: string | null;
+  notion_page_url?: string | null;
+  notion_sync_status: NotionSyncState;
+  notion_sync_error?: string | null;
+  notion_synced_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {

@@ -30,14 +30,7 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
         </button>
       </div>
 
-      <div
-        className="quick-grid"
-        style={
-          activeMenus.length < 4
-            ? { gridTemplateColumns: `repeat(${activeMenus.length}, minmax(0, 1fr))` }
-            : undefined
-        }
-      >
+      <div className="quick-grid">
         {activeMenus.map((item) => {
           const customIconUrl = menuIconOverrides?.[item.id];
           return (
@@ -45,14 +38,17 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
               key={item.id}
               href={item.path}
               className="quick-card"
-              aria-label={`Menu ${item.name}: ${item.desc}`}
+              aria-label={`Menu ${item.name}`}
             >
-              <span className={`quick-icon ${item.quickClass}`}>
+              <span
+                className={`quick-icon ${item.quickClass}`}
+                style={{ background: item.iconBg }}
+              >
                 {customIconUrl ? (
                   <MenuIcon
                     src={customIconUrl}
                     alt={item.name}
-                    size={42}
+                    size={38}
                     fallbackSvg={item.iconQuick}
                   />
                 ) : (
@@ -60,7 +56,6 @@ export default function QuickMenuGrid({ onOpenAllFeatures }: QuickMenuGridProps)
                 )}
               </span>
               <span className="quick-name">{item.name}</span>
-              <span className="quick-desc">{item.desc}</span>
             </Link>
           );
         })}

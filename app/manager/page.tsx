@@ -15,6 +15,7 @@ import Skeleton from "@/components/Skeleton";
 import SuperadminBadge from "@/components/Superadmin/SuperadminBadge";
 import TraktirEditorPanel from "@/components/Superadmin/TraktirEditorPanel";
 import MenuIconEditorPanel from "@/components/Superadmin/MenuIconEditorPanel";
+import FeedbackManagerPanel from "@/components/Superadmin/FeedbackManagerPanel";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
@@ -44,7 +45,7 @@ export default function ManagerPage() {
   } = useApp();
 
   const isAdmin = currentMember?.role === "admin";
-  const [superadminActiveTab, setSuperadminActiveTab] = useState<"traktir" | "icons">("traktir");
+  const [superadminActiveTab, setSuperadminActiveTab] = useState<"traktir" | "icons" | "feedback">("traktir");
 
   // State untuk Pengaturan Logo & Branding
   const [emojiInput, setEmojiInput] = useState(logoSettings.emoji);
@@ -1113,6 +1114,40 @@ export default function ManagerPage() {
           </div>
         </div>
 
+        {/* Shortcut Bantuan & Lapor Bug */}
+        <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="gc-left">
+              <p>Bantuan &amp; Masukan</p>
+              <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>💡</span>
+                <span>Lapor Bug &amp; Saran Fitur</span>
+              </h3>
+            </div>
+            <Link
+              href="/lapor"
+              style={{
+                padding: "8px 16px",
+                borderRadius: "10px",
+                background: "var(--primary, #287ff0)",
+                color: "#ffffff",
+                textDecoration: "none",
+                fontWeight: 700,
+                fontSize: "13px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)"
+              }}
+            >
+              Buka Form →
+            </Link>
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)", lineHeight: "1.4" }}>
+            Menemukan kendala atau memiliki ide perbaikan untuk CatatKeluarga? Sampaikan langsung ke tim pengembang.
+          </div>
+        </div>
+
         {/* ── SUPERADMIN ONLY SECTION ── */}
         {isSuperadmin && (
           <div
@@ -1126,12 +1161,12 @@ export default function ManagerPage() {
           >
             <SuperadminBadge />
 
-            {/* Sub-tabs: Traktir Dev vs Icon Menu */}
+            {/* Sub-tabs: Traktir Dev vs Icon Menu vs Feedback */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "8px",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "6px",
                 background: "var(--s2, #f1f5f9)",
                 padding: "4px",
                 borderRadius: "12px",
@@ -1142,7 +1177,7 @@ export default function ManagerPage() {
                 type="button"
                 onClick={() => setSuperadminActiveTab("traktir")}
                 style={{
-                  padding: "9px 12px",
+                  padding: "9px 8px",
                   borderRadius: "9px",
                   border: "none",
                   background:
@@ -1152,7 +1187,7 @@ export default function ManagerPage() {
                       ? "var(--navy)"
                       : "var(--muted)",
                   fontWeight: 800,
-                  fontSize: "12.5px",
+                  fontSize: "12px",
                   cursor: "pointer",
                   boxShadow:
                     superadminActiveTab === "traktir"
@@ -1162,18 +1197,18 @@ export default function ManagerPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "6px",
+                  gap: "4px",
                 }}
               >
                 <span>☕</span>
-                <span>Konten Traktir</span>
+                <span>Traktir</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSuperadminActiveTab("icons")}
                 style={{
-                  padding: "9px 12px",
+                  padding: "9px 8px",
                   borderRadius: "9px",
                   border: "none",
                   background:
@@ -1183,7 +1218,7 @@ export default function ManagerPage() {
                       ? "var(--navy)"
                       : "var(--muted)",
                   fontWeight: 800,
-                  fontSize: "12.5px",
+                  fontSize: "12px",
                   cursor: "pointer",
                   boxShadow:
                     superadminActiveTab === "icons"
@@ -1193,11 +1228,42 @@ export default function ManagerPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "6px",
+                  gap: "4px",
                 }}
               >
                 <span>🎨</span>
                 <span>Icon Menu</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSuperadminActiveTab("feedback")}
+                style={{
+                  padding: "9px 8px",
+                  borderRadius: "9px",
+                  border: "none",
+                  background:
+                    superadminActiveTab === "feedback" ? "#ffffff" : "transparent",
+                  color:
+                    superadminActiveTab === "feedback"
+                      ? "var(--navy)"
+                      : "var(--muted)",
+                  fontWeight: 800,
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  boxShadow:
+                    superadminActiveTab === "feedback"
+                      ? "0 2px 6px rgba(0,0,0,0.06)"
+                      : "none",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px",
+                }}
+              >
+                <span>📬</span>
+                <span>Laporan</span>
               </button>
             </div>
 
@@ -1210,10 +1276,16 @@ export default function ManagerPage() {
                   setAlertConfig({ isOpen: true, title, message })
                 }
               />
-            ) : (
+            ) : superadminActiveTab === "icons" ? (
               <MenuIconEditorPanel
                 overrides={menuIconOverrides}
                 onUpdate={updateMenuIconOverride}
+                onShowAlert={(title, message) =>
+                  setAlertConfig({ isOpen: true, title, message })
+                }
+              />
+            ) : (
+              <FeedbackManagerPanel
                 onShowAlert={(title, message) =>
                   setAlertConfig({ isOpen: true, title, message })
                 }

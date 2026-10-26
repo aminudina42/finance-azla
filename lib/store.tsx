@@ -247,13 +247,25 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         const cached = localStorage.getItem("quickMenuItems");
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Migrasi otomatis: pastikan traktir di urutan pertama
+            if (!parsed.includes("traktir")) {
+              const migrated = ["traktir", ...parsed].slice(0, 5);
+              try {
+                localStorage.setItem("quickMenuItems", JSON.stringify(migrated));
+              } catch {
+                // ignore
+              }
+              return migrated;
+            }
+            return parsed.slice(0, 5);
+          }
         }
       } catch {
         // ignore
       }
     }
-    return ["saku", "struk", "hutang", "dompet"];
+    return ["traktir", "saku", "struk", "kendaraan", "dompet"];
   });
 
   // ── Superadmin & Global Developer Settings ──
@@ -459,11 +471,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
           const qmVal = settingsMap.get("quick_menu_items");
           if (qmVal) {
             try {
-              const parsed = JSON.parse(qmVal);
+              let parsed = JSON.parse(qmVal);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setQuickMenuItems(parsed);
+                if (!parsed.includes("traktir")) {
+                  parsed = ["traktir", ...parsed].slice(0, 5);
+                }
+                setQuickMenuItems(parsed.slice(0, 5));
                 try {
-                  localStorage.setItem("quickMenuItems", JSON.stringify(parsed));
+                  localStorage.setItem("quickMenuItems", JSON.stringify(parsed.slice(0, 5)));
                 } catch {
                   // ignore
                 }
@@ -1643,7 +1658,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const updateQuickMenuItems = useCallback(async (items: string[]) => {
     setIsMutating(true);
     try {
-      const validItems = items.slice(0, 4);
+      const validItems = items.slice(0, 5);
       setQuickMenuItems(validItems);
       try {
         localStorage.setItem("quickMenuItems", JSON.stringify(validItems));

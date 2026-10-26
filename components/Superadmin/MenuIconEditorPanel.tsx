@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { AVAILABLE_MENUS, MenuItem } from "@/lib/menu-config";
+import { AVAILABLE_MENUS, MenuItem, MenuIcon } from "@/lib/menu-config";
 import { MenuIconOverrides } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { validateImageType, compressAndResizeImage, extractStoragePath } from "@/lib/image-utils";
@@ -227,17 +227,11 @@ export default function MenuIconEditorPanel({
                     border: "1px solid var(--border)",
                   }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <MenuIcon
                     src={effectiveSrc}
                     alt={item.name}
-                    width={32}
-                    height={32}
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      objectFit: "contain",
-                    }}
+                    size={32}
+                    fallbackSvg={item.iconQuick}
                   />
                 </div>
 

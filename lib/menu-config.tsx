@@ -390,9 +390,46 @@ export const AVAILABLE_MENUS: MenuItem[] = [
       />
     ),
   },
+  {
+    id: "lapor",
+    name: "Lapor & Saran",
+    desc: "Bug & ide fitur",
+    path: "/lapor",
+    iconBg: "#fee2e2",
+    quickClass: "rose-bg",
+    iconSrc: "/logo/icon-menu-lapor.png",
+    iconModal: (
+      <MenuIcon
+        src="/logo/icon-menu-lapor.png"
+        alt="Lapor & Saran"
+        size={44}
+        fallbackSvg={
+          <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
+            <rect x="5" y="5" width="22" height="22" rx="6" fill="#ef4444" opacity="0.15" />
+            <path d="M11 10h10M11 15h10M11 20h6" stroke="#dc2626" strokeWidth="2.2" strokeLinecap="round" />
+            <circle cx="22" cy="22" r="5" fill="#f87171" stroke="#dc2626" strokeWidth="1.8" />
+            <path d="M22 20.5v1.8m0 1.4h.01" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        }
+      />
+    ),
+    iconQuick: (
+      <MenuIcon
+        src="/logo/icon-menu-lapor.png"
+        alt="Lapor & Saran"
+        size={42}
+        fallbackSvg={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+        }
+      />
+    ),
+  },
 ];
 
-export const DEFAULT_QUICK_MENU = ["saku", "struk", "hutang", "dompet"];
+export const DEFAULT_QUICK_MENU = ["traktir", "saku", "struk", "kendaraan", "dompet"];
 
 export function getMenuItem(id: string): MenuItem | undefined {
   return AVAILABLE_MENUS.find((m) => m.id === id);
@@ -407,7 +444,7 @@ export function getQuickMenuItems(ids: string[]): MenuItem[] {
     if (item && !result.some((r) => r.id === item.id)) {
       result.push(item);
     }
-    if (result.length >= 4) break;
+    if (result.length >= 5) break;
   }
 
   // Fallback if none matched

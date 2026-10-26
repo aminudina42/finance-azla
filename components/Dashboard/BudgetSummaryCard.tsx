@@ -34,25 +34,19 @@ export default function BudgetSummaryCard({
         <div className="summary-top-row">
           <div className="eyebrow">Sisa Budget Siklus Ini</div>
           {onToggleHideNominal && (
-            <div className="eye-tooltip-container">
-              <button
-                type="button"
-                onClick={onToggleHideNominal}
-                className="eye-toggle-btn"
-                aria-label={isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
-                aria-pressed={isHideNominal}
-                title={isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
-              >
-                {isHideNominal ? (
-                  <EyeOff size={15} strokeWidth={2.2} aria-hidden="true" />
-                ) : (
-                  <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
-                )}
-              </button>
-              <span className="eye-tooltip-bubble" role="tooltip">
-                {isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={onToggleHideNominal}
+              className="eye-toggle-btn"
+              aria-label={isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
+              aria-pressed={isHideNominal}
+            >
+              {isHideNominal ? (
+                <EyeOff size={15} strokeWidth={2.2} aria-hidden="true" />
+              ) : (
+                <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
+              )}
+            </button>
           )}
         </div>
         <div className={`amount ${isDeficit ? "amount-red" : "amount-navy"}`}>
