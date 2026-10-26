@@ -420,6 +420,68 @@ export interface HealthMedication {
   created_at: string;
 }
 
+// ═══ Wisata / Itinerary Types ═══
+
+export type TripStatus = "planning" | "ongoing" | "completed";
+
+export type TripCategory =
+  | "transport"
+  | "ticket"
+  | "food"
+  | "lodging"
+  | "shopping"
+  | "other";
+
+export type TripChecklistAssignee = "suami" | "istri" | "anak" | "semua";
+
+export interface Trip {
+  id: string;
+  keluarga_id: string;
+  title: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  finance_pos_id?: string | null;
+  vehicle_id?: string | null;
+  total_budget_limit: number;
+  status: TripStatus;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TripItem {
+  id: string;
+  trip_id: string;
+  keluarga_id: string;
+  day_number: number;
+  start_time?: string | null;
+  category: TripCategory;
+  title: string;
+  location?: string | null;
+  booking_code?: string | null;
+  notes?: string | null;
+  estimated_cost: number;
+  actual_cost?: number | null;
+  is_completed: boolean;
+  transaction_id?: string | null;
+  fuel_log_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TripChecklist {
+  id: string;
+  trip_id: string;
+  keluarga_id: string;
+  item_name: string;
+  assigned_to: TripChecklistAssignee;
+  is_checked: boolean;
+  checked_by?: string | null;
+  checked_at?: string | null;
+  created_at: string;
+}
+
 // ═══ Supabase Database Schema ═══
 
 export interface Database {
@@ -565,6 +627,32 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<VehicleNotification>;
+      };
+      trips: {
+        Row: Trip;
+        Insert: Omit<Trip, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Trip>;
+      };
+      trip_items: {
+        Row: TripItem;
+        Insert: Omit<TripItem, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<TripItem>;
+      };
+      trip_checklists: {
+        Row: TripChecklist;
+        Insert: Omit<TripChecklist, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<TripChecklist>;
       };
     };
     Views: {

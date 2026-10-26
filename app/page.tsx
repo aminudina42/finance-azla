@@ -11,6 +11,7 @@ import AllFeaturesModal from "@/components/Modals/AllFeaturesModal";
 import GeneralHistory from "@/components/GeneralHistory";
 import AppHeader from "@/components/Dashboard/AppHeader";
 import BudgetSummaryCard from "@/components/Dashboard/BudgetSummaryCard";
+import BirthdayCard from "@/components/Dashboard/BirthdayCard";
 import QuickMenuGrid from "@/components/Dashboard/QuickMenuGrid";
 import ContentTabs from "@/components/Dashboard/ContentTabs";
 import PosCard from "@/components/Dashboard/PosCard";
@@ -42,6 +43,8 @@ export default function Home() {
     logoSettings,
     needsFirstCycleSetup,
     isWaitingForPayday,
+    currentKeluarga,
+    currentMember,
   } = useApp();
 
   const [showCycleModal, setShowCycleModal] = useState(false);
@@ -280,6 +283,12 @@ export default function Home() {
         dbConnected={dbConnected}
         logoSettings={logoSettings}
         onNotificationClick={() => router.push("/notifikasi")}
+      />
+
+      {/* 1.5 Kartu Perayaan Ulang Tahun Anggota Keluarga */}
+      <BirthdayCard
+        keluargaId={currentKeluarga?.id}
+        currentMember={currentMember}
       />
 
       {/* 2. Kartu Ringkasan Sisa Budget */}

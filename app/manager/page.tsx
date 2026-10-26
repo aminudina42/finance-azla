@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import type { Member, StatusKeluarga } from "@/lib/types";
+import { validateImageType, compressAndResizeImage, extractStoragePath } from "@/lib/image-utils";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import AlertModal from "@/components/Modals/AlertModal";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
@@ -34,66 +35,234 @@ export default function ManagerPage() {
     isLoading,
   } = useApp();
 
+  const isAdmin = currentMember?.role === "admin";
+
+  // State untuk Pengaturan Logo & Branding
+  const [emojiInput, setEmojiInput] = useState(logoSettings.emoji);
+  const [bgInput, setBgInput] = useState(logoSettings.bg);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [showDeleteLogoConfirm, setShowDeleteLogoConfirm] = useState(false);
+  const [isDeletingLogo, setIsDeletingLogo] = useState(false);
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  const [managerLogoImgError, setManagerLogoImgError] = useState(false);
+
+  const emojiTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const bgTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setEmojiInput(logoSettings.emoji);
+  }, [logoSettings.emoji]);
+
+  useEffect(() => {
+    setBgInput(logoSettings.bg);
+  }, [logoSettings.bg]);
+
+  useEffect(() => {
+    setManagerLogoImgError(false);
+  }, [logoSettings.image]);
+
   const handleUpdateType = async (type: "emoji" | "image") => {
+    if (!isAdmin) {
+      setAlertConfig({
+        isOpen: true,
+        title: "Akses Dibatasi",
+        message: "Hanya Admin keluarga yang dapat mengubah pengaturan logo & branding.",
+      });
+      return;
+    }
     await updateLogoSettings({ ...logoSettings, type });
   };
-  const handleUpdateEmoji = async (emoji: string) => {
-    await updateLogoSettings({ ...logoSettings, emoji });
-  };
-  const handleUpdateBg = async (bg: string) => {
-    await updateLogoSettings({ ...logoSettings, bg });
-  };
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const allowedTypes: Record<string, string> = {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/webp": "webp",
-    };
+  const handleEmojiChange = (emoji: string) => {
+    setEmojiInput(emoji);
+    if (!isAdmin) return;
+    if (emojiTimerRef.current) clearTimeout(emojiTimerRef.current);
+    emojiTimerRef.current = setTimeout(async () => {
+      await updateLogoSettings({ ...logoSettings, emoji });
+    }, 400);
+  };
 
-    if (!allowedTypes[file.type]) {
-      alert("Format file tidak didukung! Harap unggah gambar JPG, PNG, atau WebP.");
+  const handleBgChange = (bg: string) => {
+    setBgInput(bg);
+    if (!isAdmin) return;
+    if (bgTimerRef.current) clearTimeout(bgTimerRef.current);
+    bgTimerRef.current = setTimeout(async () => {
+      await updateLogoSettings({ ...logoSettings, bg });
+    }, 400);
+  };
+
+  const handleSelectPresetBg = async (presetBg: string) => {
+    if (!isAdmin) {
+      setAlertConfig({
+        isOpen: true,
+        title: "Akses Dibatasi",
+        message: "Hanya Admin keluarga yang dapat mengubah pengaturan logo & branding.",
+      });
+      return;
+    }
+    setBgInput(presetBg);
+    if (bgTimerRef.current) clearTimeout(bgTimerRef.current);
+    await updateLogoSettings({ ...logoSettings, bg: presetBg });
+  };
+
+  const handleImageFile = async (file: File) => {
+    if (!isAdmin) {
+      setAlertConfig({
+        isOpen: true,
+        title: "Akses Dibatasi",
+        message: "Hanya Admin keluarga yang dapat mengunggah atau mengganti logo.",
+      });
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Ukuran file terlalu besar! Maksimal 2 MB.");
+    const validation = validateImageType(file);
+    if (!validation.valid) {
+      setAlertConfig({
+        isOpen: true,
+        title: "Format Tidak Didukung",
+        message: validation.error || "Harap unggah gambar JPG, PNG, atau WebP.",
+      });
       return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAlertConfig({
+        isOpen: true,
+        title: "Ukuran Terlalu Besar",
+        message: "Ukuran file terlalu besar! Maksimal 5 MB sebelum kompresi.",
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    setUploadStatus("Mengompresi gambar...");
 
     try {
-      const fileExtension = allowedTypes[file.type];
-      const fileName = `logo-${Date.now()}.${fileExtension}`;
+      // 1. Kompresi & downscale otomatis sisi klien ke maks 512x512
+      const processed = await compressAndResizeImage(file, 512, 0.88);
+      setUploadStatus("Mengunggah ke penyimpanan...");
 
-      // Upload file directly to Supabase storage bucket 'logos'
-      const { data, error } = await supabase.storage
+      const keluargaId = currentKeluarga?.id || currentMember?.keluarga_id || "default";
+      const fileName = `${keluargaId}/logo-${Date.now()}.webp`;
+
+      // 2. Upload compressed webp file directly ke Supabase storage bucket 'logos'
+      const { error: uploadError } = await supabase.storage
         .from("logos")
-        .upload(fileName, file, {
-          contentType: file.type,
+        .upload(fileName, processed.blob, {
+          contentType: "image/webp",
           cacheControl: "3600",
           upsert: true,
         });
 
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
-      // Get public URL
+      // 3. Ambil URL publik
       const { data: { publicUrl } } = supabase.storage
         .from("logos")
         .getPublicUrl(fileName);
 
-      // Save public URL to logoSettings
+      // 4. Bersihkan file logo lama jika ada di bucket 'logos'
+      const oldPath = extractStoragePath(logoSettings.image, "logos");
+      if (oldPath && oldPath !== fileName) {
+        try {
+          await supabase.storage.from("logos").remove([oldPath]);
+        } catch (cleanupErr) {
+          console.warn("Gagal membersihkan logo lama:", cleanupErr);
+        }
+      }
+
+      // 5. Simpan public URL ke logoSettings
       await updateLogoSettings({
         ...logoSettings,
         type: "image",
         image: publicUrl,
       });
 
-      alert("Logo berhasil diunggah ke Supabase Storage!");
+      setAlertConfig({
+        isOpen: true,
+        title: "Logo Berhasil Diperbarui",
+        message: `Logo berhasil diunggah dan dioptimalkan (${Math.round(processed.sizeBytes / 1024)} KB)!`,
+      });
     } catch (err: any) {
       console.error("Gagal mengupload logo:", err);
-      alert("Gagal mengupload logo ke Supabase Storage: " + err.message);
+      setAlertConfig({
+        isOpen: true,
+        title: "Gagal Mengunggah",
+        message: "Gagal mengunggah logo ke Supabase Storage: " + (err.message || "Kesalahan jaringan."),
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      setUploadStatus("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageFile(file);
+    }
+    e.target.value = "";
+  };
+
+  const handleDeleteLogo = async () => {
+    setIsDeletingLogo(true);
+    try {
+      const oldPath = extractStoragePath(logoSettings.image, "logos");
+      if (oldPath) {
+        try {
+          await supabase.storage.from("logos").remove([oldPath]);
+        } catch (delErr) {
+          console.warn("Gagal menghapus file dari storage:", delErr);
+        }
+      }
+
+      await updateLogoSettings({
+        ...logoSettings,
+        type: "emoji",
+        image: "",
+      });
+
+      setAlertConfig({
+        isOpen: true,
+        title: "Logo Direset",
+        message: "Logo kustom berhasil dihapus dan dikembalikan ke mode Emoji default.",
+      });
+    } catch (err: any) {
+      setAlertConfig({
+        isOpen: true,
+        title: "Gagal Mereset",
+        message: "Terjadi kesalahan saat mereset logo: " + (err.message || "Kesalahan jaringan."),
+      });
+    } finally {
+      setIsDeletingLogo(false);
+      setShowDeleteLogoConfirm(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingLogo) setIsDraggingLogo(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingLogo(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingLogo(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleImageFile(file);
     }
   };
   const [showConfirm, setShowConfirm] = useState(false);
@@ -658,8 +827,17 @@ export default function ManagerPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="gc-left">
               <p>Pengaturan Website</p>
-              <h3>🖼️ Logo & Ikon Homescreen</h3>
+              <h3>🖼️ Logo &amp; Ikon Homescreen</h3>
             </div>
+            {isAdmin ? (
+              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "8px", background: "rgba(40, 127, 240, 0.12)", color: "var(--primary)" }}>
+                👑 Admin
+              </span>
+            ) : (
+              <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "8px", background: "var(--s3)", color: "var(--muted)" }}>
+                Lihat Saja
+              </span>
+            )}
           </div>
           
           {/* Logo preview */}
@@ -668,7 +846,7 @@ export default function ManagerPage() {
               width: "60px",
               height: "60px",
               borderRadius: "14px",
-              background: logoSettings.bg || "var(--primary, #287ff0)",
+              background: logoSettings.bg && logoSettings.bg !== "transparent" ? logoSettings.bg : "var(--primary, #287ff0)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -678,17 +856,23 @@ export default function ManagerPage() {
               boxShadow: "0 2px 8px rgba(16, 45, 85, 0.06)",
               flexShrink: 0
             }}>
-              {logoSettings.type === "image" && logoSettings.image ? (
+              {logoSettings.type === "image" && logoSettings.image && !managerLogoImgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoSettings.image} alt="Logo Preview" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px" }} />
+                <img
+                  src={logoSettings.image}
+                  alt="Logo Preview"
+                  crossOrigin="anonymous"
+                  onError={() => setManagerLogoImgError(true)}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px" }}
+                />
               ) : (
-                logoSettings.emoji
+                logoSettings.emoji || "💳"
               )}
             </div>
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "13px", fontWeight: "bold", color: "var(--text)" }}>Tampilan Logo Aktif</div>
               <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px", lineHeight: "1.4" }}>
-                Digunakan sebagai favicon, ikon homescreen (PWA), dan logo header website.
+                Digunakan sebagai favicon browser, ikon homescreen, dan logo header aplikasi.
               </div>
             </div>
           </div>
@@ -698,14 +882,14 @@ export default function ManagerPage() {
             <div
               className={`type-opt ${logoSettings.type === "emoji" ? "active-in" : ""}`}
               onClick={() => handleUpdateType("emoji")}
-              style={{ padding: "8px", fontSize: "11px" }}
+              style={{ padding: "8px", fontSize: "11px", cursor: isAdmin ? "pointer" : "default" }}
             >
               Emoji + Background
             </div>
             <div
               className={`type-opt ${logoSettings.type === "image" ? "active-out" : ""}`}
               onClick={() => handleUpdateType("image")}
-              style={{ padding: "8px", fontSize: "11px" }}
+              style={{ padding: "8px", fontSize: "11px", cursor: isAdmin ? "pointer" : "default" }}
             >
               Upload Gambar
             </div>
@@ -719,8 +903,9 @@ export default function ManagerPage() {
                 <input
                   type="text"
                   className="fi"
-                  value={logoSettings.emoji}
-                  onChange={(e) => handleUpdateEmoji(e.target.value)}
+                  value={emojiInput}
+                  disabled={!isAdmin}
+                  onChange={(e) => handleEmojiChange(e.target.value)}
                   placeholder="Ketik emoji, misal: 💳, 🏦, 💰"
                   maxLength={5}
                   style={{ padding: "8px 12px", fontSize: "13px" }}
@@ -728,35 +913,94 @@ export default function ManagerPage() {
               </div>
             ) : (
               <div className="fg">
-                <div className="fl" style={{ fontSize: "9px" }}>Upload File Logo (PNG/JPG)</div>
+                <div className="fl" style={{ fontSize: "9px" }}>Upload File Logo (PNG/JPG/WebP)</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "2px" }}>
                   <input
+                    ref={fileInputRef}
                     type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={!isAdmin || isUploadingLogo}
+                    onChange={handleFileInputChange}
                     style={{ display: "none" }}
                     id="logo-image-file-input"
                   />
-                  <label
-                    htmlFor="logo-image-file-input"
+                  
+                  {/* Dropzone & Label */}
+                  <div
+                    onDragOver={isAdmin && !isUploadingLogo ? handleDragOver : undefined}
+                    onDragLeave={isAdmin && !isUploadingLogo ? handleDragLeave : undefined}
+                    onDrop={isAdmin && !isUploadingLogo ? handleDrop : undefined}
+                    onClick={() => {
+                      if (isAdmin && !isUploadingLogo) {
+                        fileInputRef.current?.click();
+                      }
+                    }}
                     style={{
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      padding: "12px",
-                      borderRadius: "10px",
-                      border: "2px dashed var(--border)",
-                      cursor: "pointer",
-                      background: "var(--s2)",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      color: "var(--purple)",
-                      textAlign: "center",
-                      transition: "border-color 0.2s"
+                      padding: "16px",
+                      borderRadius: "12px",
+                      border: isDraggingLogo
+                        ? "2px dashed var(--primary, #287ff0)"
+                        : "2px dashed var(--border)",
+                      background: isDraggingLogo
+                        ? "rgba(40, 127, 240, 0.08)"
+                        : "var(--s2)",
+                      cursor: isAdmin && !isUploadingLogo ? "pointer" : "not-allowed",
+                      transition: "all 0.2s ease",
+                      gap: "6px",
                     }}
                   >
-                    Pilih Gambar dari Perangkat
-                  </label>
+                    {isUploadingLogo ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--primary)" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 700 }}>⏳ {uploadStatus || "Memproses logo..."}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: "22px" }}>📁</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary)" }}>
+                          {isAdmin ? "Klik untuk Pilih Gambar atau Drag & Drop" : "Hanya Admin yang dapat mengunggah"}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "var(--muted)" }}>
+                          JPG, PNG, atau WebP (Otomatis dikompresi ke 512x512)
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Actions when custom image is present */}
+                  {logoSettings.image && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "2px" }}>
+                      <span style={{ fontSize: "10px", color: "var(--muted)" }}>
+                        Logo kustom aktif
+                      </span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteLogoConfirm(true)}
+                          disabled={isDeletingLogo}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--red, #f04467)",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          🗑️ Hapus Logo Kustom
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div style={{ fontSize: "10px", color: "var(--muted)", textAlign: "center", lineHeight: "1.4" }}>
                     Format kotak (square) min. 512x512 piksel direkomendasikan. Gunakan file PNG transparan jika ingin memadukannya dengan preset background warna di bawah.
                   </div>
@@ -766,7 +1010,7 @@ export default function ManagerPage() {
 
             {/* Background settings - available for BOTH emoji and transparent images */}
             <div className="fg">
-              <div className="fl" style={{ fontSize: "9px" }}>Pilih Preset Background (Berlaku untuk Emoji & Gambar Transparan)</div>
+              <div className="fl" style={{ fontSize: "9px" }}>Pilih Preset Background (Berlaku untuk Emoji &amp; Gambar Transparan)</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "2px" }}>
                 {[
                   "#287ff0", // Catat Keluarga Primary Blue
@@ -780,7 +1024,7 @@ export default function ManagerPage() {
                 ].map((presetBg) => (
                   <div
                     key={presetBg}
-                    onClick={() => handleUpdateBg(presetBg)}
+                    onClick={() => handleSelectPresetBg(presetBg)}
                     style={{
                       width: "32px",
                       height: "32px",
@@ -788,9 +1032,9 @@ export default function ManagerPage() {
                       background: presetBg === "transparent" ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)" : presetBg,
                       backgroundSize: presetBg === "transparent" ? "8px 8px" : "auto",
                       backgroundPosition: presetBg === "transparent" ? "0 0, 0 4px, 4px -4px, -4px 0px" : "auto",
-                      border: logoSettings.bg === presetBg ? "2.5px solid #fff" : "1px solid var(--border)",
-                      cursor: "pointer",
-                      boxShadow: logoSettings.bg === presetBg ? "0 0 6px rgba(255,255,255,0.4)" : "none",
+                      border: bgInput === presetBg ? "2.5px solid #fff" : "1px solid var(--border)",
+                      cursor: isAdmin ? "pointer" : "default",
+                      boxShadow: bgInput === presetBg ? "0 0 6px rgba(255,255,255,0.4)" : "none",
                       transition: "all 0.15s ease",
                       display: "flex",
                       alignItems: "center",
@@ -810,8 +1054,9 @@ export default function ManagerPage() {
                   type="text"
                   className="fi"
                   style={{ padding: "8px 12px", fontSize: "12px" }}
-                  value={logoSettings.bg}
-                  onChange={(e) => handleUpdateBg(e.target.value)}
+                  value={bgInput}
+                  disabled={!isAdmin}
+                  onChange={(e) => handleBgChange(e.target.value)}
                   placeholder="Contoh: #8b72ff atau linear-gradient(135deg, ...)"
                 />
               </div>
@@ -1098,6 +1343,16 @@ export default function ManagerPage() {
         isDanger={false}
         onConfirm={() => setShowNewCycleModal(true)}
         onCancel={() => setShowEarlyPaydayConfirm(false)}
+      />
+      <ConfirmModal
+        isOpen={showDeleteLogoConfirm}
+        title="Hapus Logo Kustom?"
+        message="Logo gambar kustom akan dihapus dari penyimpanan Supabase dan tampilan aplikasi akan dikembalikan ke mode Emoji default. Lanjutkan?"
+        confirmText={isDeletingLogo ? "Menghapus..." : "Ya, Hapus Logo"}
+        cancelText="Batal"
+        isDanger={true}
+        onConfirm={handleDeleteLogo}
+        onCancel={() => setShowDeleteLogoConfirm(false)}
       />
       <AlertModal
         isOpen={showLogoutModal}

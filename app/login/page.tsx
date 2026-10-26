@@ -11,36 +11,28 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const [logoSettings, setLogoSettings] = useState({
-    type: "emoji",
-    emoji: "💳",
-    bg: "linear-gradient(135deg, #eaf5fc 0%, #d8eaf8 100%)",
-    image: "",
-  });
-
-  useEffect(() => {
-    async function loadLogo() {
+  const [logoSettings, setLogoSettings] = useState<{
+    type: "emoji" | "image";
+    emoji: string;
+    bg: string;
+    image: string;
+  }>(() => {
+    if (typeof window !== "undefined") {
       try {
-        const { data } = await supabase.from("app_settings").select("*");
-        if (data) {
-          const settingsMap = new Map(data.map((s) => [s.key, s.value]));
-          const lType = settingsMap.get("website_logo_type") as "emoji" | "image" | undefined;
-          const lEmoji = settingsMap.get("website_logo_emoji");
-          const lBg = settingsMap.get("website_logo_bg");
-          const lImg = settingsMap.get("website_logo_image");
-          setLogoSettings({
-            type: lType || "emoji",
-            emoji: lEmoji || "💳",
-            bg: lBg || "linear-gradient(135deg, #eaf5fc 0%, #d8eaf8 100%)",
-            image: lImg || "",
-          });
-        }
-      } catch (err) {
-        console.error("Failed to load login logo settings:", err);
+        const cached = localStorage.getItem("logoSettings");
+        if (cached) return JSON.parse(cached);
+      } catch {
+        // ignore
       }
     }
-    loadLogo();
-  }, []);
+    return {
+      type: "image",
+      emoji: "💳",
+      bg: "#ffffff",
+      image: "/logo-icon.png",
+    };
+  });
+  const [logoImgError, setLogoImgError] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +172,7 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-            {logoSettings.type === "image" && logoSettings.image ? (
+            {logoSettings.type === "image" && logoSettings.image && !logoImgError ? (
               <div
                 style={{
                   width: "76px",
@@ -201,6 +193,7 @@ export default function LoginPage() {
                   src={logoSettings.image}
                   alt="Logo"
                   crossOrigin="anonymous"
+                  onError={() => setLogoImgError(true)}
                   style={{
                     width: "100%",
                     height: "100%",

@@ -3,6 +3,7 @@
 import React from "react";
 import type { HealthFamilyMember, HealthGrowthLog } from "@/lib/types";
 import { calculateDetailedAge, getBMICalculation } from "@/lib/health-utils";
+import BMIRecommendationCard from "./BMIRecommendationCard";
 import { Plus, Trash2, Scale, Ruler, Activity, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface GrowthTabProps {
@@ -188,6 +189,13 @@ export default function GrowthTab({
           </button>
         </div>
       )}
+
+      {/* Panduan & Rekomendasi BMI (WHO & Kemenkes RI) */}
+      <BMIRecommendationCard
+        bmi={bmiInfo?.bmi || 0}
+        memberName={member.name}
+        relationRole={member.relation_role}
+      />
 
       {/* History Table */}
       {logs.length > 0 && (

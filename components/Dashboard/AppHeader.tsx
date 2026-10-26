@@ -22,19 +22,31 @@ export default function AppHeader({
   logoSettings,
   onNotificationClick,
 }: AppHeaderProps) {
-  const isCustomImage = logoSettings?.type === "image" && logoSettings?.image;
+  const [imgError, setImgError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [logoSettings?.image]);
+
+  const isCustomImage = logoSettings?.type === "image" && logoSettings?.image && !imgError;
   const isCustomEmoji = logoSettings?.type === "emoji" && logoSettings?.emoji && logoSettings.emoji !== "💳";
+  const brandMarkBg = logoSettings?.bg && logoSettings.bg.trim() !== "" ? logoSettings.bg : undefined;
 
   return (
     <header className="header">
       {/* Brand Mark / Logo */}
-      <div className="brand-mark" aria-label="Catat Keluarga">
+      <div
+        className="brand-mark"
+        aria-label="Catat Keluarga"
+        style={brandMarkBg ? { background: brandMarkBg } : undefined}
+      >
         {isCustomImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={logoSettings.image}
             alt="Logo"
             crossOrigin="anonymous"
+            onError={() => setImgError(true)}
             style={{
               width: "100%",
               height: "100%",

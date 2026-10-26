@@ -105,11 +105,11 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
                     src={logoBase64 || logoSettings.image}
                     alt="Logo"
                     crossOrigin="anonymous"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
                   />
-                ) : (
+                ) : logoSettings.emoji && logoSettings.emoji !== "💳" ? (
                   logoSettings.emoji
-                )}
+                ) : null}
               </div>
             </div>
           )}
