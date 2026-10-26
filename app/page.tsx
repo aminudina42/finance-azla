@@ -18,6 +18,7 @@ import PosCard from "@/components/Dashboard/PosCard";
 import FirstCycleSetupModal from "@/components/Modals/FirstCycleSetupModal";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import Skeleton from "@/components/Skeleton";
+import { isDebtPaidThisMonth } from "@/lib/debt-utils";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -36,6 +37,7 @@ export default function Home() {
     updatePos,
     startNewCycle,
     debts,
+    debtPayments,
     dbConnected,
     isLoading,
     cyclePosHistory,
@@ -142,10 +144,15 @@ export default function Home() {
     dayInCycleStr = `Selesai (${totalDays} hari)`;
   }
 
-  // Upcoming debt due dates (within 7 days)
+  // Upcoming debt due dates (within 7 days) yang BELUM dibayar periode ini
   const todayDate = today.getDate();
   const upcomingDebts = debts.filter((d) => {
     if (d.remaining_amount <= 0) return false;
+
+    // Jika sudah dibayar untuk bulan/periode ini, hilangkan dari peringatan jatuh tempo
+    const paidCheck = isDebtPaidThisMonth(d, debtPayments, transactions, selectedCycle);
+    if (paidCheck.isPaid) return false;
+
     const daysUntilDue =
       d.due_date >= todayDate
         ? d.due_date - todayDate

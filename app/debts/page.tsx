@@ -7,131 +7,19 @@ import ConfirmModal from "@/components/Modals/ConfirmModal";
 import PayDebtModal from "@/components/Modals/PayDebtModal";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
-import type { Debt, DebtPayment, Cycle } from "@/lib/types";
-
-function formatRp(n: number): string {
-  return "Rp " + n.toLocaleString("id-ID");
-}
-
-function formatDateIndo(dateStr: string): string {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-function getRemainingMonths(debt: {
-  remaining_amount: number;
-  tenor_months?: number;
-  paid_months?: number;
-  monthly_payment: number;
-}): number {
-  if (debt.remaining_amount <= 0) return 0;
-  if ((debt.tenor_months || 0) > 0) {
-    const sisa = (debt.tenor_months || 0) - (debt.paid_months || 0);
-    return Math.max(1, sisa);
-  }
-  if (debt.monthly_payment > 0) {
-    return Math.max(1, Math.ceil(debt.remaining_amount / debt.monthly_payment));
-  }
-  return Infinity;
-}
-
-interface MonthlyStatus {
-  status: "settled" | "paid" | "due_soon" | "overdue" | "pending";
-  label: string;
-  badgeBg: string;
-  badgeColor: string;
-  detail?: string;
-}
-
-function getDebtMonthlyStatus(
-  debt: Debt,
-  payments: DebtPayment[],
-  activeCycle?: Cycle | null
-): MonthlyStatus {
-  if (debt.remaining_amount <= 0) {
-    return {
-      status: "settled",
-      label: "Lunas Total",
-      badgeBg: "rgba(22, 168, 154, 0.12)",
-      badgeColor: "var(--teal)",
-      detail: "Semua kewajiban telah selesai",
-    };
-  }
-
-  const now = new Date();
-  const cycleStart = activeCycle
-    ? new Date(activeCycle.start_date + "T00:00:00")
-    : new Date(now.getFullYear(), now.getMonth(), 1);
-  const cycleEnd = activeCycle
-    ? new Date(activeCycle.end_date + "T23:59:59")
-    : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-  // Cari pembayaran untuk hutang ini dalam periode siklus/bulan berjalan
-  const paidInPeriod = payments.filter((p) => {
-    if (p.debt_id !== debt.id) return false;
-    const pDate = new Date(p.payment_date);
-    return pDate >= cycleStart && pDate <= cycleEnd;
-  });
-
-  if (paidInPeriod.length > 0) {
-    const latestPay = paidInPeriod[0];
-    const totalPaidInPeriod = paidInPeriod.reduce((s, p) => s + p.amount, 0);
-    return {
-      status: "paid",
-      label: "Bulan Ini: Sudah Dibayar",
-      badgeBg: "rgba(22, 168, 154, 0.12)",
-      badgeColor: "var(--teal)",
-      detail: `Dibayar ${formatDateIndo(latestPay.payment_date)} (${formatRp(totalPaidInPeriod)})`,
-    };
-  }
-
-  // Belum dibayar pada periode berjalan: cek tanggal jatuh tempo
-  const todayDate = now.getDate();
-  const dueDate = debt.due_date || 1;
-
-  if (todayDate > dueDate) {
-    const daysOverdue = todayDate - dueDate;
-    return {
-      status: "overdue",
-      label: `Lewat Jatuh Tempo (${daysOverdue} Hari)`,
-      badgeBg: "rgba(240, 68, 103, 0.12)",
-      badgeColor: "var(--danger)",
-      detail: `Jatuh tempo tanggal ${dueDate}`,
-    };
-  }
-
-  const daysLeft = dueDate - todayDate;
-  if (daysLeft <= 7) {
-    return {
-      status: "due_soon",
-      label: daysLeft === 0 ? "Jatuh Tempo Hari Ini" : `Jatuh Tempo dlm ${daysLeft} Hari`,
-      badgeBg: "rgba(234, 154, 28, 0.12)",
-      badgeColor: "#d97706",
-      detail: `Jatuh tempo tanggal ${dueDate}`,
-    };
-  }
-
-  return {
-    status: "pending",
-    label: `Menunggu Pembayaran (Tgl ${dueDate})`,
-    badgeBg: "#f1f5f9",
-    badgeColor: "var(--text-secondary)",
-    detail: `Jatuh tempo tanggal ${dueDate}`,
-  };
-}
+import type { Debt, DebtPayment } from "@/lib/types";
+import {
+  formatRp,
+  formatDateIndo,
+  getRemainingMonths,
+  getDebtMonthlyStatus,
+} from "@/lib/debt-utils";
 
 export default function DebtsPage() {
   const {
     debts,
     debtPayments,
+    transactions,
     posList,
     addDebt,
     updateDebt,
@@ -171,7 +59,7 @@ export default function DebtsPage() {
     let overdueCount = 0;
 
     activeDebts.forEach((d) => {
-      const st = getDebtMonthlyStatus(d, debtPayments, activeCycle);
+      const st = getDebtMonthlyStatus(d, debtPayments, transactions, activeCycle);
       if (st.status === "paid") paidCount++;
       else if (st.status === "overdue") overdueCount++;
       else if (st.status === "due_soon") dueSoonCount++;
@@ -183,11 +71,11 @@ export default function DebtsPage() {
       overdueCount,
       totalActive: activeDebts.length,
     };
-  }, [activeDebts, debtPayments, activeCycle]);
+  }, [activeDebts, debtPayments, transactions, activeCycle]);
 
   // Hirarki Sorting:
   // 1. Yang belum lunas selalu di atas, yang sudah lunas di paling bawah
-  // 2. Berdasarkan status bulan ini: overdue > due_soon > pending > paid
+  // 2. Berdasarkan status bulan ini: overdue > due_soon > pending > paid > settled
   // 3. Berdasarkan sisa jumlah bulan pembayaran terkecil
   const sortedDebts = useMemo(() => {
     return [...debts].sort((a, b) => {
@@ -202,8 +90,8 @@ export default function DebtsPage() {
         return (b.total_amount || 0) - (a.total_amount || 0);
       }
 
-      const stA = getDebtMonthlyStatus(a, debtPayments, activeCycle).status;
-      const stB = getDebtMonthlyStatus(b, debtPayments, activeCycle).status;
+      const stA = getDebtMonthlyStatus(a, debtPayments, transactions, activeCycle).status;
+      const stB = getDebtMonthlyStatus(b, debtPayments, transactions, activeCycle).status;
 
       const priority: Record<string, number> = {
         overdue: 1,
@@ -230,7 +118,7 @@ export default function DebtsPage() {
 
       return b.remaining_amount - a.remaining_amount;
     });
-  }, [debts, debtPayments, activeCycle]);
+  }, [debts, debtPayments, transactions, activeCycle]);
 
   const toggleHistory = (debtId: string) => {
     setExpandedHistories((prev) => ({
@@ -525,10 +413,10 @@ export default function DebtsPage() {
               <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>
                 Status Bulan Ini:{" "}
                 <strong style={{ color: monthlyStats.paidCount === monthlyStats.totalActive ? "var(--teal)" : "var(--navy)" }}>
-                  {monthlyStats.paidCount} dari {monthlyStats.totalActive} Dibayar
+                  {monthlyStats.paidCount} dari {monthlyStats.totalActive} Sudah Dibayar
                 </strong>
               </div>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
                 {monthlyStats.overdueCount > 0 && (
                   <span
                     style={{
@@ -568,7 +456,7 @@ export default function DebtsPage() {
                       color: "var(--teal)",
                     }}
                   >
-                    ✓ Semua Beres
+                    ✓ Semua Cicilan Beres
                   </span>
                 )}
               </div>
@@ -607,10 +495,10 @@ export default function DebtsPage() {
             : 0;
           const isLunas = debt.remaining_amount <= 0;
           const isKredit = (debt.tenor_months || 0) > 0;
-          const monthlyStatus = getDebtMonthlyStatus(debt, debtPayments, activeCycle);
+          const monthlyStatus = getDebtMonthlyStatus(debt, debtPayments, transactions, activeCycle);
 
           // Ambil riwayat pembayaran spesifik hutang ini
-          const paymentsForDebt = debtPayments
+          const paymentsForDebt = (debtPayments || [])
             .filter((p) => p.debt_id === debt.id)
             .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
 
@@ -621,76 +509,107 @@ export default function DebtsPage() {
               key={debt.id}
               style={{
                 background: "#ffffff",
-                border: `1.5px solid ${isLunas ? "rgba(22, 168, 154, 0.25)" : "var(--border)"}`,
-                borderRadius: "16px",
+                border: `1.5px solid ${
+                  isLunas
+                    ? "rgba(22, 168, 154, 0.25)"
+                    : monthlyStatus.status === "overdue"
+                    ? "rgba(240, 68, 103, 0.35)"
+                    : "var(--border)"
+                }`,
+                borderRadius: "18px",
                 padding: "16px",
-                marginBottom: "12px",
+                marginBottom: "14px",
                 boxShadow: "0 4px 14px rgba(16, 45, 85, 0.04)",
                 transition: "transform 0.15s ease, box-shadow 0.15s ease",
               }}
             >
-              {/* Header Kartu Hutang */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", marginBottom: "10px" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", minWidth: 0 }}>
+              {/* 1. Header Kartu: Icon, Nama, Badges, Action Buttons */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", minWidth: 0, flex: 1 }}>
                   <div
                     style={{
-                      width: "42px",
-                      height: "42px",
+                      width: "44px",
+                      height: "44px",
                       borderRadius: "12px",
                       background: isLunas ? "rgba(22, 168, 154, 0.1)" : "#f1f8fd",
                       display: "grid",
                       placeItems: "center",
-                      fontSize: "20px",
+                      fontSize: "22px",
                       flexShrink: 0,
                     }}
                   >
                     {debt.icon}
                   </div>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "15px", fontWeight: 750, color: "var(--navy)" }}>{debt.name}</span>
+                      <span style={{ fontSize: "15.5px", fontWeight: 800, color: "var(--navy)", wordBreak: "break-word" }}>
+                        {debt.name}
+                      </span>
                       {debt.creditor_name && (
                         <span
                           style={{
                             fontSize: "10px",
-                            fontWeight: 700,
-                            padding: "2px 6px",
+                            fontWeight: 750,
+                            padding: "2px 7px",
                             borderRadius: "5px",
-                            background: "#eef2f6",
-                            color: "var(--navy)",
+                            background: "#eef4ff",
+                            color: "var(--primary)",
                           }}
                         >
                           {debt.creditor_name}
                         </span>
                       )}
-                    </div>
-
-                    {/* Status Badge Bulanan */}
-                    <div style={{ marginTop: "4px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: 750,
-                          padding: "2px 7px",
-                          borderRadius: "5px",
-                          background: monthlyStatus.badgeBg,
-                          color: monthlyStatus.badgeColor,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        {monthlyStatus.status === "paid" && "✓ "}
-                        {monthlyStatus.status === "overdue" && "⚠️ "}
-                        {monthlyStatus.status === "due_soon" && "⏳ "}
-                        {monthlyStatus.label}
-                      </span>
-                      {monthlyStatus.detail && (
-                        <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                          · {monthlyStatus.detail}
+                      {isKredit && (
+                        <span
+                          style={{
+                            fontSize: "9.5px",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "5px",
+                            background: "#f0fdf4",
+                            color: "#15803d",
+                          }}
+                        >
+                          Kredit
                         </span>
                       )}
                     </div>
+
+                    {/* VA / Rekening Pill (Inline & Rapi) */}
+                    {debt.account_number && (
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          marginTop: "4px",
+                          background: "#f8fafc",
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid #e2e8f0",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                          VA: <strong style={{ color: "var(--navy)" }}>{debt.account_number}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(debt.account_number!, "Nomor Rekening")}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--primary)",
+                            fontSize: "10.5px",
+                            fontWeight: 750,
+                            cursor: "pointer",
+                            padding: "0 2px",
+                          }}
+                        >
+                          Salin
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -741,137 +660,115 @@ export default function DebtsPage() {
                 </div>
               </div>
 
-              {/* No. Rekening / VA Quick Copy Pill */}
-              {debt.account_number && (
-                <div
-                  style={{
-                    margin: "10px 0 12px",
-                    background: "#f0f7ff",
-                    border: "1px dashed #b9dcff",
-                    borderRadius: "10px",
-                    padding: "8px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "8px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-                    <span style={{ fontSize: "13px" }}>📋</span>
-                    <span style={{ fontSize: "11.5px", color: "var(--text-secondary)", fontWeight: 600 }}>
-                      VA / Rek:
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "12.5px",
-                        fontWeight: 750,
-                        color: "var(--navy)",
-                        fontVariantNumeric: "tabular-nums",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {debt.account_number}
-                    </span>
+              {/* 2. Status Banner (Status Bulan Ini) */}
+              <div
+                style={{
+                  marginTop: "12px",
+                  padding: "8px 12px",
+                  borderRadius: "10px",
+                  background: monthlyStatus.badgeBg,
+                  color: monthlyStatus.badgeColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 750 }}>
+                  {monthlyStatus.status === "paid" && <span>✓</span>}
+                  {monthlyStatus.status === "overdue" && <span>⚠️</span>}
+                  {monthlyStatus.status === "due_soon" && <span>⏳</span>}
+                  <span>{monthlyStatus.label}</span>
+                </div>
+                {monthlyStatus.detail && (
+                  <span style={{ fontSize: "11px", fontWeight: 600, opacity: 0.9 }}>
+                    {monthlyStatus.detail}
+                  </span>
+                )}
+              </div>
+
+              {/* 3. Info Finansial Bento Box (3 Kolom Seimbang & Rapi) */}
+              <div
+                style={{
+                  marginTop: "10px",
+                  background: "#f8fbff",
+                  border: "1px solid var(--border)",
+                  borderRadius: "14px",
+                  padding: "12px 14px",
+                  display: "grid",
+                  gridTemplateColumns: "1.2fr 1fr 1fr",
+                  gap: "10px",
+                }}
+              >
+                {/* Kolom 1: Sisa Tagihan */}
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 750, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                    Sisa Tagihan
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(debt.account_number!, "Nomor Rekening")}
+                  <div
                     style={{
-                      background: "#ffffff",
-                      border: "1px solid #cce4fc",
-                      borderRadius: "6px",
-                      padding: "3px 8px",
-                      fontSize: "10.5px",
-                      fontWeight: 700,
-                      color: "var(--primary)",
-                      cursor: "pointer",
-                      flexShrink: 0,
+                      fontSize: "14.5px",
+                      fontWeight: 850,
+                      color: isLunas ? "var(--teal)" : "var(--danger)",
+                      fontVariantNumeric: "tabular-nums",
+                      marginTop: "3px",
                     }}
                   >
-                    Salin
-                  </button>
+                    {formatRp(debt.remaining_amount)}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    dari {formatRp(debt.total_amount)}
+                  </div>
                 </div>
-              )}
 
-              {/* Info Finansial Hutang */}
-              {isKredit ? (
-                <div
-                  style={{
-                    margin: "12px 0",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                    background: "#f8fbff",
-                    padding: "12px 14px",
-                    borderRadius: "12px",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--border)", paddingBottom: "8px" }}>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>Sisa Tagihan</div>
-                    <div style={{ fontSize: "14.5px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--danger)", fontVariantNumeric: "tabular-nums" }}>
-                      {formatRp(debt.remaining_amount)}{" "}
-                      {!isLunas && <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>(Sisa {getRemainingMonths(debt)}x)</span>}
-                    </div>
+                {/* Kolom 2: Cicilan Bulanan */}
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 750, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                    Cicilan / Bln
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>Cicilan Bulanan</div>
-                    <div style={{ fontSize: "13.5px", fontWeight: 750, color: "var(--navy)", fontVariantNumeric: "tabular-nums" }}>
-                      {formatRp(debt.monthly_payment)} · Jatuh tempo tgl {debt.due_date}
-                    </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 800,
+                      color: "var(--navy)",
+                      fontVariantNumeric: "tabular-nums",
+                      marginTop: "3px",
+                    }}
+                  >
+                    {formatRp(debt.monthly_payment)}
                   </div>
-                  {(debt.principal_amount || 0) > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>Total Pinjaman</div>
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)", fontVariantNumeric: "tabular-nums" }}>
-                        {formatRp(debt.principal_amount!)}
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>Total Kewajiban</div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--navy)", fontVariantNumeric: "tabular-nums" }}>
-                      {formatRp(debt.total_amount)}
-                    </div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    Tgl {debt.due_date} tiap bulan
                   </div>
                 </div>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    margin: "12px 0 10px",
-                    padding: "10px 14px",
-                    background: "#f8fbff",
-                    borderRadius: "12px",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Sisa Tagihan</div>
-                    <div style={{ fontSize: "15px", fontWeight: 800, color: isLunas ? "var(--teal)" : "var(--danger)", fontVariantNumeric: "tabular-nums", marginTop: "2px" }}>
-                      {formatRp(debt.remaining_amount)}{" "}
-                      {!isLunas && getRemainingMonths(debt) < Infinity && (
-                        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>
-                          (Sisa {getRemainingMonths(debt)}x)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Cicilan / Bulan</div>
-                    <div style={{ fontSize: "13.5px", fontWeight: 750, color: "var(--navy)", fontVariantNumeric: "tabular-nums", marginTop: "2px" }}>
-                      {formatRp(debt.monthly_payment)}
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Progress bar */}
-              <div style={{ height: "6px", borderRadius: "99px", background: "var(--track)", overflow: "hidden", margin: "10px 0 6px" }}>
+                {/* Kolom 3: Progress & Tenor */}
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 750, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                    Progress
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 800,
+                      color: "var(--navy)",
+                      fontVariantNumeric: "tabular-nums",
+                      marginTop: "3px",
+                    }}
+                  >
+                    {isKredit || (debt.tenor_months || 0) > 0
+                      ? `Ke-${debt.paid_months || 0} / ${debt.tenor_months || 0}`
+                      : `${progress}%`}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    {!isLunas ? `Sisa ${getRemainingMonths(debt)}x lagi` : "Lunas"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Progress bar */}
+              <div style={{ height: "6px", borderRadius: "99px", background: "var(--track)", overflow: "hidden", margin: "12px 0 6px" }}>
                 <div
                   style={{
                     height: "100%",
@@ -884,17 +781,27 @@ export default function DebtsPage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-secondary)", fontWeight: 600 }}>
                 <span>{progress}% terbayar ({debt.paid_months || 0}x angsuran)</span>
-                <span>{formatRp(debt.total_amount - debt.remaining_amount)}</span>
+                <span>Terbayar {formatRp(debt.total_amount - debt.remaining_amount)}</span>
               </div>
 
               {/* Catatan jika ada */}
               {debt.notes && (
-                <div style={{ marginTop: "8px", fontSize: "11.5px", color: "var(--text-secondary)", fontStyle: "italic" }}>
+                <div
+                  style={{
+                    marginTop: "8px",
+                    fontSize: "11.5px",
+                    color: "var(--text-secondary)",
+                    fontStyle: "italic",
+                    background: "#f8fafc",
+                    padding: "6px 10px",
+                    borderRadius: "8px",
+                  }}
+                >
                   💬 &ldquo;{debt.notes}&rdquo;
                 </div>
               )}
 
-              {/* Tombol Aksi Bayar */}
+              {/* 5. Tombol Aksi Bayar */}
               {!isLunas && (
                 <button
                   type="button"
@@ -903,9 +810,13 @@ export default function DebtsPage() {
                     marginTop: "12px",
                     padding: "10px 14px",
                     borderRadius: "12px",
-                    border: "1px solid rgba(40, 127, 240, 0.2)",
-                    background: "rgba(40, 127, 240, 0.08)",
-                    color: "var(--primary)",
+                    border: monthlyStatus.status === "paid"
+                      ? "1.5px solid rgba(22, 168, 154, 0.3)"
+                      : "1.5px solid rgba(40, 127, 240, 0.2)",
+                    background: monthlyStatus.status === "paid"
+                      ? "rgba(22, 168, 154, 0.08)"
+                      : "rgba(40, 127, 240, 0.08)",
+                    color: monthlyStatus.status === "paid" ? "var(--teal)" : "var(--primary)",
                     fontWeight: 750,
                     fontSize: "13px",
                     cursor: "pointer",
@@ -913,15 +824,19 @@ export default function DebtsPage() {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "6px",
-                    transition: "background 0.15s ease",
+                    transition: "all 0.15s ease",
                   }}
                   onClick={() => setPayingDebt(debt)}
                 >
-                  Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}
+                  {monthlyStatus.status === "paid" ? (
+                    <span>✓ Cicilan Bulan Ini Sudah Dibayar (Bayar Lagi?)</span>
+                  ) : (
+                    <span>💸 Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}</span>
+                  )}
                 </button>
               )}
 
-              {/* Accordion Toggle: Riwayat Pembayaran */}
+              {/* 6. Accordion Toggle: Riwayat Pembayaran */}
               <div style={{ marginTop: "12px", borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
                 <button
                   type="button"
