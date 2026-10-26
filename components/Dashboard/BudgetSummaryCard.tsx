@@ -1,12 +1,15 @@
 "use client";
 
 import React from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface BudgetSummaryCardProps {
   sisaBudget: number;
   totalBudget: number;
   dayInCycleStr: string;
   onOpenGajianModal: () => void;
+  isHideNominal?: boolean;
+  onToggleHideNominal?: () => void;
 }
 
 function formatRp(n: number): string {
@@ -19,16 +22,41 @@ export default function BudgetSummaryCard({
   totalBudget,
   dayInCycleStr,
   onOpenGajianModal,
+  isHideNominal = true,
+  onToggleHideNominal,
 }: BudgetSummaryCardProps) {
   const isDeficit = sisaBudget < 0;
 
   return (
     <section className="summary" aria-label="Ringkasan budget siklus aktif">
-      {/* Top area: Eyebrow and full-width amount without vertical divider collisions */}
+      {/* Top area: Eyebrow, eye toggle button with tooltip, and full-width amount */}
       <div className="summary-top">
-        <div className="eyebrow">Sisa Budget Siklus Ini</div>
+        <div className="summary-top-row">
+          <div className="eyebrow">Sisa Budget Siklus Ini</div>
+          {onToggleHideNominal && (
+            <div className="eye-tooltip-container">
+              <button
+                type="button"
+                onClick={onToggleHideNominal}
+                className="eye-toggle-btn"
+                aria-label={isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
+                aria-pressed={isHideNominal}
+                title={isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
+              >
+                {isHideNominal ? (
+                  <EyeOff size={15} strokeWidth={2.2} aria-hidden="true" />
+                ) : (
+                  <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
+                )}
+              </button>
+              <span className="eye-tooltip-bubble" role="tooltip">
+                {isHideNominal ? "Tampilkan saldo" : "Sembunyikan saldo"}
+              </span>
+            </div>
+          )}
+        </div>
         <div className={`amount ${isDeficit ? "amount-red" : "amount-navy"}`}>
-          {formatRp(sisaBudget)}
+          {isHideNominal ? "Rp ••••••" : formatRp(sisaBudget)}
         </div>
       </div>
 
@@ -40,7 +68,7 @@ export default function BudgetSummaryCard({
               <ellipse cx="12" cy="5" rx="8" ry="3" />
               <path d="M4 5v5c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 10v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5M4 15v4c0 1.7 3.6 3 8 3s8-1.3 8-3v-4" />
             </svg>
-            <span>Total {formatRp(totalBudget)}</span>
+            <span>Total {isHideNominal ? "Rp ••••••" : formatRp(totalBudget)}</span>
           </div>
 
           <span className="meta-sep" aria-hidden="true" />

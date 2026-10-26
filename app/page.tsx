@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import type { Pos } from "@/lib/types";
@@ -24,6 +24,29 @@ function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
   return prefix + "Rp " + Math.abs(n).toLocaleString("id-ID");
 }
+
+const subscribeHideNominal = (callback: () => void) => {
+  window.addEventListener("storage", callback);
+  window.addEventListener("catatkeluarga_hide_nominal_change", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("catatkeluarga_hide_nominal_change", callback);
+  };
+};
+
+const getHideNominalSnapshot = () => {
+  try {
+    const saved = localStorage.getItem("catatkeluarga_hide_nominal");
+    if (saved !== null) {
+      return saved === "true";
+    }
+    return true; // Default: HIDE
+  } catch {
+    return true;
+  }
+};
+
+const getHideNominalServerSnapshot = () => true;
 
 export default function Home() {
   const router = useRouter();
@@ -56,6 +79,22 @@ export default function Home() {
   const [editingPos, setEditingPos] = useState<Pos | null>(null);
   const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const isHideNominal = useSyncExternalStore(
+    subscribeHideNominal,
+    getHideNominalSnapshot,
+    getHideNominalServerSnapshot
+  );
+
+  const handleToggleHideNominal = () => {
+    try {
+      const nextVal = !isHideNominal;
+      localStorage.setItem("catatkeluarga_hide_nominal", String(nextVal));
+      window.dispatchEvent(new Event("catatkeluarga_hide_nominal_change"));
+    } catch {
+      // Abaikan jika localStorage tidak diizinkan di browser
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -304,6 +343,8 @@ export default function Home() {
         totalBudget={totalBudget}
         dayInCycleStr={dayInCycleStr}
         onOpenGajianModal={() => setShowGajianModal(true)}
+        isHideNominal={isHideNominal}
+        onToggleHideNominal={handleToggleHideNominal}
       />
 
       {/* 2.1 Peringatan Jatuh Tempo Hutang Terdekat */}
@@ -412,6 +453,7 @@ export default function Home() {
               key={pos.id}
               pos={pos}
               onOpenMenu={(p) => setEditingPos(p)}
+              isHideNominal={isHideNominal}
             />
           ))}
         </section>

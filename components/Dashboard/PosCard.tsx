@@ -7,6 +7,7 @@ import type { Pos } from "@/lib/types";
 interface PosCardProps {
   pos: Pos;
   onOpenMenu?: (pos: Pos, e: React.MouseEvent) => void;
+  isHideNominal?: boolean;
 }
 
 function formatRp(n: number): string {
@@ -14,7 +15,7 @@ function formatRp(n: number): string {
   return prefix + "Rp " + Math.abs(n).toLocaleString("id-ID");
 }
 
-export default function PosCard({ pos, onOpenMenu }: PosCardProps) {
+export default function PosCard({ pos, onOpenMenu, isHideNominal = true }: PosCardProps) {
   const isGoal = Boolean(pos.is_goal);
   const isOverbudget = pos.current_balance < 0;
   const pct = pos.monthly_target > 0 ? pos.current_balance / pos.monthly_target : 0;
@@ -56,7 +57,9 @@ export default function PosCard({ pos, onOpenMenu }: PosCardProps) {
   } else if (pos.name === "Tabungan") {
     const diff = pos.current_balance - pos.monthly_target;
     fillWidth = Math.min(100, Math.max(0, Math.round(pct * 100)));
-    statusText = diff >= 0 ? `Akumulasi +${formatRp(diff)}` : `${formatRp(pos.current_balance)} tersisa`;
+    statusText = diff >= 0
+      ? (isHideNominal ? "Akumulasi +Rp ••••••" : `Akumulasi +${formatRp(diff)}`)
+      : (isHideNominal ? "Rp •••••• tersisa" : `${formatRp(pos.current_balance)} tersisa`);
     percentLabel = `${Math.round(pct * 100)}%`;
   } else if (isOverbudget) {
     const overPct = pos.monthly_target > 0 ? Math.round(Math.abs(pos.current_balance / pos.monthly_target) * 100) + 100 : 100;
@@ -75,7 +78,7 @@ export default function PosCard({ pos, onOpenMenu }: PosCardProps) {
       <Link
         href={`/pos/${pos.id}`}
         className="pos-card"
-        aria-label={`Pos ${pos.name}: Saldo ${formatRp(pos.current_balance)}`}
+        aria-label={`Pos ${pos.name}: Saldo ${isHideNominal ? "disembunyikan" : formatRp(pos.current_balance)}`}
       >
         {/* Header row: Icon on left, Menu ⋮ on right */}
         <div className="pos-card-head">
@@ -104,7 +107,7 @@ export default function PosCard({ pos, onOpenMenu }: PosCardProps) {
             {isGoal && <span className="pos-goal-badge">GOAL</span>}
           </div>
           <div className={`pos-amount ${amountClass}`}>
-            {formatRp(pos.current_balance)}
+            {isHideNominal ? "Rp ••••••" : formatRp(pos.current_balance)}
           </div>
         </div>
 
