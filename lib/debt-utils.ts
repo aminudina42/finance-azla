@@ -1,4 +1,4 @@
-import type { Debt, DebtPayment, Transaction, Cycle } from "./types";
+import type { Debt, DebtPayment, Transaction, Cycle, DebtRatioEvaluation } from "./types";
 
 export function formatRp(n: number): string {
   return "Rp " + (n || 0).toLocaleString("id-ID");
@@ -218,3 +218,102 @@ export function getDebtMonthlyStatus(
     daysDiff: daysLeft,
   };
 }
+
+/**
+ * Menghasilkan ringkasan rentang persentase 3 zona (Aman, Caution, Bahaya)
+ * berdasarkan persentase batas aman yang diatur.
+ */
+export function getDebtLimitTierRanges(maxSafePct: number) {
+  const safeEnd = Math.max(1, Math.round(maxSafePct));
+  const cautionStart = safeEnd + 1;
+  const dangerStart = safeEnd + 10;
+
+  return {
+    safeRange: `1–${safeEnd}%`,
+    cautionRange: `${cautionStart}–${dangerStart}%`,
+    dangerRange: `>${dangerStart}%`,
+  };
+}
+
+/**
+ * Mengevaluasi kesehatan rasio cicilan hutang keluarga (DSR) terhadap batas aman yang ditentukan.
+ * 
+ * Aturan Peringatan:
+ * 1. Di bawah / sama dengan batas yang diatur: "Masih aman" (🟢)
+ * 2. 1-10% di atas batas yang diatur: "Keuangan keluarga mulai tidak sehat" (🟡 Caution)
+ * 3. Lebih dari 10% di atas batas yang diatur: "Kondisi keuangan keluarga sangat tidak sehat" (🔴 Danger)
+ */
+export function evaluateDebtRatio(
+  totalMonthlyDebt: number,
+  monthlyIncome: number,
+  maxSafePercentage: number = 25
+): DebtRatioEvaluation {
+  const safeEnd = Math.max(1, Number(maxSafePercentage) || 25);
+  const dangerThreshold = safeEnd + 10;
+
+  if (monthlyIncome <= 0) {
+    return {
+      ratio: 0,
+      maxSafePct: safeEnd,
+      tier: "safe",
+      title: "Data Pemasukan Belum Tersedia",
+      badgeText: "Belum Dihitung",
+      badgeBg: "rgba(100, 116, 139, 0.12)",
+      badgeColor: "#64748b",
+      message: "Atur anggaran pos bulanan atau masukkan estimasi penghasilan agar rasio cicilan dapat dihitung otomatis.",
+      totalMonthlyDebt,
+      baseIncome: 0,
+      excessPct: 0,
+    };
+  }
+
+  const exactRatio = (totalMonthlyDebt / monthlyIncome) * 100;
+  const ratio = Math.round(exactRatio * 10) / 10;
+
+  if (ratio <= safeEnd) {
+    return {
+      ratio,
+      maxSafePct: safeEnd,
+      tier: "safe",
+      title: "Masih aman",
+      badgeText: "Masih aman",
+      badgeBg: "rgba(22, 168, 154, 0.12)",
+      badgeColor: "var(--teal)",
+      message: `Total cicilan ${formatRp(totalMonthlyDebt)} adalah ${ratio}% dari penghasilan (di bawah batas aman ${safeEnd}%). Keuangan keluarga sehat.`,
+      totalMonthlyDebt,
+      baseIncome: monthlyIncome,
+      excessPct: 0,
+    };
+  } else if (ratio <= dangerThreshold) {
+    const excessPct = Math.round((ratio - safeEnd) * 10) / 10;
+    return {
+      ratio,
+      maxSafePct: safeEnd,
+      tier: "caution",
+      title: "Keuangan keluarga mulai tidak sehat",
+      badgeText: "Caution: Mulai Tidak Sehat",
+      badgeBg: "rgba(244, 163, 59, 0.15)",
+      badgeColor: "#d97706",
+      message: `Total cicilan ${formatRp(totalMonthlyDebt)} mencapai ${ratio}% dari penghasilan (${excessPct}% di atas batas aman ${safeEnd}%). Mulai batasi cicilan baru.`,
+      totalMonthlyDebt,
+      baseIncome: monthlyIncome,
+      excessPct,
+    };
+  } else {
+    const excessPct = Math.round((ratio - safeEnd) * 10) / 10;
+    return {
+      ratio,
+      maxSafePct: safeEnd,
+      tier: "danger",
+      title: "Kondisi keuangan keluarga sangat tidak sehat",
+      badgeText: "Peringatan: Sangat Tidak Sehat",
+      badgeBg: "rgba(240, 68, 103, 0.15)",
+      badgeColor: "var(--danger)",
+      message: `Total cicilan ${formatRp(totalMonthlyDebt)} melonjak hingga ${ratio}% dari penghasilan (>10% melebihi batas aman ${safeEnd}%). Berisiko tinggi mengganggu kebutuhan primer keluarga!`,
+      totalMonthlyDebt,
+      baseIncome: monthlyIncome,
+      excessPct,
+    };
+  }
+}
+

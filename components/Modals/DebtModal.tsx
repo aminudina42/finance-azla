@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Modal from "@/components/Modal";
+import { evaluateDebtRatio } from "@/lib/debt-utils";
 
 const DEBT_ICONS = [
   "💳", "🏦", "🏠", "🚗", "📱", "💊", "🎓", "🛒",
@@ -24,6 +25,9 @@ interface DebtModalProps {
   debtCreditor?: string;
   debtAccountNumber?: string;
   debtNotes?: string;
+  currentTotalMonthlyDebt?: number;
+  monthlyIncome?: number;
+  maxSafePercentage?: number;
   onSave: (
     name: string,
     icon: string,
@@ -40,7 +44,7 @@ interface DebtModalProps {
   ) => void;
 }
 
-export default function DebtModal({
+function DebtModalContent({
   isOpen,
   onClose,
   mode,
@@ -56,6 +60,9 @@ export default function DebtModal({
   debtCreditor = "",
   debtAccountNumber = "",
   debtNotes = "",
+  currentTotalMonthlyDebt = 0,
+  monthlyIncome = 0,
+  maxSafePercentage = 25,
   onSave,
 }: DebtModalProps) {
   const [name, setName] = useState(debtName);
@@ -72,36 +79,6 @@ export default function DebtModal({
   const [creditor, setCreditor] = useState(debtCreditor);
   const [accountNumber, setAccountNumber] = useState(debtAccountNumber);
   const [notes, setNotes] = useState(debtNotes);
-
-  useEffect(() => {
-    setName(debtName);
-    setIcon(debtIcon);
-    setTotalStr(debtTotal ? debtTotal.toLocaleString("id-ID") : "");
-    setRemainingStr(debtRemaining ? debtRemaining.toLocaleString("id-ID") : "");
-    setMonthlyStr(debtMonthly ? debtMonthly.toLocaleString("id-ID") : "");
-    setDueDateStr(debtDueDate ? debtDueDate.toString() : "1");
-    setIsKredit(debtTenor > 0);
-    setPrincipalStr(debtPrincipal ? debtPrincipal.toLocaleString("id-ID") : "");
-    setTenor(debtTenor);
-    setPaidMonths(debtPaidMonths);
-    setCreditor(debtCreditor);
-    setAccountNumber(debtAccountNumber);
-    setNotes(debtNotes);
-  }, [
-    debtName,
-    debtIcon,
-    debtTotal,
-    debtRemaining,
-    debtMonthly,
-    debtDueDate,
-    debtPrincipal,
-    debtTenor,
-    debtPaidMonths,
-    debtCreditor,
-    debtAccountNumber,
-    debtNotes,
-    isOpen,
-  ]);
 
   const handleSave = () => {
     let total = Number(totalStr.replace(/\D/g, ""));
@@ -152,6 +129,13 @@ export default function DebtModal({
     }
     setter(Number(rawValue).toLocaleString("id-ID"));
   };
+
+  const enteredMonthly = Number(monthlyStr.replace(/\D/g, "")) || 0;
+  const simulatedTotalDebt = mode === "add"
+    ? (currentTotalMonthlyDebt || 0) + enteredMonthly
+    : Math.max(0, (currentTotalMonthlyDebt || 0) - (debtMonthly || 0) + enteredMonthly);
+
+  const evaluation = evaluateDebtRatio(simulatedTotalDebt, monthlyIncome || 0, maxSafePercentage || 25);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -344,6 +328,63 @@ export default function DebtModal({
               Total Kewajiban: Rp {(tenor * Number(monthlyStr.replace(/\D/g, ""))).toLocaleString("id-ID")}
             </div>
           )}
+
+          {enteredMonthly > 0 && (
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px 12px",
+                borderRadius: "12px",
+                background: evaluation.badgeBg,
+                border: `1.5px solid ${
+                  evaluation.tier === "safe"
+                    ? "rgba(22, 168, 154, 0.35)"
+                    : evaluation.tier === "caution"
+                    ? "rgba(244, 163, 59, 0.45)"
+                    : "rgba(240, 68, 103, 0.45)"
+                }`,
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+                animation: "fadeIn 0.2s ease",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "14px" }}>
+                    {evaluation.tier === "safe" ? "🟢" : evaluation.tier === "caution" ? "🟡" : "🔴"}
+                  </span>
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: evaluation.badgeColor }}>
+                    {evaluation.title}
+                  </span>
+                </div>
+                {monthlyIncome > 0 && (
+                  <span
+                    style={{
+                      fontSize: "10.5px",
+                      fontWeight: 800,
+                      padding: "2px 7px",
+                      borderRadius: "6px",
+                      background: "#ffffff",
+                      color: evaluation.badgeColor,
+                      border: `1px solid ${
+                        evaluation.tier === "safe"
+                          ? "rgba(22, 168, 154, 0.3)"
+                          : evaluation.tier === "caution"
+                          ? "rgba(244, 163, 59, 0.3)"
+                          : "rgba(240, 68, 103, 0.3)"
+                      }`,
+                    }}
+                  >
+                    Rasio {evaluation.ratio}% (Batas {evaluation.maxSafePct}%)
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: 0, fontSize: "11px", color: "var(--navy)", lineHeight: "1.4" }}>
+                {evaluation.message}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="fg">
@@ -376,5 +417,15 @@ export default function DebtModal({
         <button className="m-save" onClick={handleSave}>Simpan</button>
       </div>
     </Modal>
+  );
+}
+
+export default function DebtModal(props: DebtModalProps) {
+  if (!props.isOpen) return null;
+  return (
+    <DebtModalContent
+      key={(props.debtName || "") + (props.debtTotal || 0) + (props.debtMonthly || 0) + props.mode}
+      {...props}
+    />
   );
 }

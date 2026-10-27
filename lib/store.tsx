@@ -79,6 +79,14 @@ interface AppState {
   deleteDebt: (id: string) => Promise<void>;
   payDebt: (debtId: string, amount: number, posId: string, notes?: string, paymentDate?: string) => Promise<void>;
   rollbackDebtPayment: (paymentId: string) => Promise<void>;
+  debtMaxSafePercentage: number;
+  debtIncomeMode: "auto" | "custom";
+  debtCustomIncome: number;
+  updateDebtLimitSettings: (settings: {
+    maxPercentage?: number;
+    incomeMode?: "auto" | "custom";
+    customIncome?: number;
+  }) => Promise<void>;
   logoSettings: {
     type: "emoji" | "image";
     emoji: string;
@@ -215,6 +223,19 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [childTransactions, setChildTransactions] = useState<ChildTransaction[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
+  const [debtMaxSafePercentage, setDebtMaxSafePercentage] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("debtMaxSafePercentage");
+        if (cached) return Number(cached) || 25;
+      } catch {
+        // ignore
+      }
+    }
+    return 25;
+  });
+  const [debtIncomeMode, setDebtIncomeMode] = useState<"auto" | "custom">("auto");
+  const [debtCustomIncome, setDebtCustomIncome] = useState<number>(0);
   const [cyclePosHistory, setCyclePosHistory] = useState<CyclePosHistory[]>([]);
   const [firstSetupComplete, setFirstSetupComplete] = useState(false);
   const [firstSetupMode, setFirstSetupMode] = useState<"now" | "wait" | "completed" | null>(null);
@@ -485,6 +506,32 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
               }
             } catch {
               // ignore
+            }
+          }
+
+          const debtLimitVal = settingsMap.get("debt_max_safe_pct");
+          if (debtLimitVal) {
+            const parsed = Number(debtLimitVal);
+            if (!isNaN(parsed) && parsed > 0) {
+              setDebtMaxSafePercentage(parsed);
+              try {
+                localStorage.setItem("debtMaxSafePercentage", String(parsed));
+              } catch {
+                // ignore
+              }
+            }
+          }
+
+          const dModeVal = settingsMap.get("debt_income_mode");
+          if (dModeVal === "custom" || dModeVal === "auto") {
+            setDebtIncomeMode(dModeVal);
+          }
+
+          const dIncomeVal = settingsMap.get("debt_custom_income");
+          if (dIncomeVal) {
+            const parsed = Number(dIncomeVal);
+            if (!isNaN(parsed) && parsed >= 0) {
+              setDebtCustomIncome(parsed);
             }
           }
         }
@@ -1295,6 +1342,36 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     }
   }, [currentKeluarga?.id, currentMember?.keluarga_id]);
 
+  // ── Debt Limit & DSR Threshold Settings ──
+  const updateDebtLimitSettings = useCallback(
+    async (settings: {
+      maxPercentage?: number;
+      incomeMode?: "auto" | "custom";
+      customIncome?: number;
+    }) => {
+      if (settings.maxPercentage !== undefined) {
+        const val = Math.max(1, Math.min(100, Math.round(Number(settings.maxPercentage) || 25)));
+        setDebtMaxSafePercentage(val);
+        try {
+          localStorage.setItem("debtMaxSafePercentage", String(val));
+        } catch {
+          // ignore
+        }
+        await upsertSetting("debt_max_safe_pct", String(val));
+      }
+      if (settings.incomeMode !== undefined) {
+        setDebtIncomeMode(settings.incomeMode);
+        await upsertSetting("debt_income_mode", settings.incomeMode);
+      }
+      if (settings.customIncome !== undefined) {
+        const inc = Math.max(0, Number(settings.customIncome) || 0);
+        setDebtCustomIncome(inc);
+        await upsertSetting("debt_custom_income", String(inc));
+      }
+    },
+    [upsertSetting]
+  );
+
   // ── Gajian Tiba! — Start New Cycle ──
   const startNewCycle = useCallback(async (
     posConfigs?: PosConfigItem[],
@@ -2040,6 +2117,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     addSakuBorrowTransaction, addSakuReturnTransaction,
     cyclePosHistory, startNewCycle,
     debts, debtPayments, addDebt, updateDebt, deleteDebt, payDebt, rollbackDebtPayment,
+    debtMaxSafePercentage, debtIncomeMode, debtCustomIncome, updateDebtLimitSettings,
     logoSettings, updateLogoSettings,
     isLoading, dbConnected,
     isNavigating, setIsNavigating,

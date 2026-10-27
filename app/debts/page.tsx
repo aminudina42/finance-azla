@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useApp } from "@/lib/store";
 import DebtModal from "@/components/Modals/DebtModal";
+import DebtLimitModal from "@/components/Modals/DebtLimitModal";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import PayDebtModal from "@/components/Modals/PayDebtModal";
 import PageHeader from "@/components/PageHeader";
@@ -13,6 +14,7 @@ import {
   formatDateIndo,
   getRemainingMonths,
   getDebtMonthlyStatus,
+  evaluateDebtRatio,
 } from "@/lib/debt-utils";
 
 export default function DebtsPage() {
@@ -26,12 +28,17 @@ export default function DebtsPage() {
     deleteDebt,
     payDebt,
     rollbackDebtPayment,
+    debtMaxSafePercentage,
+    debtIncomeMode,
+    debtCustomIncome,
+    updateDebtLimitSettings,
     cycles,
     cycleIndex,
     isLoading,
   } = useApp();
 
   const [showModal, setShowModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
@@ -51,6 +58,24 @@ export default function DebtsPage() {
   const activeDebts = useMemo(() => debts.filter((d) => d.remaining_amount > 0), [debts]);
   const totalDebt = useMemo(() => activeDebts.reduce((s, d) => s + d.remaining_amount, 0), [activeDebts]);
   const totalMonthly = useMemo(() => activeDebts.reduce((s, d) => s + d.monthly_payment, 0), [activeDebts]);
+
+  // Dasar penghasilan & evaluasi kesehatan rasio cicilan (DSR)
+  const autoMonthlyIncome = useMemo(() => {
+    return posList
+      .filter((p) => !p.is_goal)
+      .reduce((sum, p) => sum + (p.monthly_target || 0), 0);
+  }, [posList]);
+
+  const effectiveMonthlyIncome = useMemo(() => {
+    if (debtIncomeMode === "custom" && debtCustomIncome > 0) {
+      return debtCustomIncome;
+    }
+    return autoMonthlyIncome;
+  }, [debtIncomeMode, debtCustomIncome, autoMonthlyIncome]);
+
+  const currentDebtEvaluation = useMemo(() => {
+    return evaluateDebtRatio(totalMonthly, effectiveMonthlyIncome, debtMaxSafePercentage);
+  }, [totalMonthly, effectiveMonthlyIncome, debtMaxSafePercentage]);
 
   // Statistik status bulan ini
   const monthlyStats = useMemo(() => {
@@ -396,6 +421,79 @@ export default function DebtsPage() {
             </div>
           </div>
 
+          {/* Rasio Beban Cicilan (DSR) & Atur Batas */}
+          <div
+            style={{
+              marginTop: "14px",
+              padding: "10px 14px",
+              borderRadius: "14px",
+              background: "#ffffff",
+              border: `1.5px solid ${
+                currentDebtEvaluation.tier === "safe"
+                  ? "rgba(22, 168, 154, 0.25)"
+                  : currentDebtEvaluation.tier === "caution"
+                  ? "rgba(244, 163, 59, 0.35)"
+                  : "rgba(240, 68, 103, 0.35)"
+              }`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
+              <span style={{ fontSize: "18px" }}>
+                {currentDebtEvaluation.tier === "safe" ? "🟢" : currentDebtEvaluation.tier === "caution" ? "🟡" : "🔴"}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 750, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Rasio Cicilan:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "13.5px",
+                      fontWeight: 850,
+                      color: currentDebtEvaluation.badgeColor,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {effectiveMonthlyIncome > 0 ? `${currentDebtEvaluation.ratio}%` : "0%"}
+                  </span>
+                  <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    (Batas aman: {debtMaxSafePercentage}%)
+                  </span>
+                </div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: currentDebtEvaluation.badgeColor }}>
+                  {currentDebtEvaluation.title}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowLimitModal(true)}
+              style={{
+                padding: "6px 11px",
+                borderRadius: "8px",
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                color: "var(--navy)",
+                fontSize: "11.5px",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                flexShrink: 0,
+                boxShadow: "0 1px 4px rgba(16,45,85,0.04)",
+              }}
+            >
+              <span>⚙️</span> Atur Batas
+            </button>
+          </div>
+
           {/* Status Periode Berjalan */}
           {monthlyStats.totalActive > 0 && (
             <div
@@ -464,6 +562,35 @@ export default function DebtsPage() {
           )}
         </div>
       </div>
+
+      {/* Alert Banner jika Rasio Cicilan di zona Caution atau Danger */}
+      {currentDebtEvaluation.tier !== "safe" && totalMonthly > 0 && (
+        <div style={{ padding: "12px 20px 0" }}>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: "14px",
+              background: currentDebtEvaluation.tier === "caution" ? "rgba(244, 163, 59, 0.12)" : "rgba(240, 68, 103, 0.12)",
+              border: `1.5px solid ${currentDebtEvaluation.tier === "caution" ? "rgba(244, 163, 59, 0.4)" : "rgba(240, 68, 103, 0.4)"}`,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "10px",
+            }}
+          >
+            <span style={{ fontSize: "18px", marginTop: "1px" }}>
+              {currentDebtEvaluation.tier === "caution" ? "⚠️" : "🚨"}
+            </span>
+            <div style={{ flex: 1, fontSize: "12px", lineHeight: "1.45", color: "var(--navy)" }}>
+              <div style={{ fontWeight: 800, color: currentDebtEvaluation.badgeColor, marginBottom: "2px" }}>
+                {currentDebtEvaluation.tier === "caution"
+                  ? "Keuangan keluarga mulai tidak sehat"
+                  : "Kondisi keuangan keluarga sangat tidak sehat"}
+              </div>
+              <div>{currentDebtEvaluation.message}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Debt list */}
       <div style={{ padding: "16px 20px 0" }}>
@@ -989,7 +1116,25 @@ export default function DebtsPage() {
         debtCreditor={editingDebt?.creditor_name}
         debtAccountNumber={editingDebt?.account_number}
         debtNotes={editingDebt?.notes}
+        currentTotalMonthlyDebt={totalMonthly}
+        monthlyIncome={effectiveMonthlyIncome}
+        maxSafePercentage={debtMaxSafePercentage}
         onSave={handleSave}
+      />
+
+      {/* Modal Atur Batas Persentase Hutang */}
+      <DebtLimitModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        currentPercentage={debtMaxSafePercentage}
+        currentIncomeMode={debtIncomeMode}
+        currentCustomIncome={debtCustomIncome}
+        autoMonthlyIncome={autoMonthlyIncome}
+        totalMonthlyDebt={totalMonthly}
+        onSave={async (settings) => {
+          await updateDebtLimitSettings(settings);
+          showToast("Pengaturan batas hutang berhasil disimpan! ⚙️");
+        }}
       />
 
       {/* Modal Konfirmasi Hapus Hutang */}

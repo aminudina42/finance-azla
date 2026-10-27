@@ -156,6 +156,28 @@ export interface DebtPayment {
   created_at: string;
 }
 
+export type DebtRatioTier = "safe" | "caution" | "danger";
+
+export interface DebtLimitSettings {
+  maxSafePercentage: number;
+  incomeMode: "auto" | "custom";
+  customMonthlyIncome: number;
+}
+
+export interface DebtRatioEvaluation {
+  ratio: number;
+  maxSafePct: number;
+  tier: DebtRatioTier;
+  title: string;
+  message: string;
+  badgeText: string;
+  badgeBg: string;
+  badgeColor: string;
+  totalMonthlyDebt: number;
+  baseIncome: number;
+  excessPct: number;
+}
+
 export interface Store {
   id: string;
   keluarga_id?: string;
