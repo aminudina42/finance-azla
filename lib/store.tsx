@@ -304,7 +304,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       ]);
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Supabase query timeout")), 3000)
+        setTimeout(() => reject(new Error("Supabase query timeout")), 8000)
       );
 
       const [posRes, cycRes, txRes, childRes, ctxRes, debtRes, histRes, settingsRes, debtPayRes,

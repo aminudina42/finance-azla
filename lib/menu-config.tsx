@@ -352,6 +352,43 @@ export const AVAILABLE_MENUS: MenuItem[] = [
     ),
   },
   {
+    id: "laporan",
+    name: "Laporan",
+    desc: "Analisis & keuangan",
+    path: "/laporan",
+    iconBg: "#e6f9f0",
+    quickClass: "teal-bg",
+    iconSrc: "/logo/icon-menu-laporan.png",
+    iconModal: (
+      <MenuIcon
+        src="/logo/icon-menu-laporan.png"
+        alt="Menu Laporan"
+        size={44}
+        fallbackSvg={
+          <svg viewBox="0 0 32 32" fill="none" style={{ width: "28px", height: "28px" }}>
+            <rect x="5" y="4" width="22" height="24" rx="5" fill="#16a89a" opacity="0.18" stroke="#0d9488" strokeWidth="2.2" />
+            <path d="M10 10h12M10 15h12M10 20h7" stroke="#0d9488" strokeWidth="2.2" strokeLinecap="round" />
+            <circle cx="21" cy="21" r="3.5" fill="#16a89a" opacity="0.3" stroke="#0d9488" strokeWidth="1.8" />
+            <path d="M21 19.5v1.5l1 1" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        }
+      />
+    ),
+    iconQuick: (
+      <MenuIcon
+        src="/logo/icon-menu-laporan.png"
+        alt="Menu Laporan"
+        size={42}
+        fallbackSvg={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <path d="M7 8h10M7 12h10M7 16h6" />
+          </svg>
+        }
+      />
+    ),
+  },
+  {
     id: "traktir",
     name: "Traktir Dev",
     desc: "Support pengembang",
