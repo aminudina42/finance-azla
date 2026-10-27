@@ -133,21 +133,28 @@ export default function MenuIconEditorPanel({
       />
 
       {/* Header Panel */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         <div
           style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "10px",
-            background: "#ede9fe",
+            width: "40px",
+            height: "40px",
+            borderRadius: "12px",
+            background: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)",
             color: "#6d28d9",
             display: "grid",
             placeItems: "center",
-            fontSize: "18px",
             flexShrink: 0,
+            border: "1px solid #c4b5fd",
+            boxShadow: "0 2px 6px rgba(109, 40, 217, 0.08)",
           }}
         >
-          🎨
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+          </svg>
         </div>
         <div>
           <h4
@@ -156,15 +163,17 @@ export default function MenuIconEditorPanel({
               fontWeight: 800,
               color: "var(--navy)",
               margin: 0,
+              letterSpacing: "-0.2px",
             }}
           >
             Kustomisasi Icon Menu
           </h4>
           <p
             style={{
-              fontSize: "11.5px",
+              fontSize: "12px",
               color: "var(--muted)",
               margin: "2px 0 0",
+              lineHeight: 1.4,
             }}
           >
             Ubah icon menu aplikasi secara global untuk seluruh pengguna
@@ -194,7 +203,8 @@ export default function MenuIconEditorPanel({
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "10px 12px",
-                borderRadius: "12px",
+                minHeight: "60px",
+                borderRadius: "14px",
                 background: hasCustom
                   ? "linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)"
                   : "var(--s2, #f8fafc)",
@@ -202,6 +212,7 @@ export default function MenuIconEditorPanel({
                   ? "1.5px solid #d8b4fe"
                   : "1px solid var(--border)",
                 gap: "10px",
+                transition: "all 0.15s ease",
               }}
             >
               {/* Left: Icon and Name */}
@@ -224,7 +235,8 @@ export default function MenuIconEditorPanel({
                     placeItems: "center",
                     flexShrink: 0,
                     overflow: "hidden",
-                    border: "1px solid var(--border)",
+                    border: "1px solid rgba(0,0,0,0.06)",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                   }}
                 >
                   <MenuIcon
@@ -246,9 +258,10 @@ export default function MenuIconEditorPanel({
                   >
                     <span
                       style={{
-                        fontSize: "13px",
-                        fontWeight: 750,
+                        fontSize: "13.5px",
+                        fontWeight: 800,
                         color: "var(--navy)",
+                        letterSpacing: "-0.1px",
                       }}
                     >
                       {item.name}
@@ -256,7 +269,7 @@ export default function MenuIconEditorPanel({
                     {hasCustom && (
                       <span
                         style={{
-                          fontSize: "9.5px",
+                          fontSize: "10px",
                           fontWeight: 800,
                           padding: "1px 6px",
                           borderRadius: "4px",
@@ -273,7 +286,7 @@ export default function MenuIconEditorPanel({
                     style={{
                       fontSize: "11px",
                       color: "var(--muted)",
-                      marginTop: "1px",
+                      marginTop: "2px",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -298,17 +311,21 @@ export default function MenuIconEditorPanel({
                   disabled={isUploading}
                   onClick={() => handleSelectMenuToChange(item.id)}
                   style={{
-                    padding: "6px 10px",
-                    borderRadius: "8px",
+                    minHeight: "36px",
+                    padding: "7px 12px",
+                    borderRadius: "9px",
                     background: "var(--primary, #287ff0)",
                     color: "#ffffff",
                     border: "none",
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: 750,
                     cursor: isUploading ? "not-allowed" : "pointer",
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "4px",
+                    gap: "5px",
+                    boxShadow: "0 2px 6px rgba(40, 127, 240, 0.20)",
+                    touchAction: "manipulation",
+                    transition: "transform 0.12s ease, opacity 0.12s ease",
                   }}
                 >
                   {isThisUploading ? (
@@ -322,7 +339,8 @@ export default function MenuIconEditorPanel({
                         strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        style={{ width: "12px", height: "12px" }}
+                        style={{ width: "13px", height: "13px" }}
+                        aria-hidden="true"
                       >
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="17 8 12 3 7 8" />
@@ -339,14 +357,17 @@ export default function MenuIconEditorPanel({
                     onClick={() => handleResetToDefault(item)}
                     title="Kembalikan ke icon bawaan"
                     style={{
-                      padding: "6px 8px",
-                      borderRadius: "8px",
+                      minHeight: "36px",
+                      padding: "7px 10px",
+                      borderRadius: "9px",
                       background: "var(--s2, #f1f5f9)",
                       color: "var(--muted)",
                       border: "1px solid var(--border)",
-                      fontSize: "11px",
+                      fontSize: "12px",
                       fontWeight: 750,
                       cursor: "pointer",
+                      touchAction: "manipulation",
+                      transition: "background 0.12s ease",
                     }}
                   >
                     Reset

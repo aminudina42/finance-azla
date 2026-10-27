@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { createNotionTicket, testNotionConnection } from "@/lib/notion-service";
+import { createNotionTicket, testNotionConnection, updateNotionCardStatus } from "@/lib/notion-service";
 
 export const dynamic = "force-dynamic";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+
+function getAuthenticatedClient(token: string) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+    },
+  });
+}
 
 /**
  * Helper to authenticate user and verify superadmin status
@@ -13,22 +30,44 @@ async function verifySuperadmin(request: Request) {
     return null;
   }
   const token = authHeader.replace("Bearer ", "").trim();
-  const { data, error } = await supabase.auth.getUser(token);
+  const authClient = getAuthenticatedClient(token);
+
+  const { data, error } = await authClient.auth.getUser();
   if (error || !data.user) {
     return null;
   }
 
-  const { data: adminRecord } = await supabase
-    .from("superadmins")
-    .select("user_id")
-    .eq("user_id", data.user.id)
-    .maybeSingle();
-
-  if (!adminRecord) {
-    return null;
+  // 1. Fast-track whitelist superadmin utama
+  if (data.user.email?.toLowerCase() === "amndnaziz98@gmail.com") {
+    return data.user;
   }
 
-  return data.user;
+  // 2. Check via RPC is_superadmin() dengan session pengguna
+  try {
+    const { data: isSuperRpc } = await authClient.rpc("is_superadmin");
+    if (isSuperRpc === true) {
+      return data.user;
+    }
+  } catch {
+    // fallback
+  }
+
+  // 3. Check via tabel superadmins dengan header token (memenuhi RLS auth.uid() = user_id)
+  try {
+    const { data: adminRecord } = await authClient
+      .from("superadmins")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+
+    if (adminRecord) {
+      return data.user;
+    }
+  } catch {
+    // fallback
+  }
+
+  return null;
 }
 
 /**
@@ -129,3 +168,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+/**
+ * PATCH /api/feedback/sync - Update card status directly in Notion
+ */
+export async function PATCH(request: Request) {
+  try {
+    const admin = await verifySuperadmin(request);
+    if (!admin) {
+      return NextResponse.json(
+        { error: "Akses ditolak: Hanya Superadmin yang dapat mengubah status Notion." },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { pageId, status } = body;
+
+    if (!pageId || !status) {
+      return NextResponse.json(
+        { error: "Parameter pageId dan status wajib disertakan." },
+        { status: 400 }
+      );
+    }
+
+    const updateRes = await updateNotionCardStatus(pageId, status);
+    if (!updateRes.success) {
+      return NextResponse.json(
+        { error: updateRes.error || "Gagal memperbarui status tiket di Notion." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, pageId, status });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+

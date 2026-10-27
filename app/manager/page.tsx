@@ -390,7 +390,16 @@ export default function ManagerPage() {
       : [];
 
   return (
-    <main id="pg-manager" className="page active" style={{ paddingBottom: "110px" }}>
+    <main
+      id="pg-manager"
+      className="page active"
+      style={{
+        paddingBottom: "180px",
+        width: "100%",
+        maxWidth: "100%",
+        overflowX: "hidden",
+      }}
+    >
       <PageHeader
         title="Pengaturan & Keluarga"
         subtitle="Kelola profil rumah tangga, siklus, dan preferensi aplikasi"
@@ -400,14 +409,14 @@ export default function ManagerPage() {
         {/* 1. Mulai Siklus Baru */}
         <div className="gajian-card">
           <div className="gc-left">
-            <p style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <div className="gc-subtitle" style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <span>Gajian tiap tgl</span>
               {isLoading ? (
-                <Skeleton width="22px" height="15px" borderRadius="4px" style={{ display: "inline-block" }} />
+                <Skeleton width="22px" height="15px" borderRadius="4px" as="span" style={{ display: "inline-block" }} />
               ) : (
                 <strong style={{ color: "var(--text)" }}>{gajianDate}</strong>
               )}
-            </p>
+            </div>
             <h3>{isWaitingForPayday ? "🎉 Gaji sudah masuk?" : "🎉 Mulai siklus baru?"}</h3>
           </div>
           <button className="gc-btn" onClick={() => {
@@ -454,15 +463,15 @@ export default function ManagerPage() {
         <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div className="gc-left">
-              <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="gc-subtitle" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span>🏠 Informasi Keluarga</span>
                 <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", background: "rgba(40,127,240,0.12)", color: "var(--navy)", fontWeight: 700 }}>
                   MULTI-TENANT
                 </span>
-              </p>
+              </div>
               <h3 style={{ fontSize: "18px", marginTop: "4px", minHeight: "22px" }}>
                 {isLoading || !currentKeluarga ? (
-                  <Skeleton width="180px" height="22px" borderRadius="6px" />
+                  <Skeleton width="180px" height="22px" borderRadius="6px" as="span" style={{ display: "inline-block" }} />
                 ) : (
                   currentKeluarga?.nama_keluarga || "Keluarga Kami"
                 )}
@@ -577,7 +586,7 @@ export default function ManagerPage() {
         <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div className="gc-left">
-              <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="gc-subtitle" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span>👨‍👩‍👧‍👦 Hak Akses &amp; Anggota</span>
                 <span
                   style={{
@@ -594,12 +603,12 @@ export default function ManagerPage() {
                   }}
                 >
                   {loadingMembers ? (
-                    <Skeleton width="48px" height="12px" borderRadius="3px" />
+                    <Skeleton width="48px" height="12px" borderRadius="3px" as="span" style={{ display: "inline-block" }} />
                   ) : (
                     `${displayMembers.length} PENGGUNA`
                   )}
                 </span>
-              </p>
+              </div>
               <h3 style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "19px", color: "var(--navy)", fontWeight: 750, marginTop: "2px" }}>
                 Anggota Keluarga Terhubung
               </h3>
@@ -1077,10 +1086,10 @@ export default function ManagerPage() {
 
         {/* Shortcut Navigasi ke Menu Dompet / Setting Pos */}
         <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div className="gc-left">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+            <div className="gc-left" style={{ minWidth: 0, flex: 1 }}>
               <p>Pengaturan Pos Anggaran</p>
-              <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/logo/icon-menu-dompet.png"
@@ -1103,7 +1112,10 @@ export default function ManagerPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                boxShadow: "0 2px 8px rgba(22, 168, 154, 0.25)"
+                boxShadow: "0 2px 8px rgba(22, 168, 154, 0.25)",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                touchAction: "manipulation",
               }}
             >
               Buka Dompet →
@@ -1116,10 +1128,10 @@ export default function ManagerPage() {
 
         {/* Shortcut Bantuan & Lapor Bug */}
         <div className="gajian-card" style={{ flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div className="gc-left">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+            <div className="gc-left" style={{ minWidth: 0, flex: 1 }}>
               <p>Bantuan &amp; Masukan</p>
-              <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <h3 style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "20px" }}>💡</span>
                 <span>Lapor Bug &amp; Saran Fitur</span>
               </h3>
@@ -1137,7 +1149,10 @@ export default function ManagerPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)"
+                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                touchAction: "manipulation",
               }}
             >
               Buka Form →
@@ -1165,19 +1180,22 @@ export default function ManagerPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: "6px",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: "4px",
                 background: "var(--s2, #f1f5f9)",
-                padding: "4px",
+                padding: "3px",
                 borderRadius: "12px",
                 border: "1px solid var(--border)",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <button
                 type="button"
                 onClick={() => setSuperadminActiveTab("traktir")}
                 style={{
-                  padding: "9px 8px",
+                  minHeight: "40px",
+                  padding: "8px 4px",
                   borderRadius: "9px",
                   border: "none",
                   background:
@@ -1187,7 +1205,7 @@ export default function ManagerPage() {
                       ? "var(--navy)"
                       : "var(--muted)",
                   fontWeight: 800,
-                  fontSize: "12px",
+                  fontSize: "11.5px",
                   cursor: "pointer",
                   boxShadow:
                     superadminActiveTab === "traktir"
@@ -1198,17 +1216,26 @@ export default function ManagerPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "4px",
+                  minWidth: 0,
+                  touchAction: "manipulation",
                 }}
               >
-                <span>☕</span>
-                <span>Traktir</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                  <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                  <line x1="6" y1="1" x2="6" y2="4" />
+                  <line x1="10" y1="1" x2="10" y2="4" />
+                  <line x1="14" y1="1" x2="14" y2="4" />
+                </svg>
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>Traktir</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSuperadminActiveTab("icons")}
                 style={{
-                  padding: "9px 8px",
+                  minHeight: "40px",
+                  padding: "8px 4px",
                   borderRadius: "9px",
                   border: "none",
                   background:
@@ -1218,7 +1245,7 @@ export default function ManagerPage() {
                       ? "var(--navy)"
                       : "var(--muted)",
                   fontWeight: 800,
-                  fontSize: "12px",
+                  fontSize: "11.5px",
                   cursor: "pointer",
                   boxShadow:
                     superadminActiveTab === "icons"
@@ -1229,17 +1256,26 @@ export default function ManagerPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "4px",
+                  minWidth: 0,
+                  touchAction: "manipulation",
                 }}
               >
-                <span>🎨</span>
-                <span>Icon Menu</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+                </svg>
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>Icon Menu</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSuperadminActiveTab("feedback")}
                 style={{
-                  padding: "9px 8px",
+                  minHeight: "40px",
+                  padding: "8px 4px",
                   borderRadius: "9px",
                   border: "none",
                   background:
@@ -1249,7 +1285,7 @@ export default function ManagerPage() {
                       ? "var(--navy)"
                       : "var(--muted)",
                   fontWeight: 800,
-                  fontSize: "12px",
+                  fontSize: "11.5px",
                   cursor: "pointer",
                   boxShadow:
                     superadminActiveTab === "feedback"
@@ -1260,10 +1296,17 @@ export default function ManagerPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "4px",
+                  minWidth: 0,
+                  touchAction: "manipulation",
                 }}
               >
-                <span>📬</span>
-                <span>Laporan</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 3v18" />
+                  <path d="M14 9h4" />
+                  <path d="M14 15h4" />
+                </svg>
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>Laporan</span>
               </button>
             </div>
 
@@ -1326,7 +1369,7 @@ export default function ManagerPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div className="gc-left">
-              <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="gc-subtitle" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span
                   style={{
                     width: "7px",
@@ -1339,7 +1382,7 @@ export default function ManagerPage() {
                 <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)" }}>
                   Sesi &amp; Keamanan Akun
                 </span>
-              </p>
+              </div>
               <h3 style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "19px", color: "var(--navy)", fontWeight: 750, marginTop: "2px" }}>
                 Identitas Pengguna
               </h3>

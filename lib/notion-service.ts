@@ -34,8 +34,9 @@ const NOTION_BASE_URL = "https://api.notion.com/v1";
 
 export function getNotionConfig() {
   const apiKey = process.env.NOTION_API_KEY?.trim() || "";
-  const databaseId = (process.env.NOTION_DATABASE_ID?.trim() || "405a2b6446198003ba1fc2e585da8b88")
-    .replace(/-/g, ""); // strip hyphens for clean ID
+  const databaseId = (
+    process.env.NOTION_DATABASE_ID?.trim() || ""
+  ).replace(/-/g, ""); // strip hyphens for clean ID
 
   return {
     apiKey,
@@ -386,3 +387,185 @@ export async function createNotionTicket(
     error: "Failed to create ticket after multiple attempts.",
   };
 }
+
+/**
+ * Fetches all Kanban cards directly from the Notion Database.
+ * Returns cards sorted by created_time descending.
+ */
+export async function getNotionKanbanCards(): Promise<{
+  success: boolean;
+  cards: any[];
+  databaseTitle?: string;
+  error?: string;
+}> {
+  const { apiKey, databaseId, isConfigured } = getNotionConfig();
+
+  if (!isConfigured) {
+    return {
+      success: false,
+      cards: [],
+      error: "Notion API belum dikonfigurasi (NOTION_API_KEY / NOTION_DATABASE_ID kosong).",
+    };
+  }
+
+  try {
+    const response = await fetch(`${NOTION_BASE_URL}/databases/${databaseId}/query`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Notion-Version": NOTION_API_VERSION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sorts: [
+          {
+            timestamp: "created_time",
+            direction: "descending",
+          },
+        ],
+      }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        cards: [],
+        error: `Notion Query HTTP ${response.status}: ${errJson.message || response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+
+    const cards = results.map((page: any) => {
+      const props = page.properties || {};
+      const title =
+        props["Project name"]?.title?.[0]?.plain_text?.trim() || "(Tanpa Judul)";
+      const statusName = props["Status"]?.status?.name || "To Do";
+      const statusColor = props["Status"]?.status?.color || "default";
+      const priorityName = props["Priority"]?.select?.name || "Medium";
+      const startDate = props["Start date"]?.date?.start || null;
+      const endDate = props["End date"]?.date?.start || null;
+      const files = (props["Attach file"]?.files || [])
+        .map((f: any) => f.external?.url || f.file?.url)
+        .filter(Boolean);
+
+      // Determine feedback type
+      const lowerTitle = title.toLowerCase();
+      const lowerStatus = statusName.toLowerCase();
+      let type: "bug" | "saran" | "pertanyaan" = "saran";
+
+      if (lowerStatus.includes("bug") || lowerTitle.includes("bug")) {
+        type = "bug";
+      } else if (
+        lowerStatus.includes("feat") ||
+        lowerStatus.includes("saran") ||
+        lowerTitle.includes("feat") ||
+        lowerTitle.includes("saran") ||
+        lowerTitle.includes("enhance")
+      ) {
+        type = "saran";
+      } else {
+        type = "pertanyaan";
+      }
+
+      // Map to internal status: "baru" | "ditinjau" | "proses" | "selesai" | "ditolak"
+      let internalStatus: "baru" | "ditinjau" | "proses" | "selesai" | "ditolak" = "baru";
+      if (lowerStatus === "done") {
+        internalStatus = "selesai";
+      } else if (lowerStatus === "in progress") {
+        internalStatus = "proses";
+      } else if (lowerStatus === "to do") {
+        internalStatus = "ditinjau";
+      } else {
+        internalStatus = "baru";
+      }
+
+      // Clean display priority
+      let cleanPriority: "High" | "Medium" | "Low" = "Medium";
+      if (priorityName === "High" || priorityName === "Medium" || priorityName === "Low") {
+        cleanPriority = priorityName;
+      }
+
+      return {
+        id: page.id,
+        user_name: "Tim Developer (Notion)",
+        user_email: "notion-board",
+        type,
+        priority: cleanPriority,
+        title,
+        description: `Tiket dari Papan Kanban Notion • Status: ${statusName}${startDate ? " • Mulai: " + startDate : ""}`,
+        status: internalStatus,
+        notion_status_name: statusName,
+        notion_status_color: statusColor,
+        notion_page_id: page.id,
+        notion_page_url: page.url,
+        notion_sync_status: "synced",
+        attachment_url: files[0] || null,
+        created_at: page.created_time,
+        updated_at: page.last_edited_time,
+        start_date: startDate,
+        end_date: endDate,
+      };
+    });
+
+    return {
+      success: true,
+      cards,
+      databaseTitle: "Catat Keluarga Board",
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      cards: [],
+      error: err.message || "Gagal menghubungi Notion API untuk memuat kanban.",
+    };
+  }
+}
+
+/**
+ * Updates a card's status in the Notion Kanban Board.
+ */
+export async function updateNotionCardStatus(
+  pageId: string,
+  newStatus: string
+): Promise<{ success: boolean; error?: string }> {
+  const { apiKey, isConfigured } = getNotionConfig();
+
+  if (!isConfigured) {
+    return { success: false, error: "Notion API belum dikonfigurasi." };
+  }
+
+  try {
+    const cleanId = pageId.replace(/-/g, "");
+    const res = await fetch(`${NOTION_BASE_URL}/pages/${cleanId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Notion-Version": NOTION_API_VERSION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        properties: {
+          Status: {
+            status: {
+              name: newStatus,
+            },
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err.message || res.statusText };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Gagal memperbarui status di Notion." };
+  }
+}
+

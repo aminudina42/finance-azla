@@ -110,7 +110,7 @@ export default function TraktirPage() {
           >
             Traktir Kopi Developer
           </h2>
-          <p
+          <div
             style={{
               fontSize: "13px",
               color: "#92400e",
@@ -122,11 +122,11 @@ export default function TraktirPage() {
             }}
           >
             {isLoading ? (
-              <Skeleton width="240px" height="40px" borderRadius="6px" style={{ display: "inline-block" }} />
+              <Skeleton width="240px" height="40px" borderRadius="6px" as="span" style={{ display: "inline-block" }} />
             ) : (
               developerSettings.message || "Terima kasih sudah menggunakan CatatKeluarga! ❤️"
             )}
-          </p>
+          </div>
         </div>
 
         {/* ── Loading skeleton ── */}

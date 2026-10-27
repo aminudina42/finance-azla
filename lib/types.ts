@@ -542,6 +542,8 @@ export interface UserFeedback {
   notion_sync_status: NotionSyncState;
   notion_sync_error?: string | null;
   notion_synced_at?: string | null;
+  notion_status_name?: string;
+  notion_status_color?: string;
   created_at: string;
   updated_at: string;
 }
@@ -733,3 +735,18 @@ export interface Database {
     };
   };
 }
+
+// ═══ Re-export Laporan Keuangan Types ═══
+export type {
+  ReportPeriod,
+  SavingRateStatus,
+  DsrStatus,
+  PosVarianceStatus,
+  CashFlowSummary,
+  PosVarianceItem,
+  MemberExpenseShare,
+  HistoricalCycleTrend,
+  FamilyNetWorth,
+  CompleteFinancialReport,
+} from "./report-service";
+
