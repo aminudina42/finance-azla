@@ -348,9 +348,10 @@ export default function ManagerPage() {
     memberId: string,
     displayName: string,
     role: "admin" | "member",
-    statusKeluarga: StatusKeluarga
+    statusKeluarga: StatusKeluarga,
+    gender?: "male" | "female"
   ) => {
-    const res = await updateMember(memberId, displayName, role, statusKeluarga);
+    const res = await updateMember(memberId, displayName, role, statusKeluarga, gender);
     if (!res.success) {
       throw new Error(res.error || "Gagal memperbarui profil anggota.");
     }
@@ -708,7 +709,7 @@ export default function ManagerPage() {
                         : m.status_keluarga === "istri"
                         ? "👩"
                         : m.status_keluarga === "anak"
-                        ? "🧒"
+                        ? (m.gender === "female" ? "👧" : "👦")
                         : m.display_name.charAt(0).toUpperCase()}
                     </div>
 
@@ -745,7 +746,13 @@ export default function ManagerPage() {
                                 : "#d97706"
                             }}
                           >
-                            {m.status_keluarga === "suami" ? "👨‍💼 Suami" : m.status_keluarga === "istri" ? "👩 Istri" : "🧒 Anak"}
+                            {m.status_keluarga === "suami"
+                              ? "👨‍💼 Suami"
+                              : m.status_keluarga === "istri"
+                              ? "👩 Istri"
+                              : m.gender === "female"
+                              ? "👧 Anak (Kakak)"
+                              : "👦 Anak (Abang)"}
                           </span>
                         )}
                         {isSelf && (

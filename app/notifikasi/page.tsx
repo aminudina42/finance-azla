@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
-import type { Vehicle, VehicleTaxPayment, VehicleService } from "@/lib/types";
+import { useApp } from "@/lib/store";
 import { getVehicles, getVehicleTaxPayments, getVehicleServices } from "@/lib/vehicle-service";
 import {
   calculateTaxStatus,
@@ -18,17 +17,18 @@ import {
 interface NotifItem {
   id: string;
   category: "Kendaraan" | "Keuangan";
-  type: "service_reminder" | "tax_reminder" | "tax_success" | "service_success";
+  type: "service_reminder" | "tax_reminder" | "tax_success" | "service_success" | "expense_reminder";
   title: string;
   description: string;
   timestampStr: string;
   vehicleId?: string;
+  targetUrl?: string;
   iconBg: string;
   iconColor: string;
 }
 
 export default function NotifikasiPage() {
-  const router = useRouter();
+  const { currentMember, sessionUser, transactions } = useApp();
   const [filter, setFilter] = useState<"semua" | "keuangan" | "kendaraan">("semua");
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
@@ -124,13 +124,58 @@ export default function NotifikasiPage() {
         }
       }
 
+      // 4. Check Financial Reminder (Keuangan: Jam 18:00 ke atas & belum catat hari ini)
+      const currentHour = new Date().getHours();
+      if (currentHour >= 18) {
+        const now = new Date();
+        const hasRecordedToday = transactions.some((tx) => {
+          if (tx.type !== "expense" || !tx.created_at) return false;
+          const d = new Date(tx.created_at);
+          const isToday =
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate();
+          if (!isToday) return false;
+          const isMine =
+            (currentMember?.id && tx.user_id === currentMember.id) ||
+            (sessionUser?.id && tx.user_id === sessionUser.id) ||
+            (currentMember?.display_name && tx.user_name?.toLowerCase() === currentMember.display_name.toLowerCase());
+          return Boolean(isMine);
+        });
+
+        if (!hasRecordedToday) {
+          const role = currentMember?.status_keluarga || (currentMember?.role === "admin" ? "suami" : "istri");
+          const gender = currentMember?.gender;
+          let greeting = "Halo Paksu, kamu ada yang perlu dicatat ga hari ini?";
+          if (role === "istri") {
+            greeting = "Halo Bunda, kamu ada yang perlu dicatat ga hari ini?";
+          } else if (role === "anak") {
+            greeting = gender === "female"
+              ? "Halo Kakak, kamu ada yang perlu dicatat ga hari ini?"
+              : "Halo Abang, kamu ada yang perlu dicatat ga hari ini?";
+          }
+
+          items.unshift({
+            id: `expense-rem-daily`,
+            category: "Keuangan",
+            type: "expense_reminder",
+            title: "Pengingat Catat Keuangan",
+            description: `${greeting} Yuk sempatkan catat pengeluaranmu hari ini.`,
+            timestampStr: "18:00 WIB",
+            targetUrl: "/input",
+            iconBg: "#fef3c7",
+            iconColor: "#d97706",
+          });
+        }
+      }
+
       setNotifications(items);
     } catch (err) {
       console.error("Failed to load notifications:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [transactions, currentMember, sessionUser]);
 
   useEffect(() => {
     loadNotifications();
@@ -236,7 +281,7 @@ export default function NotifikasiPage() {
             {filtered.map((item) => (
               <Link
                 key={item.id}
-                href={item.vehicleId ? `/kendaraan/${item.vehicleId}` : "/kendaraan"}
+                href={item.targetUrl || (item.vehicleId ? `/kendaraan/${item.vehicleId}` : "/kendaraan")}
                 style={{ textDecoration: "none", color: "inherit" }}
               >
                 <div
@@ -265,7 +310,12 @@ export default function NotifikasiPage() {
                       flexShrink: 0,
                     }}
                   >
-                    {item.type === "service_reminder" ? (
+                    {item.type === "expense_reminder" ? (
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    ) : item.type === "service_reminder" ? (
                       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2">
                         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                       </svg>

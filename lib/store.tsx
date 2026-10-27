@@ -106,7 +106,7 @@ interface AppState {
   currentMember: Member | null;
   sessionUser: any;
   logout: () => Promise<void>;
-  updateMember: (memberId: string, displayName: string, role: "admin" | "member", statusKeluarga?: StatusKeluarga) => Promise<{ success: boolean; error?: string }>;
+  updateMember: (memberId: string, displayName: string, role: "admin" | "member", statusKeluarga?: StatusKeluarga, gender?: "male" | "female") => Promise<{ success: boolean; error?: string }>;
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
   leaveFamily: () => Promise<{ success: boolean; error?: string }>;
   refreshMember: () => Promise<void>;
@@ -1900,7 +1900,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     memberId: string,
     displayName: string,
     role: "admin" | "member",
-    statusKeluarga?: StatusKeluarga
+    statusKeluarga?: StatusKeluarga,
+    gender?: "male" | "female"
   ): Promise<{ success: boolean; error?: string }> => {
     setIsMutating(true);
     try {
@@ -1910,6 +1911,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       }
 
       const finalStatus = statusKeluarga || "suami";
+      const finalGender = gender || (finalStatus === "istri" ? "female" : "male");
 
       // Check sole admin rule if demoting an admin to member
       if (role === "member") {
@@ -1928,12 +1930,13 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         }
       }
 
-      // Try RPC first
+      // Try RPC first (with p_gender)
       const { error: rpcError } = await supabase.rpc("update_family_member", {
         p_member_id: memberId,
         p_display_name: trimmedName,
         p_role: role,
         p_status_keluarga: finalStatus,
+        p_gender: finalGender,
       });
 
       if (rpcError) {
@@ -1944,6 +1947,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
             display_name: trimmedName,
             role,
             status_keluarga: finalStatus,
+            gender: finalGender,
             updated_at: new Date().toISOString(),
           })
           .eq("id", memberId);
@@ -1965,7 +1969,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       // Update currentMember in state if updating self
       if (currentMember?.id === memberId) {
         setCurrentMember((prev) =>
-          prev ? { ...prev, display_name: trimmedName, role, status_keluarga: finalStatus } : null
+          prev ? { ...prev, display_name: trimmedName, role, status_keluarga: finalStatus, gender: finalGender } : null
         );
       }
 

@@ -12,6 +12,7 @@ import GeneralHistory from "@/components/GeneralHistory";
 import AppHeader from "@/components/Dashboard/AppHeader";
 import BudgetSummaryCard from "@/components/Dashboard/BudgetSummaryCard";
 import BirthdayCard from "@/components/Dashboard/BirthdayCard";
+import ExpenseReminderCard from "@/components/Dashboard/ExpenseReminderCard";
 import QuickMenuGrid from "@/components/Dashboard/QuickMenuGrid";
 import ContentTabs from "@/components/Dashboard/ContentTabs";
 import PosCard from "@/components/Dashboard/PosCard";
@@ -336,6 +337,9 @@ export default function Home() {
         keluargaId={currentKeluarga?.id}
         currentMember={currentMember}
       />
+
+      {/* 1.6 Pengingat Pencatatan Keuangan Harian (Pukul 18:00) */}
+      <ExpenseReminderCard />
 
       {/* 2. Kartu Ringkasan Sisa Budget */}
       <BudgetSummaryCard

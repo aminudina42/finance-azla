@@ -25,6 +25,7 @@ export interface Member {
   display_name: string;
   role: "admin" | "member";
   status_keluarga?: StatusKeluarga | null;
+  gender?: "male" | "female" | null;
   avatar_url?: string | null;
   created_at: string;
   updated_at: string;

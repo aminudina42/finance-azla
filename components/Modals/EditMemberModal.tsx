@@ -11,7 +11,7 @@ interface EditMemberModalProps {
   isAdmin: boolean;
   isSelf: boolean;
   isSoleAdmin: boolean;
-  onSave: (memberId: string, displayName: string, role: "admin" | "member", statusKeluarga: StatusKeluarga) => Promise<void>;
+  onSave: (memberId: string, displayName: string, role: "admin" | "member", statusKeluarga: StatusKeluarga, gender?: "male" | "female") => Promise<void>;
   onRemove: (memberId: string) => Promise<void>;
   onLeaveFamily?: () => Promise<void>;
 }
@@ -30,6 +30,7 @@ export default function EditMemberModal({
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
   const [statusKeluarga, setStatusKeluarga] = useState<StatusKeluarga>("suami");
+  const [gender, setGender] = useState<"male" | "female">("male");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -40,7 +41,9 @@ export default function EditMemberModal({
     if (member) {
       setDisplayName(member.display_name || "");
       setRole(member.role || "member");
-      setStatusKeluarga(member.status_keluarga || (member.role === "admin" ? "suami" : "istri"));
+      const initStatus = member.status_keluarga || (member.role === "admin" ? "suami" : "istri");
+      setStatusKeluarga(initStatus);
+      setGender(member.gender || (initStatus === "istri" ? "female" : "male"));
       setErrorMsg("");
       setConfirmDeleteOpen(false);
       setConfirmLeaveOpen(false);
@@ -66,7 +69,8 @@ export default function EditMemberModal({
 
     setIsSubmitting(true);
     try {
-      await onSave(member.id, trimmed, role, statusKeluarga);
+      const finalGender = statusKeluarga === "istri" ? "female" : statusKeluarga === "suami" ? "male" : gender;
+      await onSave(member.id, trimmed, role, statusKeluarga, finalGender);
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || "Gagal menyimpan perubahan anggota.");
@@ -154,7 +158,7 @@ export default function EditMemberModal({
               flexShrink: 0
             }}
           >
-            {statusKeluarga === "suami" ? "👨‍💼" : statusKeluarga === "istri" ? "👩" : "🧒"}
+            {statusKeluarga === "suami" ? "👨‍💼" : statusKeluarga === "istri" ? "👩" : gender === "female" ? "👧" : "👦"}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
@@ -179,7 +183,13 @@ export default function EditMemberModal({
                     : "#d97706"
                 }}
               >
-                {statusKeluarga === "suami" ? "Suami" : statusKeluarga === "istri" ? "Istri" : "Anak"}
+                {statusKeluarga === "suami"
+                  ? "Suami"
+                  : statusKeluarga === "istri"
+                  ? "Istri"
+                  : gender === "female"
+                  ? "Anak (Kakak)"
+                  : "Anak (Abang)"}
               </span>
               {isSelf && (
                 <span style={{
@@ -354,6 +364,70 @@ export default function EditMemberModal({
                 </div>
               </div>
             </div>
+
+            {statusKeluarga === "anak" && (
+              <div
+                style={{
+                  marginTop: "6px",
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  background: "rgba(244, 163, 59, 0.08)",
+                  border: "1.5px dashed rgba(244, 163, 59, 0.4)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: 750, color: "#d97706" }}>
+                  👦 / 👧 Panggilan Anak (Untuk Pengingat &amp; Sapaan):
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => (isAdmin || isSelf) && setGender("male")}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: gender === "male" ? "2px solid #287ff0" : "1px solid var(--border)",
+                      background: gender === "male" ? "#eff6ff" : "var(--surface)",
+                      cursor: isAdmin || isSelf ? "pointer" : "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      fontWeight: gender === "male" ? 750 : 500,
+                      color: gender === "male" ? "#287ff0" : "var(--navy)",
+                    }}
+                  >
+                    <span>👦</span>
+                    <span>Laki-Laki (Abang)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (isAdmin || isSelf) && setGender("female")}
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: gender === "female" ? "2px solid #ec4899" : "1px solid var(--border)",
+                      background: gender === "female" ? "#fdf2f8" : "var(--surface)",
+                      cursor: isAdmin || isSelf ? "pointer" : "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      fontWeight: gender === "female" ? 750 : 500,
+                      color: gender === "female" ? "#ec4899" : "var(--navy)",
+                    }}
+                  >
+                    <span>👧</span>
+                    <span>Perempuan (Kakak)</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "1px" }}>
               Status ini digunakan untuk label catatan transaksi, kasir, dan pembukuan keluarga.
             </div>
