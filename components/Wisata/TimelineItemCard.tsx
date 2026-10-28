@@ -45,8 +45,8 @@ export default function TimelineItemCard({
       }}
     >
       {/* Baris Atas: Kategori, Jam & Aksi Hapus */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", minWidth: 0 }}>
           <span
             style={{
               display: "inline-flex",
@@ -58,6 +58,7 @@ export default function TimelineItemCard({
               fontWeight: 600,
               backgroundColor: cat.bgColor,
               color: cat.color,
+              whiteSpace: "nowrap",
             }}
           >
             <span>{cat.icon}</span>
@@ -73,6 +74,7 @@ export default function TimelineItemCard({
                 fontSize: "11px",
                 color: "var(--text-muted, #64748b)",
                 fontWeight: 500,
+                whiteSpace: "nowrap",
               }}
             >
               <Clock size={11} />
@@ -85,7 +87,7 @@ export default function TimelineItemCard({
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
           {onEdit && !item.is_completed && canExecuteExpense && (
             <button
               onClick={() => onEdit(item)}
@@ -123,8 +125,8 @@ export default function TimelineItemCard({
       </div>
 
       {/* Judul & Alamat */}
-      <div>
-        <h4 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+      <div style={{ minWidth: 0 }}>
+        <h4 style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 700, color: "var(--text, #1e293b)", wordBreak: "break-word" }}>
           {item.title}
         </h4>
 
@@ -137,10 +139,11 @@ export default function TimelineItemCard({
               fontSize: "12px",
               color: "var(--text-muted, #64748b)",
               marginTop: "2px",
+              minWidth: 0,
             }}
           >
             <MapPin size={12} style={{ flexShrink: 0, color: "var(--brand-primary, #287ff0)" }} />
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
               {item.location}
             </span>
           </div>
@@ -203,12 +206,14 @@ export default function TimelineItemCard({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: "10px",
+          flexWrap: "wrap",
           paddingTop: "8px",
           borderTop: "1px dashed var(--border, rgba(0,0,0,0.06))",
           marginTop: "2px",
         }}
       >
-        <div>
+        <div style={{ minWidth: 0, flex: "1 1 130px" }}>
           {item.is_completed ? (
             <div>
               <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>Realisasi Aktual:</div>
@@ -221,6 +226,7 @@ export default function TimelineItemCard({
                     fontSize: "10px",
                     fontWeight: 600,
                     color: delta >= 0 ? "#0d9488" : "#ea580c",
+                    wordBreak: "break-word",
                   }}
                 >
                   {delta > 0 && `(Hemat ${formatRp(delta)})`}
@@ -240,7 +246,7 @@ export default function TimelineItemCard({
         </div>
 
         {/* Tombol Eksekusi Status */}
-        <div>
+        <div style={{ flexShrink: 0 }}>
           {item.is_completed ? (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span

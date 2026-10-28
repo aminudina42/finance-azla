@@ -180,68 +180,73 @@ export default function AddTripItemModal({
         )}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {/* Hari, Jam Mulai, & Jam Selesai */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr", gap: "8px" }}>
+          {/* Hari & Waktu Kunjungan (Mobile-Friendly 2-Baris) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div>
               <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
-                Pilih Hari
+                Pilih Hari Jadwal
               </label>
               <select
                 value={dayNumber}
                 onChange={(e) => setDayNumber(Number(e.target.value))}
                 style={{
                   width: "100%",
-                  padding: "8px 6px",
+                  padding: "9px 12px",
                   borderRadius: "8px",
                   border: "1px solid var(--border, #cbd5e1)",
-                  fontSize: "12px",
+                  fontSize: "13px",
                   boxSizing: "border-box",
+                  backgroundColor: "var(--input-bg, #ffffff)",
                 }}
               >
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>
-                    Hari {d}
+                    Hari ke-{d}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
-                Jam Mulai
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 6px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border, #cbd5e1)",
-                  fontSize: "12px",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                  Jam Mulai
+                </label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "9px 10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border, #cbd5e1)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                    backgroundColor: "var(--input-bg, #ffffff)",
+                  }}
+                />
+              </div>
 
-            <div>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
-                Selesai (Opsional)
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 6px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border, #cbd5e1)",
-                  fontSize: "12px",
-                  boxSizing: "border-box",
-                }}
-              />
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                  Selesai (Opsional)
+                </label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "9px 10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border, #cbd5e1)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                    backgroundColor: "var(--input-bg, #ffffff)",
+                  }}
+                />
+              </div>
             </div>
           </div>
 

@@ -235,7 +235,16 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
       </div>
 
       {/* Role Filter Pills */}
-      <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "6px",
+          overflowX: "auto",
+          paddingBottom: "4px",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+        }}
+      >
         {[
           { id: "all", label: "Semua Bawaan" },
           { id: "semua", label: "Barang Bersama" },
@@ -258,6 +267,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                 color: isActive ? "#ffffff" : "var(--text-muted, #64748b)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {tab.label}
@@ -279,7 +289,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
             gap: "10px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "4px" }}>
             <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
               Tambah Barang Bawaan
             </span>
@@ -288,7 +298,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
             </span>
           </div>
 
-          <form onSubmit={handleAdd} style={{ display: "flex", gap: "8px" }}>
+          <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <input
               ref={inputRef}
               type="text"
@@ -299,7 +309,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                 if (errorMsg) setErrorMsg(null);
               }}
               style={{
-                flex: 1,
+                width: "100%",
                 padding: "10px 14px",
                 borderRadius: "12px",
                 border: errorMsg ? "1px solid var(--color-danger, #f04467)" : "1px solid var(--border, #cbd5e1)",
@@ -311,51 +321,56 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
               }}
             />
 
-            <select
-              value={newAssignedTo}
-              onChange={(e) => setNewAssignedTo(e.target.value as TripChecklistAssignee)}
-              title="Tugas Untuk"
-              style={{
-                width: "95px",
-                padding: "10px 8px",
-                borderRadius: "12px",
-                border: "1px solid var(--border, #cbd5e1)",
-                backgroundColor: "var(--input-bg, #ffffff)",
-                fontSize: "12px",
-                outline: "none",
-                cursor: "pointer",
-              }}
-            >
-              <option value="semua">👥 Semua</option>
-              <option value="suami">👨 Ayah</option>
-              <option value="istri">👩 Ibu</option>
-              <option value="anak">🧒 Anak</option>
-            </select>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <select
+                value={newAssignedTo}
+                onChange={(e) => setNewAssignedTo(e.target.value as TripChecklistAssignee)}
+                title="Tugas Untuk"
+                style={{
+                  flex: 1,
+                  padding: "10px 10px",
+                  borderRadius: "12px",
+                  border: "1px solid var(--border, #cbd5e1)",
+                  backgroundColor: "var(--input-bg, #ffffff)",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  outline: "none",
+                  cursor: "pointer",
+                  minWidth: 0,
+                }}
+              >
+                <option value="semua">👥 Semua Anggota</option>
+                <option value="suami">👨 Tugas Ayah</option>
+                <option value="istri">👩 Tugas Ibu</option>
+                <option value="anak">🧒 Tugas Anak</option>
+              </select>
 
-            <button
-              type="submit"
-              disabled={isAdding}
-              style={{
-                padding: "10px 16px",
-                borderRadius: "12px",
-                border: "none",
-                backgroundColor: isAdding ? "var(--text-muted, #94a3b8)" : "var(--brand-primary, #287ff0)",
-                color: "#ffffff",
-                cursor: isAdding ? "wait" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                fontWeight: 600,
-                fontSize: "13px",
-                whiteSpace: "nowrap",
-                boxShadow: "0 2px 6px rgba(40, 127, 240, 0.25)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              <span>Tambah</span>
-            </button>
+              <button
+                type="submit"
+                disabled={isAdding}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: "12px",
+                  border: "none",
+                  backgroundColor: isAdding ? "var(--text-muted, #94a3b8)" : "var(--brand-primary, #287ff0)",
+                  color: "#ffffff",
+                  cursor: isAdding ? "wait" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  boxShadow: "0 2px 6px rgba(40, 127, 240, 0.25)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                <span>Tambah</span>
+              </button>
+            </div>
           </form>
 
           {errorMsg && (
@@ -371,7 +386,16 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
               <Sparkles size={12} style={{ color: "#eab308" }} />
               <span>Rekomendasi Cepat (1-Klik Tambah):</span>
             </div>
-            <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "6px",
+                overflowX: "auto",
+                paddingBottom: "4px",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+              }}
+            >
               {PRESET_SUGGESTIONS.map((preset) => {
                 const isAlreadyAdded = checklists.some(
                   (c) => c.item_name.trim().toLowerCase() === preset.name.trim().toLowerCase()
@@ -431,6 +455,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: "10px",
                   padding: "12px 14px",
                   borderBottom: idx < filteredItems.length - 1 ? "1px solid var(--border, rgba(0,0,0,0.05))" : "none",
                   backgroundColor: item.is_checked ? "rgba(22, 168, 154, 0.03)" : "transparent",
@@ -443,6 +468,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                     alignItems: "center",
                     gap: "10px",
                     flex: 1,
+                    minWidth: 0,
                     cursor: "pointer",
                     userSelect: "none",
                   }}
@@ -458,13 +484,15 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                       fontSize: "13px",
                       color: item.is_checked ? "var(--text-muted, #94a3b8)" : "var(--text, #1e293b)",
                       textDecoration: item.is_checked ? "line-through" : "none",
+                      wordBreak: "break-word",
+                      lineHeight: "1.4",
                     }}
                   >
                     {item.item_name}
                   </span>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
                   <span
                     style={{
                       fontSize: "10px",
@@ -473,6 +501,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                       borderRadius: "6px",
                       backgroundColor: meta.bg,
                       color: meta.color,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {meta.label}
@@ -488,6 +517,8 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                         color: "var(--text-muted, #cbd5e1)",
                         cursor: "pointer",
                         padding: "2px",
+                        display: "flex",
+                        alignItems: "center",
                       }}
                     >
                       <Trash2 size={13} />

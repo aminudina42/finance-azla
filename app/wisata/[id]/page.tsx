@@ -328,25 +328,29 @@ export default function DetailWisataPage() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
             fontSize: "12px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
             <span style={{ color: "var(--text-muted, #64748b)" }}>Status:</span>
             <TripStatusBadge status={trip.status} />
           </div>
 
-          <div style={{ display: "flex", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", flexShrink: 0 }}>
             {trip.status !== "ongoing" && trip.status !== "completed" && (
               <button
                 onClick={() => handleUpdateStatus("ongoing")}
                 style={{
-                  padding: "4px 8px",
+                  padding: "5px 10px",
                   borderRadius: "6px",
                   border: "1px solid var(--border, #cbd5e1)",
                   backgroundColor: "transparent",
                   fontSize: "11px",
+                  fontWeight: 600,
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Mulai Liburan
@@ -356,7 +360,7 @@ export default function DetailWisataPage() {
               <button
                 onClick={() => handleUpdateStatus("completed")}
                 style={{
-                  padding: "4px 8px",
+                  padding: "5px 10px",
                   borderRadius: "6px",
                   border: "none",
                   backgroundColor: "rgba(100, 116, 139, 0.15)",
@@ -364,6 +368,7 @@ export default function DetailWisataPage() {
                   fontSize: "11px",
                   fontWeight: 600,
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Tandai Selesai
@@ -382,10 +387,11 @@ export default function DetailWisataPage() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: "10px",
             fontSize: "12px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
             <div
               style={{
                 width: "32px",
@@ -400,16 +406,32 @@ export default function DetailWisataPage() {
             >
               <Car size={16} />
             </div>
-            <div>
-              <div style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  color: "var(--text, #1e293b)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {linkedVehicle
                   ? `${linkedVehicle.vehicle_type === "Motor" ? "🛵" : "🚗"} ${linkedVehicle.brand} ${linkedVehicle.model} (${linkedVehicle.plate_number})`
                   : "Tanpa Kendaraan Keluarga"}
               </div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted, #64748b)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {linkedVehicle
                   ? `Odometer: ${(linkedVehicle.last_odometer || 0).toLocaleString("id-ID")} km`
-                  : "Kendaraan umum / rental (klik ganti untuk hubungkan)"}
+                  : "Kendaraan umum / rental"}
               </div>
             </div>
           </div>
@@ -430,6 +452,7 @@ export default function DetailWisataPage() {
                 fontWeight: 600,
                 cursor: "pointer",
                 whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {linkedVehicle ? "Ganti" : "+ Hubungkan"}
@@ -486,6 +509,8 @@ export default function DetailWisataPage() {
                 gap: "8px",
                 overflowX: "auto",
                 paddingBottom: "4px",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
               }}
             >
               {Array.from({ length: totalDays }, (_, i) => i + 1).map((dayNum) => {
@@ -611,9 +636,10 @@ export default function DetailWisataPage() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    gap: "10px",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
                     <div
                       style={{
                         width: "36px",
@@ -625,23 +651,41 @@ export default function DetailWisataPage() {
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: "18px",
+                        flexShrink: 0,
                       }}
                     >
                       {meta.icon}
                     </div>
 
-                    <div>
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          color: "var(--text, #1e293b)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {meta.label}
                       </div>
-                      <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--text-muted, #64748b)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {data.count} Acara • Proyeksi: {formatRp(data.estimated)}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "14px", fontWeight: 800, fontFamily: "var(--font-fraunces, serif)", color: "var(--text, #1e293b)" }}>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: "14px", fontWeight: 800, fontFamily: "var(--font-fraunces, serif)", color: "var(--text, #1e293b)", whiteSpace: "nowrap" }}>
                       {formatRp(data.actual)}
                     </div>
                     {data.actual > 0 && (
@@ -650,6 +694,7 @@ export default function DetailWisataPage() {
                           fontSize: "10px",
                           fontWeight: 600,
                           color: delta >= 0 ? "#0d9488" : "#ea580c",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {delta > 0 ? `Hemat ${formatRp(delta)}` : delta < 0 ? `+${formatRp(Math.abs(delta))}` : "Pas"}

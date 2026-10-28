@@ -218,12 +218,16 @@ export default function CetakWisataPage() {
             >
               {trip.title}
             </h2>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "4px", fontSize: "12px", color: "#64748b" }}>
-              <MapPin size={12} style={{ color: "#2563eb" }} />
-              <span>{trip.destination}</span>
-              <span>•</span>
-              <Calendar size={12} />
-              <span>{formatTripDates(trip.start_date, trip.end_date)}</span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: "4px 8px", fontSize: "12px", color: "#64748b" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <MapPin size={12} style={{ color: "#2563eb", flexShrink: 0 }} />
+                <span>{trip.destination}</span>
+              </span>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <Calendar size={12} style={{ flexShrink: 0 }} />
+                <span>{formatTripDates(trip.start_date, trip.end_date)}</span>
+              </span>
             </div>
           </div>
 

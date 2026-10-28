@@ -157,7 +157,9 @@ export default function WisataPage() {
             <div
               style={{
                 display: "flex",
-                gap: "12px",
+                gap: "8px 12px",
+                flexWrap: "wrap",
+                alignItems: "center",
                 marginTop: "16px",
                 paddingTop: "12px",
                 borderTop: "1px solid rgba(255, 255, 255, 0.18)",

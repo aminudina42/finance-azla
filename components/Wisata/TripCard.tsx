@@ -48,8 +48,8 @@ export default function TripCard({
         }}
       >
         {/* Top Header: Title & Status */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h3
               style={{
                 fontSize: "16px",
@@ -57,6 +57,7 @@ export default function TripCard({
                 color: "var(--text, #1e293b)",
                 lineHeight: "1.3",
                 margin: 0,
+                wordBreak: "break-word",
               }}
             >
               {trip.title}
@@ -69,14 +70,19 @@ export default function TripCard({
                 fontSize: "12px",
                 color: "var(--text-muted, #64748b)",
                 marginTop: "4px",
+                minWidth: 0,
               }}
             >
               <MapPin size={13} style={{ color: "var(--brand-primary, #287ff0)", flexShrink: 0 }} />
-              <span>{trip.destination}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {trip.destination}
+              </span>
             </div>
           </div>
 
-          <TripStatusBadge status={trip.status} />
+          <div style={{ flexShrink: 0 }}>
+            <TripStatusBadge status={trip.status} />
+          </div>
         </div>
 
         {/* Date & Meta Info */}

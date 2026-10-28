@@ -136,10 +136,10 @@ export default function OneTapExpenseModal({
               <span>💸</span>
               <span>One-Tap Expense Wisata</span>
             </div>
-            <h3 style={{ margin: "4px 0 2px", fontSize: "18px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+            <h3 style={{ margin: "4px 0 2px", fontSize: "18px", fontWeight: 700, color: "var(--text, #1e293b)", wordBreak: "break-word" }}>
               {item.title}
             </h3>
-            <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted, #64748b)" }}>
+            <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted, #64748b)", wordBreak: "break-word" }}>
               Hari ke-{item.day_number} • Estimasi: <strong>{formatRp(item.estimated_cost)}</strong>
             </p>
           </div>
@@ -199,13 +199,15 @@ export default function OneTapExpenseModal({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  gap: "6px",
+                  flexWrap: "wrap",
                   marginTop: "6px",
                   fontSize: "11px",
                   color: isShortfall ? "var(--color-warning, #ea580c)" : "var(--text-muted, #64748b)",
                 }}
               >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                  <Wallet size={12} />
+                  <Wallet size={12} style={{ flexShrink: 0 }} />
                   <span>Sisa Saldo Pos: <strong>{formatRp(posBalance)}</strong></span>
                 </span>
                 {isShortfall && (
@@ -290,15 +292,15 @@ export default function OneTapExpenseModal({
                 onClick={onClose}
                 disabled={isSubmitting}
                 style={{
-                  flex: 1,
-                  padding: "12px",
+                  padding: "12px 16px",
                   borderRadius: "12px",
                   border: "1px solid var(--border, #cbd5e1)",
                   backgroundColor: "transparent",
                   color: "var(--text-muted, #64748b)",
-                  fontSize: "14px",
+                  fontSize: "13px",
                   fontWeight: 600,
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Batal
@@ -308,13 +310,13 @@ export default function OneTapExpenseModal({
                 type="submit"
                 disabled={isSubmitting || actualAmount < 0}
                 style={{
-                  flex: 2,
-                  padding: "12px",
+                  flex: 1,
+                  padding: "12px 14px",
                   borderRadius: "12px",
                   border: "none",
                   backgroundColor: isSubmitting ? "var(--text-muted, #94a3b8)" : "var(--brand-primary, #287ff0)",
                   color: "#ffffff",
-                  fontSize: "14px",
+                  fontSize: "13px",
                   fontWeight: 700,
                   cursor: isSubmitting ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 12px rgba(40, 127, 240, 0.25)",
@@ -322,10 +324,14 @@ export default function OneTapExpenseModal({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
                 }}
               >
-                <Sparkles size={16} />
-                <span>{isSubmitting ? "Memproses..." : isShortfall ? "Lanjut Pinjam Saku" : "Simpan & Potong Saldo"}</span>
+                <Sparkles size={16} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {isSubmitting ? "Memproses..." : isShortfall ? "Lanjut Pinjam Saku" : "Simpan Pengeluaran"}
+                </span>
               </button>
             </div>
           </form>

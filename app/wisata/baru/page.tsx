@@ -594,19 +594,21 @@ export default function BaruWisataPage() {
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: "6px",
                           marginTop: "6px",
                           fontSize: "11px",
                           color: "var(--text-muted, #64748b)",
                         }}
                       >
-                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                          <Fuel size={12} style={{ color: "#2563eb" }} />
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
+                          <Fuel size={12} style={{ color: "#2563eb", flexShrink: 0 }} />
                           <span>
-                            Konsumsi: <strong>{customEfficiencyStr ? `${customEfficiencyStr} km/l (Kustom)` : fuelStats.avgEfficiency ? `${fuelStats.avgEfficiency} km/l` : "Default 10 km/l"}</strong>
+                            Konsumsi: <strong>{customEfficiencyStr ? `${customEfficiencyStr} km/l` : fuelStats.avgEfficiency ? `${fuelStats.avgEfficiency} km/l` : "10 km/l"}</strong>
                           </span>
                           <span>•</span>
                           <span>
-                            BBM: <strong>{customFuelPriceStr ? `${formatRp(Number(customFuelPriceStr.replace(/\D/g, "")))}/L (Kustom)` : fuelStats.lastPrice ? `${formatRp(fuelStats.lastPrice)}/L` : "Rp 10.000/L"}</strong>
+                            BBM: <strong>{customFuelPriceStr ? `${formatRp(Number(customFuelPriceStr.replace(/\D/g, "")))}/L` : fuelStats.lastPrice ? `${formatRp(fuelStats.lastPrice)}/L` : "Rp 10.000/L"}</strong>
                           </span>
                         </div>
                         <button
@@ -614,15 +616,17 @@ export default function BaruWisataPage() {
                           onClick={() => setShowAdvancedSettings((prev) => !prev)}
                           style={{
                             border: "none",
-                            background: "transparent",
+                            background: "rgba(37, 99, 235, 0.08)",
                             color: "#2563eb",
                             fontSize: "11px",
                             fontWeight: 600,
                             cursor: "pointer",
-                            padding: "2px 4px",
+                            padding: "3px 8px",
+                            borderRadius: "6px",
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: "2px",
+                            gap: "3px",
+                            flexShrink: 0,
                           }}
                         >
                           <span>{showAdvancedSettings ? "Tutup" : "Sesuaikan"}</span>
@@ -867,8 +871,8 @@ export default function BaruWisataPage() {
                       </div>
 
                       {/* Itemized Calculation */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "11px", color: "#334155" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px", color: "#334155" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                           <span>Jarak Tempuh Bersih:</span>
                           <span style={{ fontWeight: 600 }}>
                             {fuelEstimate.baseDistanceKm} km{" "}
@@ -878,7 +882,7 @@ export default function BaruWisataPage() {
                           </span>
                         </div>
 
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                           <span title="Antisipasi macet liburan, AC ekstra, & muter-muter di kota tujuan">
                             Buffer Kemacetan & Keliling (+{fuelEstimate.bufferPercent}%):
                           </span>
@@ -887,12 +891,12 @@ export default function BaruWisataPage() {
                           </span>
                         </div>
 
-                        <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", flexWrap: "wrap", color: "#64748b" }}>
                           <span>Total Jarak Dihitung:</span>
                           <span>{fuelEstimate.totalCalculatedDistanceKm} km</span>
                         </div>
 
-                        <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "4px", borderTop: "1px dashed rgba(37, 99, 235, 0.15)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", flexWrap: "wrap", paddingTop: "4px", borderTop: "1px dashed rgba(37, 99, 235, 0.15)" }}>
                           <span>Kebutuhan Bensin:</span>
                           <span style={{ fontWeight: 600 }}>
                             ~{fuelEstimate.liters} Liter{" "}
@@ -902,7 +906,7 @@ export default function BaruWisataPage() {
                           </span>
                         </div>
 
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                           <span>Biaya Bensin ({fuelEstimate.liters} L × {formatRp(fuelEstimate.priceUsed)}):</span>
                           <span style={{ fontWeight: 600, color: "#1e40af" }}>
                             {formatRp(fuelEstimate.cost)}
@@ -910,7 +914,7 @@ export default function BaruWisataPage() {
                         </div>
 
                         {fuelEstimate.tollCost > 0 && (
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                             <span>Estimasi Tarif Tol:</span>
                             <span style={{ fontWeight: 600, color: "#1e40af" }}>
                               {formatRp(fuelEstimate.tollCost)}
@@ -924,6 +928,9 @@ export default function BaruWisataPage() {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "8px",
+                          flexWrap: "wrap",
                           paddingTop: "8px",
                           marginTop: "2px",
                           borderTop: "1.5px solid rgba(37, 99, 235, 0.25)",
