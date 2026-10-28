@@ -21,6 +21,16 @@ function getAuthenticatedClient(token: string) {
   });
 }
 
+function getAdminSupabaseClient(authClient?: ReturnType<typeof getAuthenticatedClient>) {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    return createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false },
+    });
+  }
+  return authClient || supabase;
+}
+
 /**
  * Helper to authenticate user and verify superadmin status
  */
@@ -40,19 +50,27 @@ async function verifySuperadmin(request: Request) {
   // 1. Whitelist superadmin via environment variable
   const envSuperadmins = process.env.SUPERADMIN_EMAILS || "amndnaziz98@gmail.com";
   const allowedEmails = envSuperadmins.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-  if (
+  const isEnvSuperadmin = Boolean(
     data.user.email &&
     (allowedEmails.includes(data.user.email.toLowerCase()) ||
       data.user.email.toLowerCase() === "amndnaziz98@gmail.com")
-  ) {
-    return data.user;
+  );
+
+  if (isEnvSuperadmin) {
+    // Attempt auto-claim into public.superadmins via RPC if available
+    try {
+      await authClient.rpc("claim_superadmin");
+    } catch {
+      // non-blocking
+    }
+    return { user: data.user, authClient, token };
   }
 
   // 2. Check via RPC is_superadmin() dengan session pengguna
   try {
     const { data: isSuperRpc } = await authClient.rpc("is_superadmin");
     if (isSuperRpc === true) {
-      return data.user;
+      return { user: data.user, authClient, token };
     }
   } catch {
     // fallback
@@ -67,7 +85,7 @@ async function verifySuperadmin(request: Request) {
       .maybeSingle();
 
     if (adminRecord) {
-      return data.user;
+      return { user: data.user, authClient, token };
     }
   } catch {
     // fallback
@@ -81,8 +99,8 @@ async function verifySuperadmin(request: Request) {
  */
 export async function GET(request: Request) {
   try {
-    const admin = await verifySuperadmin(request);
-    if (!admin) {
+    const authData = await verifySuperadmin(request);
+    if (!authData) {
       return NextResponse.json(
         { error: "Akses ditolak: Hanya Superadmin yang dapat melakukan pengujian ini." },
         { status: 403 }
@@ -101,13 +119,16 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const admin = await verifySuperadmin(request);
-    if (!admin) {
+    const authData = await verifySuperadmin(request);
+    if (!authData) {
       return NextResponse.json(
         { error: "Akses ditolak: Hanya Superadmin yang dapat melakukan sinkronisasi ulang." },
         { status: 403 }
       );
     }
+
+    const { user, authClient } = authData;
+    const dbClient = getAdminSupabaseClient(authClient);
 
     const body = await request.json().catch(() => ({}));
     const { feedbackId } = body;
@@ -116,16 +137,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Parameter feedbackId wajib disertakan." }, { status: 400 });
     }
 
-    // Fetch the feedback record
-    const { data: fb, error: fetchErr } = await supabase
+    // Fetch the feedback record with authenticated / admin client and safe .maybeSingle()
+    const { data: fb, error: fetchErr } = await dbClient
       .from("user_feedbacks")
       .select("*")
       .eq("id", feedbackId)
-      .single();
+      .maybeSingle();
 
-    if (fetchErr || !fb) {
+    if (fetchErr) {
       return NextResponse.json(
-        { error: `Data feedback tidak ditemukan: ${fetchErr?.message}` },
+        { error: `Gagal membaca database feedback: ${fetchErr.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!fb) {
+      return NextResponse.json(
+        { error: "Data feedback tidak ditemukan di database atau akses dibatasi oleh kebijakan keamanan." },
         { status: 404 }
       );
     }
@@ -145,8 +173,8 @@ export async function POST(request: Request) {
       attachmentUrl: fb.attachment_url,
     });
 
-    // Update status in DB
-    const { error: updateErr } = await supabase
+    // Update status in DB with authenticated / admin client
+    const { error: updateErr } = await dbClient
       .from("user_feedbacks")
       .update({
         notion_page_id: notionRes.pageId || null,
@@ -180,8 +208,8 @@ export async function POST(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
-    const admin = await verifySuperadmin(request);
-    if (!admin) {
+    const authData = await verifySuperadmin(request);
+    if (!authData) {
       return NextResponse.json(
         { error: "Akses ditolak: Hanya Superadmin yang dapat mengubah status Notion." },
         { status: 403 }

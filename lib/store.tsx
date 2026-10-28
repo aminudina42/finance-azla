@@ -335,7 +335,15 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       // ── Load Superadmin status ──
       const { data: authSessionData } = await supabase.auth.getSession();
       const currentEmail = authSessionData.session?.user?.email?.toLowerCase();
-      const isSuperEmail = currentEmail === "amndnaziz98@gmail.com";
+      const envSuperadmins = (process.env.NEXT_PUBLIC_SUPERADMIN_EMAILS || "")
+        .toLowerCase()
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+      const isSuperEmail = Boolean(
+        currentEmail &&
+          (envSuperadmins.includes(currentEmail) || currentEmail === "amndnaziz98@gmail.com")
+      );
       if ((!superadminRes?.error && superadminRes?.data) || isSuperEmail) {
         setIsSuperadmin(true);
       } else {

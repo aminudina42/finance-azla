@@ -8,7 +8,11 @@ interface FeedbackManagerPanelProps {
   onShowAlert?: (title: string, message: string) => void;
 }
 
-const NOTION_DATABASE_URL = "https://notion.so/405a2b6446198003ba1fc2e585da8b88";
+const DEFAULT_NOTION_URL =
+  process.env.NEXT_PUBLIC_NOTION_DATABASE_URL ||
+  (process.env.NEXT_PUBLIC_NOTION_DATABASE_ID
+    ? `https://notion.so/${process.env.NEXT_PUBLIC_NOTION_DATABASE_ID.replace(/-/g, "")}`
+    : "https://notion.so");
 
 export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPanelProps) {
   const [feedbacks, setFeedbacks] = useState<UserFeedback[]>([]);
@@ -25,6 +29,7 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
     tested: boolean;
     connected: boolean;
     title?: string;
+    databaseUrl?: string;
     error?: string;
   }>({ tested: false, connected: false });
 
@@ -81,6 +86,7 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
             tested: true,
             connected: Boolean(data.notionConnected),
             title: data.databaseTitle || "Catat Keluarga Board",
+            databaseUrl: data.databaseUrl,
             error: data.notionError,
           });
         }
@@ -128,6 +134,7 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
         tested: true,
         connected: Boolean(data.connected),
         title: data.databaseTitle || "Catat Keluarga Board",
+        databaseUrl: data.databaseUrl,
         error: data.error,
       });
 
@@ -683,7 +690,7 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
               <span>Board: <strong>{notionStatus.title || "Catat Keluarga Board"}</strong></span>
               <span>•</span>
               <a
-                href={NOTION_DATABASE_URL}
+                href={notionStatus.databaseUrl || DEFAULT_NOTION_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{

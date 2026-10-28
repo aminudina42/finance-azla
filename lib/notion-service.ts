@@ -82,6 +82,7 @@ export function getNotionConfig() {
   return {
     apiKey,
     databaseId,
+    databaseUrl: databaseId ? `https://notion.so/${databaseId}` : undefined,
     isConfigured: Boolean(apiKey && databaseId),
   };
 }
@@ -142,6 +143,7 @@ function createParagraphBlocks(text: string) {
 export async function testNotionConnection(): Promise<{
   connected: boolean;
   databaseTitle?: string;
+  databaseUrl?: string;
   error?: string;
 }> {
   const { apiKey, databaseId, isConfigured } = getNotionConfig();
@@ -186,6 +188,7 @@ export async function testNotionConnection(): Promise<{
     return {
       connected: true,
       databaseTitle: title,
+      databaseUrl: databaseId ? `https://notion.so/${databaseId}` : undefined,
     };
   } catch (err: any) {
     return {
@@ -445,6 +448,7 @@ export async function getNotionKanbanCards(): Promise<{
   success: boolean;
   cards: any[];
   databaseTitle?: string;
+  databaseUrl?: string;
   error?: string;
 }> {
   const { apiKey, databaseId, isConfigured } = getNotionConfig();
@@ -570,6 +574,7 @@ export async function getNotionKanbanCards(): Promise<{
       success: true,
       cards,
       databaseTitle: "Catat Keluarga Board",
+      databaseUrl: databaseId ? `https://notion.so/${databaseId}` : undefined,
     };
   } catch (err: any) {
     return {

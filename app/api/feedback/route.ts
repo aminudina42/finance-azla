@@ -394,6 +394,7 @@ export async function GET(request: Request) {
         isSuperadmin: true,
         notionConnected: true,
         databaseTitle: notionResult.databaseTitle || "Catat Keluarga Board",
+        databaseUrl: notionResult.databaseUrl,
       });
     }
 

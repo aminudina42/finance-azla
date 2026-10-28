@@ -353,14 +353,89 @@ DROP TRIGGER IF EXISTS trigger_auto_set_keluarga_id ON public.health_vital_logs;
 CREATE TRIGGER trigger_auto_set_keluarga_id
 BEFORE INSERT ON public.health_vital_logs
 FOR EACH ROW EXECUTE FUNCTION public.auto_set_keluarga_id();
+-- ─────────────────────────────────────────────────────────────────────
+-- BAGIAN 6: ROBUST SUPERADMIN & NOTION FEEDBACK SYNC FIX
+-- ─────────────────────────────────────────────────────────────────────
 
 DROP TRIGGER IF EXISTS trigger_auto_set_keluarga_id ON public.health_medical_records;
 CREATE TRIGGER trigger_auto_set_keluarga_id
 BEFORE INSERT ON public.health_medical_records
 FOR EACH ROW EXECUTE FUNCTION public.auto_set_keluarga_id();
+-- 1. Auto-seed akun amndnaziz98@gmail.com ke public.superadmins jika sudah terdaftar di auth.users
+DO $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  SELECT id INTO v_user_id
+  FROM auth.users
+  WHERE email = 'amndnaziz98@gmail.com'
+  LIMIT 1;
 
 DROP TRIGGER IF EXISTS trigger_auto_set_keluarga_id ON public.health_medications;
 CREATE TRIGGER trigger_auto_set_keluarga_id
 BEFORE INSERT ON public.health_medications
 FOR EACH ROW EXECUTE FUNCTION public.auto_set_keluarga_id();
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO public.superadmins (user_id)
+    VALUES (v_user_id)
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+END $$;
+
+-- 2. Tingkatkan keandalan RPC is_superadmin() agar tetap mengenali email fallback
+--    meskipun baris tabel superadmins belum terisi atau baru saja dibuat
+CREATE OR REPLACE FUNCTION public.is_superadmin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public, auth
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.superadmins WHERE user_id = auth.uid()
+    UNION
+    SELECT 1 FROM auth.users WHERE id = auth.uid() AND email = 'amndnaziz98@gmail.com'
+  );
+$$;
+
+-- 3. Fungsi RPC claim_superadmin() yang dipanggil oleh server saat superadmin terverifikasi
+CREATE OR REPLACE FUNCTION public.claim_superadmin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_email TEXT;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT email INTO v_email FROM auth.users WHERE id = v_user_id;
+
+  IF v_email = 'amndnaziz98@gmail.com' THEN
+    INSERT INTO public.superadmins (user_id)
+    VALUES (v_user_id)
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN TRUE;
+  END IF;
+
+  RETURN FALSE;
+END;
+$$;
+
+-- 4. Pastikan user_feedbacks RLS mengizinkan Superadmin melihat & memperbarui seluruh feedback
+ALTER TABLE public.user_feedbacks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "feedbacks_select_own_or_superadmin" ON public.user_feedbacks;
+CREATE POLICY "feedbacks_select_own_or_superadmin" ON public.user_feedbacks
+  FOR SELECT USING (auth.uid() = user_id OR public.is_superadmin());
+
+DROP POLICY IF EXISTS "feedbacks_update_superadmin" ON public.user_feedbacks;
+CREATE POLICY "feedbacks_update_superadmin" ON public.user_feedbacks
+  FOR UPDATE USING (public.is_superadmin()) WITH CHECK (public.is_superadmin());
+
 
