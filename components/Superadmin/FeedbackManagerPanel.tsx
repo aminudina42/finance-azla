@@ -660,10 +660,11 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
                     color: notionStatus.connected ? "#15803d" : "#b91c1c",
                     border: notionStatus.connected ? "1px solid #bbf7d0" : "1px solid #fecaca",
                   }}
+                  title={notionStatus.error || undefined}
                 >
                   {notionStatus.connected
                     ? `✓ Terhubung (${feedbacks.length} Tiket)`
-                    : "✕ Error"}
+                    : `✕ Error${notionStatus.error ? `: ${notionStatus.error}` : ""}`}
                 </span>
               )}
             </div>

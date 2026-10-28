@@ -8,6 +8,7 @@ interface PosCardProps {
   pos: Pos;
   onOpenMenu?: (pos: Pos, e: React.MouseEvent) => void;
   isHideNominal?: boolean;
+  cycleId?: string;
 }
 
 function formatRp(n: number): string {
@@ -15,7 +16,7 @@ function formatRp(n: number): string {
   return prefix + "Rp " + Math.abs(n).toLocaleString("id-ID");
 }
 
-export default function PosCard({ pos, onOpenMenu, isHideNominal = true }: PosCardProps) {
+export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId }: PosCardProps) {
   const isGoal = Boolean(pos.is_goal);
   const isOverbudget = pos.current_balance < 0;
   const pct = pos.monthly_target > 0 ? pos.current_balance / pos.monthly_target : 0;
@@ -73,10 +74,12 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true }: PosCa
     percentLabel = `${normalPct}%`;
   }
 
+  const detailHref = cycleId ? `/pos/${pos.id}?cycleId=${encodeURIComponent(cycleId)}` : `/pos/${pos.id}`;
+
   return (
     <article className="pos-card-wrap" style={{ display: "contents" }}>
       <Link
-        href={`/pos/${pos.id}`}
+        href={detailHref}
         className="pos-card"
         aria-label={`Pos ${pos.name}: Saldo ${isHideNominal ? "disembunyikan" : formatRp(pos.current_balance)}`}
       >

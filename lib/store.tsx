@@ -333,7 +333,10 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         await Promise.race([queryPromise, timeoutPromise]) as any;
 
       // ── Load Superadmin status ──
-      if (!superadminRes?.error && superadminRes?.data) {
+      const { data: authSessionData } = await supabase.auth.getSession();
+      const currentEmail = authSessionData.session?.user?.email?.toLowerCase();
+      const isSuperEmail = currentEmail === "amndnaziz98@gmail.com";
+      if ((!superadminRes?.error && superadminRes?.data) || isSuperEmail) {
         setIsSuperadmin(true);
       } else {
         setIsSuperadmin(false);

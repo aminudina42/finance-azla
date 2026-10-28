@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
-import type { Transaction, Vehicle, VehicleFuelLog } from "@/lib/types";
+import type { Pos, Transaction, Vehicle, VehicleFuelLog } from "@/lib/types";
 import { getVehicles, getFuelLogsByPosId } from "@/lib/vehicle-service";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
@@ -34,15 +34,58 @@ function getDateLabel(iso: string): string {
   return formatDate(iso);
 }
 
-export default function PosDetailPage() {
+function PosDetailContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramCycleId = searchParams?.get("cycleId") ?? null;
   const posId = params.id as string;
-  const { posList, transactions, cycles, cyclePosHistory, deleteTransaction, isLoading } = useApp();
+  const { posList, transactions, cycles, cyclePosHistory, deleteTransaction, isLoading, cycleIndex, setCycleIndex } = useApp();
 
-  const pos = posList.find((p) => p.id === posId);
+  const pos = useMemo(() => {
+    const active = posList.find((p) => p.id === posId);
+    if (active) return active;
 
-  const [selectedCycleId, setSelectedCycleId] = useState(cycles[0]?.id ?? "");
+    const hist = cyclePosHistory.find((h) => h.pos_id === posId);
+    const pastTx = transactions.find((t) => t.pos_id === posId);
+    if (hist || pastTx) {
+      return {
+        id: posId,
+        name: pastTx?.pos_name || "Pos (Arsip)",
+        icon: pastTx?.pos_icon || "📦",
+        sub: "Pos siklus lampau",
+        monthly_target: hist?.monthly_target ?? 0,
+        goal_target: hist?.goal_target ?? 0,
+        current_balance: 0,
+        is_goal: (hist?.goal_target ?? 0) > 0,
+        order_index: 999,
+      } as Pos;
+    }
+    return undefined;
+  }, [posList, posId, cyclePosHistory, transactions]);
+
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(() => {
+    if (paramCycleId) return paramCycleId;
+    if (typeof cycleIndex === "number" && cycles[cycleIndex]?.id) {
+      return cycles[cycleIndex].id;
+    }
+    return cycles[0]?.id ?? "";
+  });
+
+  // Sync cycle when paramCycleId changes or cycles finishes loading
+  useEffect(() => {
+    if (paramCycleId && cycles.some((c) => c.id === paramCycleId)) {
+      setSelectedCycleId(paramCycleId);
+      const idx = cycles.findIndex((c) => c.id === paramCycleId);
+      if (idx !== -1 && setCycleIndex) {
+        setCycleIndex(idx);
+      }
+    } else if (!selectedCycleId && cycles.length > 0) {
+      const targetId = (typeof cycleIndex === "number" && cycles[cycleIndex]?.id) ? cycles[cycleIndex].id : cycles[0].id;
+      setSelectedCycleId(targetId);
+    }
+  }, [paramCycleId, cycles, cycleIndex, selectedCycleId, setCycleIndex]);
+
   const [selectedType, setSelectedType] = useState<"all" | "income" | "expense">("all");
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
@@ -100,21 +143,24 @@ export default function PosDetailPage() {
   const handleCycleChange = (cycleId: string) => {
     setSelectedCycleId(cycleId);
     setSelectedType("all");
+    const idx = cycles.findIndex((c) => c.id === cycleId);
+    if (idx !== -1 && setCycleIndex) {
+      setCycleIndex(idx);
+    }
   };
 
   // Transactions for this pos filtered by cycle only (for accurate summary totals)
   const cycleFiltered = useMemo(() => {
+    if (!selectedCycle) return [];
+    const start = new Date(selectedCycle.start_date + "T00:00:00");
+    const end = new Date(selectedCycle.end_date + "T23:59:59");
+    const isLatestCycle = selectedCycle.id === cycles[0]?.id;
+
     return transactions.filter((tx) => {
       if (tx.pos_id !== posId) return false;
-      // Cycle filter
-      if (selectedCycle) {
-        const txDate = new Date(tx.created_at);
-        const start = new Date(selectedCycle.start_date + "T00:00:00");
-        const end = new Date(selectedCycle.end_date + "T23:59:59");
-        const isLatestCycle = selectedCycle.id === cycles[0]?.id;
-        if (txDate < start) return false;
-        if (!isLatestCycle && txDate > end) return false;
-      }
+      const txDate = new Date(tx.created_at);
+      if (txDate < start) return false;
+      if (!isLatestCycle && txDate > end) return false;
       return true;
     });
   }, [transactions, posId, selectedCycle, cycles]);
@@ -666,5 +712,40 @@ export default function PosDetailPage() {
         isDanger={true}
       />
     </main>
+  );
+}
+
+export default function PosDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <main id="pg-pos-detail" className="page active" style={{ paddingBottom: "110px" }}>
+          <PageHeader title="Memuat Pos..." subtitle="Amplop Keuangan" backHref="/" />
+          <div style={{ padding: "16px 20px 0" }}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1.5px solid var(--border)",
+                borderRadius: "20px",
+                padding: "20px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                <Skeleton width="44px" height="44px" borderRadius="14px" />
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <Skeleton width="110px" height="11px" borderRadius="4px" />
+                  <Skeleton width="150px" height="18px" borderRadius="4px" />
+                </div>
+              </div>
+              <Skeleton width="160px" height="32px" borderRadius="8px" style={{ marginBottom: "12px" }} />
+              <Skeleton width="100%" height="8px" borderRadius="99px" style={{ marginBottom: "8px" }} />
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <PosDetailContent />
+    </Suspense>
   );
 }

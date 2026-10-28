@@ -458,6 +458,7 @@ export default function Home() {
               pos={pos}
               onOpenMenu={(p) => setEditingPos(p)}
               isHideNominal={isHideNominal}
+              cycleId={selectedCycle?.id}
             />
           ))}
         </section>

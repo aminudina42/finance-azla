@@ -3,6 +3,14 @@
  * Handles bidirectional status mapping and robust ticket creation for Bug & Suggestion reports.
  */
 
+import dns from "node:dns";
+
+try {
+  dns.setDefaultResultOrder?.("ipv4first");
+} catch {
+  // Ignore in environments where dns is not configurable
+}
+
 export interface FeedbackTicketInput {
   type: "bug" | "saran" | "pertanyaan";
   priority?: "High" | "Medium" | "Low";
@@ -33,10 +41,23 @@ const NOTION_API_VERSION = "2022-06-28";
 const NOTION_BASE_URL = "https://api.notion.com/v1";
 
 export function getNotionConfig() {
-  const apiKey = process.env.NOTION_API_KEY?.trim() || "";
-  const databaseId = (
-    process.env.NOTION_DATABASE_ID?.trim() || ""
-  ).replace(/-/g, ""); // strip hyphens for clean ID
+  const apiKey = (process.env.NOTION_API_KEY || "").replace(/["']/g, "").trim();
+
+  // Extract 32-character hexadecimal Notion Database ID (supporting raw hex, hyphenated UUIDs, and full Notion URLs)
+  const rawDbId = (process.env.NOTION_DATABASE_ID || "").trim();
+  let databaseId = "";
+
+  const hexMatch = rawDbId.match(/[a-f0-9]{32}/i);
+  if (hexMatch) {
+    databaseId = hexMatch[0].toLowerCase();
+  } else {
+    const uuidMatch = rawDbId.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+    if (uuidMatch) {
+      databaseId = uuidMatch[0].replace(/-/g, "").toLowerCase();
+    } else {
+      databaseId = rawDbId.replace(/[^a-zA-Z0-9]/g, "");
+    }
+  }
 
   return {
     apiKey,
@@ -108,7 +129,9 @@ export async function testNotionConnection(): Promise<{
   if (!isConfigured) {
     return {
       connected: false,
-      error: "Token NOTION_API_KEY atau NOTION_DATABASE_ID belum dikonfigurasi di environment.",
+      error: !apiKey
+        ? "NOTION_API_KEY belum dikonfigurasi di environment."
+        : "NOTION_DATABASE_ID belum dikonfigurasi di environment.",
     };
   }
 
@@ -125,9 +148,15 @@ export async function testNotionConnection(): Promise<{
 
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({}));
+      let msg = errJson.message || res.statusText;
+      if (res.status === 404) {
+        msg = `Database Notion ID (${databaseId}) tidak ditemukan. Pastikan integrasi Notion Anda sudah di-invite / di-connect ke Database ini di Notion (Menu '...' > 'Connect to').`;
+      } else if (res.status === 401) {
+        msg = "Token NOTION_API_KEY tidak valid atau unauthorized.";
+      }
       return {
         connected: false,
-        error: `HTTP ${res.status}: ${errJson.message || res.statusText}`,
+        error: `HTTP ${res.status}: ${msg}`,
       };
     }
 
@@ -429,10 +458,16 @@ export async function getNotionKanbanCards(): Promise<{
 
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));
+      let msg = errJson.message || response.statusText;
+      if (response.status === 404) {
+        msg = `Database Notion ID (${databaseId}) tidak ditemukan atau integrasi Notion belum di-connect ke Database.`;
+      } else if (response.status === 401) {
+        msg = "Token NOTION_API_KEY tidak valid atau unauthorized.";
+      }
       return {
         success: false,
         cards: [],
-        error: `Notion Query HTTP ${response.status}: ${errJson.message || response.statusText}`,
+        error: `Notion Query HTTP ${response.status}: ${msg}`,
       };
     }
 

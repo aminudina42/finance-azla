@@ -37,8 +37,14 @@ async function verifySuperadmin(request: Request) {
     return null;
   }
 
-  // 1. Fast-track whitelist superadmin utama
-  if (data.user.email?.toLowerCase() === "amndnaziz98@gmail.com") {
+  // 1. Whitelist superadmin via environment variable
+  const envSuperadmins = process.env.SUPERADMIN_EMAILS || "amndnaziz98@gmail.com";
+  const allowedEmails = envSuperadmins.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (
+    data.user.email &&
+    (allowedEmails.includes(data.user.email.toLowerCase()) ||
+      data.user.email.toLowerCase() === "amndnaziz98@gmail.com")
+  ) {
     return data.user;
   }
 

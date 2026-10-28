@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { createNotionTicket, testNotionConnection, getNotionKanbanCards } from "@/lib/notion-service";
+import { createNotionTicket, getNotionKanbanCards } from "@/lib/notion-service";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,41 @@ function getAuthenticatedClient(token: string) {
       persistSession: false,
     },
   });
+}
+
+function isEmailInSuperadminEnv(email?: string): boolean {
+  if (!email) return false;
+  const envSuperadmins = process.env.SUPERADMIN_EMAILS || "amndnaziz98@gmail.com";
+  const list = envSuperadmins.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return list.includes(email.toLowerCase()) || email.toLowerCase() === "amndnaziz98@gmail.com";
+}
+
+async function checkIsSuperadmin(
+  user: { id: string; email?: string },
+  authClient: ReturnType<typeof getAuthenticatedClient>
+): Promise<boolean> {
+  if (isEmailInSuperadminEnv(user.email)) return true;
+
+  try {
+    const { data: isSuperRpc } = await authClient.rpc("is_superadmin");
+    if (isSuperRpc === true) return true;
+  } catch {
+    // fallback
+  }
+
+  try {
+    const { data: superadminData } = await authClient
+      .from("superadmins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (superadminData) return true;
+  } catch {
+    // fallback
+  }
+
+  return false;
 }
 
 // In-memory rate limiting map: userId -> timestamps array
@@ -99,6 +134,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // Sanitize and validate attachment URL (SSRF prevention)
+    let validatedAttachmentUrl: string | null = null;
+    if (attachmentUrl && typeof attachmentUrl === "string") {
+      try {
+        const parsed = new URL(attachmentUrl.trim());
+        if (
+          parsed.protocol === "https:" &&
+          (parsed.hostname.endsWith(".supabase.co") || parsed.hostname.endsWith(".supabase.in"))
+        ) {
+          validatedAttachmentUrl = parsed.toString();
+        }
+      } catch {
+        // invalid URL format, ignore attachment
+      }
+    }
+
     // Form content validation
     const cleanTitle = String(title).trim();
     const cleanDesc = String(description).trim();
@@ -167,7 +218,7 @@ export async function POST(request: Request) {
           current_url: currentUrl ? String(currentUrl).trim() : null,
           app_version: appVersion,
           device_info: typeof deviceInfo === "object" ? deviceInfo : {},
-          attachment_url: attachmentUrl ? String(attachmentUrl).trim() : null,
+          attachment_url: validatedAttachmentUrl,
           status: "baru",
           notion_sync_status: "pending",
         })
@@ -195,7 +246,7 @@ export async function POST(request: Request) {
       currentUrl,
       appVersion,
       deviceInfo,
-      attachmentUrl,
+      attachmentUrl: validatedAttachmentUrl || undefined,
     });
 
     // 6. Update local DB with Notion Sync Result
@@ -252,21 +303,7 @@ export async function GET(request: Request) {
     const { user, authClient } = authData;
 
     // Check if user is superadmin
-    let isSuperadmin = user.email?.toLowerCase() === "amndnaziz98@gmail.com";
-
-    if (!isSuperadmin) {
-      try {
-        const { data: superadminData } = await authClient
-          .from("superadmins")
-          .select("user_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (superadminData) isSuperadmin = true;
-      } catch {
-        // fallback
-      }
-    }
+    const isSuperadmin = await checkIsSuperadmin(user, authClient);
 
     if (!isSuperadmin) {
       // Normal users only see their own tickets from Supabase
@@ -309,7 +346,7 @@ export async function GET(request: Request) {
     }
 
     // 3. Merge Notion cards with local Supabase feedback details
-    if (notionResult.success && notionResult.cards.length > 0) {
+    if (notionResult.success) {
       const localByPageId = new Map<string, any>();
       for (const fb of localFeedbacks) {
         if (fb.notion_page_id) {
@@ -320,7 +357,7 @@ export async function GET(request: Request) {
       }
 
       const matchedLocalIds = new Set<string>();
-      const enrichedCards = notionResult.cards.map((card) => {
+      const enrichedCards = (notionResult.cards || []).map((card) => {
         const cleanCardId = card.id.replace(/-/g, "");
         const localMatch = localByPageId.get(cleanCardId) || localByPageId.get(card.id);
         if (localMatch) {
@@ -360,7 +397,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // 4. Fallback if Notion failed or returned 0 cards
+    // 4. Fallback if Notion failed
     return NextResponse.json({
       items: localFeedbacks,
       isSuperadmin: true,

@@ -387,49 +387,9 @@ export async function createMedicalRecord(
   input: CreateMedicalRecordInput
 ): Promise<{ success: boolean; data?: HealthMedicalRecord; error?: any }> {
   try {
-    let transactionId: string | null = null;
     const cost = input.cost_amount || 0;
 
-    // Optional: Synchronize expense with Pos Keuangan
-    if (cost > 0 && input.finance_pos_id) {
-      const { data: pos } = await supabase
-        .from("pos")
-        .select("name, icon, current_balance")
-        .eq("id", input.finance_pos_id)
-        .single();
-
-      const desc = `Biaya Berobat: ${input.illness_name}${input.doctor_name ? ` (${input.doctor_name})` : ""}`;
-
-      const { data: tx, error: txErr } = await supabase
-        .from("transactions")
-        .insert({
-          keluarga_id: keluargaId,
-          amount: cost,
-          type: "expense",
-          pos_id: input.finance_pos_id,
-          pos_name: pos?.name || "Kesehatan",
-          pos_icon: pos?.icon || "💊",
-          user_id: input.user_id || "system",
-          user_name: input.user_name || "Anggota",
-          user_role: input.user_role || "anak",
-          description: desc,
-        })
-        .select()
-        .single();
-
-      if (!txErr && tx) {
-        transactionId = tx.id;
-        // Deduct pos balance
-        if (pos) {
-          await supabase
-            .from("pos")
-            .update({ current_balance: (pos.current_balance || 0) - cost })
-            .eq("id", input.finance_pos_id);
-        }
-      }
-    }
-
-    // Insert medical record
+    // Insert medical record first
     const { data: record, error: recErr } = await supabase
       .from("health_medical_records")
       .insert({
@@ -445,7 +405,7 @@ export async function createMedicalRecord(
         clinic_hospital: input.clinic_hospital || null,
         payment_method: input.payment_method || "pribadi",
         cost_amount: cost,
-        transaction_id: transactionId,
+        transaction_id: null,
         attachment_urls: input.attachment_urls || [],
         notes: input.notes || null,
       })
@@ -453,6 +413,67 @@ export async function createMedicalRecord(
       .single();
 
     if (recErr) throw recErr;
+
+    // Optional: Synchronize expense with Pos Keuangan using atomic RPC procedure
+    if (cost > 0 && input.finance_pos_id && record) {
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("record_health_expense_tx", {
+          p_medical_record_id: record.id,
+          p_cost: cost,
+          p_finance_pos_id: input.finance_pos_id,
+          p_user_id: input.user_id || "00000000-0000-0000-0000-000000000000",
+          p_user_name: input.user_name || "Anggota",
+          p_user_role: input.user_role || "anak",
+          p_illness_name: input.illness_name.trim(),
+          p_doctor_name: input.doctor_name || null,
+        });
+
+        if (!rpcErr && rpcData?.transaction_id) {
+          record.transaction_id = rpcData.transaction_id;
+        } else if (rpcErr) {
+          // Fallback if migration v21 not yet executed in Supabase SQL editor
+          console.warn("RPC record_health_expense_tx not found, falling back to manual tx:", rpcErr.message);
+          const { data: pos } = await supabase
+            .from("pos")
+            .select("name, icon, current_balance")
+            .eq("id", input.finance_pos_id)
+            .single();
+
+          const desc = `Biaya Berobat: ${input.illness_name}${input.doctor_name ? ` (${input.doctor_name})` : ""}`;
+          const { data: tx, error: txErr } = await supabase
+            .from("transactions")
+            .insert({
+              keluarga_id: keluargaId,
+              amount: cost,
+              type: "expense",
+              pos_id: input.finance_pos_id,
+              pos_name: pos?.name || "Kesehatan",
+              pos_icon: pos?.icon || "💊",
+              user_id: input.user_id || "system",
+              user_name: input.user_name || "Anggota",
+              user_role: input.user_role || "anak",
+              description: desc,
+            })
+            .select()
+            .single();
+
+          if (!txErr && tx) {
+            record.transaction_id = tx.id;
+            await supabase
+              .from("pos")
+              .update({ current_balance: (pos?.current_balance || 0) - cost })
+              .eq("id", input.finance_pos_id);
+
+            await supabase
+              .from("health_medical_records")
+              .update({ transaction_id: tx.id })
+              .eq("id", record.id);
+          }
+        }
+      } catch (syncErr) {
+        console.warn("Error synchronizing health expense:", syncErr);
+      }
+    }
 
     // Insert medications if any
     if (input.medications && input.medications.length > 0 && record) {
