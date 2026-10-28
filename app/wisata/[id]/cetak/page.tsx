@@ -127,13 +127,16 @@ export default function CetakWisataPage() {
   }
 
   return (
-    <div
+    <main
+      className="page active"
       style={{
-        maxWidth: "480px",
-        margin: "0 auto",
-        minHeight: "100vh",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        overflowX: "hidden",
         backgroundColor: "var(--background, #f8fafc)",
         paddingBottom: "80px",
+        boxSizing: "border-box",
       }}
     >
       <PageHeader
@@ -142,7 +145,18 @@ export default function CetakWisataPage() {
         backHref={`/wisata/${trip.id}`}
       />
 
-      <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div
+        style={{
+          padding: "16px 20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+        }}
+      >
         {exportError && (
           <div
             style={{
@@ -356,6 +370,6 @@ export default function CetakWisataPage() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

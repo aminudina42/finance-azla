@@ -191,7 +191,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
       {/* Progress Box */}
       <div
         style={{
@@ -202,13 +202,17 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
           display: "flex",
           flexDirection: "column",
           gap: "8px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "13px" }}>
           <span style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
             Kesiapan Barang Bawaan
           </span>
-          <span style={{ fontWeight: 700, color: stats.percent === 100 ? "#0d9488" : "var(--brand-primary, #287ff0)" }}>
+          <span style={{ fontWeight: 700, color: stats.percent === 100 ? "#0d9488" : "var(--brand-primary, #287ff0)", whiteSpace: "nowrap" }}>
             {stats.checked} / {stats.total} Selesai ({stats.percent}%)
           </span>
         </div>
@@ -243,6 +247,9 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
           paddingBottom: "4px",
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
         }}
       >
         {[
@@ -287,6 +294,10 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
             display: "flex",
             flexDirection: "column",
             gap: "10px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "4px" }}>
@@ -381,7 +392,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
           )}
 
           {/* Rekomendasi Cepat (1-Klik Tambah) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingTop: "4px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingTop: "4px", width: "100%", maxWidth: "100%", minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)" }}>
               <Sparkles size={12} style={{ color: "#eab308" }} />
               <span>Rekomendasi Cepat (1-Klik Tambah):</span>
@@ -394,6 +405,9 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                 paddingBottom: "4px",
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "none",
+                width: "100%",
+                maxWidth: "100%",
+                minWidth: 0,
               }}
             >
               {PRESET_SUGGESTIONS.map((preset) => {
@@ -420,6 +434,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
+                      flexShrink: 0,
                     }}
                   >
                     <span>{preset.label}</span>
@@ -439,6 +454,10 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
           borderRadius: "16px",
           border: "1px solid var(--border, rgba(0,0,0,0.08))",
           overflow: "hidden",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         {filteredItems.length === 0 ? (

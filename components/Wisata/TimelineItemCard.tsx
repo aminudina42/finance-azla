@@ -25,6 +25,15 @@ export default function TimelineItemCard({
   const cat = CATEGORY_META[item.category] || CATEGORY_META.other;
   const mapsUrl = getGoogleMapsUrl(item.title, item.location);
 
+  const isLocationUrl =
+    item.location &&
+    (item.location.startsWith("http://") ||
+      item.location.startsWith("https://") ||
+      item.location.includes("google.com/maps") ||
+      item.location.includes("goo.gl"));
+
+  const displayLocation = isLocationUrl ? "Titik Lokasi Google Maps" : item.location;
+
   // Perhitungan delta penghematan / pembengkakan
   const delta = item.is_completed && typeof item.actual_cost === "number"
     ? item.estimated_cost - item.actual_cost
@@ -42,6 +51,11 @@ export default function TimelineItemCard({
         flexDirection: "column",
         gap: "10px",
         position: "relative",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       {/* Baris Atas: Kategori, Jam & Aksi Hapus */}
@@ -140,11 +154,21 @@ export default function TimelineItemCard({
               color: "var(--text-muted, #64748b)",
               marginTop: "2px",
               minWidth: 0,
+              width: "100%",
             }}
           >
             <MapPin size={12} style={{ flexShrink: 0, color: "var(--brand-primary, #287ff0)" }} />
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
-              {item.location}
+            <span
+              style={{
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+                flex: 1,
+              }}
+            >
+              {displayLocation}
             </span>
           </div>
         )}
@@ -195,7 +219,7 @@ export default function TimelineItemCard({
 
       {/* Catatan Tambahan jika ada */}
       {item.notes && (
-        <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted, #64748b)", fontStyle: "italic", lineHeight: "1.4" }}>
+        <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted, #64748b)", fontStyle: "italic", lineHeight: "1.4", wordBreak: "break-word", overflowWrap: "anywhere" }}>
           {item.notes}
         </p>
       )}

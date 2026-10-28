@@ -88,13 +88,16 @@ export default function WisataPage() {
   }, [trips, activeTab]);
 
   return (
-    <div
+    <main
+      className="page active"
       style={{
-        maxWidth: "480px",
-        margin: "0 auto",
-        minHeight: "100vh",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        overflowX: "hidden",
         backgroundColor: "var(--background, #f8fafc)",
         paddingBottom: "128px",
+        boxSizing: "border-box",
       }}
     >
       <PageHeader
@@ -129,7 +132,18 @@ export default function WisataPage() {
         }
       />
 
-      <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div
+        style={{
+          padding: "16px 20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+        }}
+      >
         {/* Ringkasan Header Banner */}
         <div
           style={{
@@ -311,6 +325,6 @@ export default function WisataPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

@@ -45,6 +45,11 @@ export default function TripCard({
           display: "flex",
           flexDirection: "column",
           gap: "12px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+          overflow: "hidden",
         }}
       >
         {/* Top Header: Title & Status */}

@@ -260,13 +260,16 @@ export default function DetailWisataPage() {
   }
 
   return (
-    <div
+    <main
+      className="page active"
       style={{
-        maxWidth: "480px",
-        margin: "0 auto",
-        minHeight: "100vh",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        overflowX: "hidden",
         backgroundColor: "var(--background, #f8fafc)",
         paddingBottom: "128px",
+        boxSizing: "border-box",
       }}
     >
       <PageHeader
@@ -295,7 +298,18 @@ export default function DetailWisataPage() {
         }
       />
 
-      <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div
+        style={{
+          padding: "16px 20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+        }}
+      >
         {noticeMsg && (
           <div
             style={{
@@ -331,6 +345,10 @@ export default function DetailWisataPage() {
             gap: "8px",
             flexWrap: "wrap",
             fontSize: "12px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
@@ -389,6 +407,10 @@ export default function DetailWisataPage() {
             alignItems: "center",
             gap: "10px",
             fontSize: "12px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
@@ -468,6 +490,10 @@ export default function DetailWisataPage() {
             padding: "4px",
             borderRadius: "12px",
             gap: "4px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           {[
@@ -482,6 +508,7 @@ export default function DetailWisataPage() {
                 onClick={() => setWorkspaceTab(tab.id as any)}
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   padding: "8px 0",
                   borderRadius: "9px",
                   fontSize: "13px",
@@ -491,6 +518,7 @@ export default function DetailWisataPage() {
                   backgroundColor: isActive ? "var(--surface, #ffffff)" : "transparent",
                   color: isActive ? "var(--brand-primary, #287ff0)" : "var(--text-muted, #64748b)",
                   boxShadow: isActive ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {tab.label}
@@ -501,7 +529,7 @@ export default function DetailWisataPage() {
 
         {/* TAB 1: JADWAL TIMELINE */}
         {workspaceTab === "jadwal" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
             {/* Horizontal Day Pills */}
             <div
               style={{
@@ -511,6 +539,9 @@ export default function DetailWisataPage() {
                 paddingBottom: "4px",
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "none",
+                width: "100%",
+                maxWidth: "100%",
+                minWidth: 0,
               }}
             >
               {Array.from({ length: totalDays }, (_, i) => i + 1).map((dayNum) => {
@@ -637,6 +668,10 @@ export default function DetailWisataPage() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     gap: "10px",
+                    width: "100%",
+                    maxWidth: "100%",
+                    minWidth: 0,
+                    boxSizing: "border-box",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
@@ -859,6 +894,6 @@ export default function DetailWisataPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </main>
   );
 }

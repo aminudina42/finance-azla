@@ -55,9 +55,12 @@ export default function PageHeader({
         WebkitBackdropFilter: "blur(14px)",
         borderBottom: "1px solid var(--border)",
         transition: "background 0.2s ease, border-color 0.2s ease",
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 auto" }}>
         {showBack && (
           backHref ? (
             <Link
