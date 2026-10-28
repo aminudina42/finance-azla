@@ -41,12 +41,32 @@ const NOTION_API_VERSION = "2022-06-28";
 const NOTION_BASE_URL = "https://api.notion.com/v1";
 
 export function getNotionConfig() {
-  const apiKey = (process.env.NOTION_API_KEY || "").replace(/["']/g, "").trim();
+  const env = process.env;
+
+  // Mendukung variasi penamaan dan huruf kapital (case-insensitive)
+  const rawApiKey =
+    env.NOTION_API_KEY ||
+    env.Notion_API_KEY ||
+    env.notion_api_key ||
+    env.NOTION_TOKEN ||
+    env.Notion_Token ||
+    env.NOTION_KEY ||
+    env.NEXT_PUBLIC_NOTION_API_KEY ||
+    "";
+
+  const apiKey = (rawApiKey || "").replace(/["']/g, "").trim();
 
   // Extract 32-character hexadecimal Notion Database ID (supporting raw hex, hyphenated UUIDs, and full Notion URLs)
-  const rawDbId = (process.env.NOTION_DATABASE_ID || "").trim();
-  let databaseId = "";
+  const rawDbId = (
+    env.NOTION_DATABASE_ID ||
+    env.Notion_DATABASE_ID ||
+    env.notion_database_id ||
+    env.NOTION_DB_ID ||
+    env.NEXT_PUBLIC_NOTION_DATABASE_ID ||
+    ""
+  ).trim();
 
+  let databaseId = "";
   const hexMatch = rawDbId.match(/[a-f0-9]{32}/i);
   if (hexMatch) {
     databaseId = hexMatch[0].toLowerCase();
