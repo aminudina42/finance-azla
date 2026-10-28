@@ -45,6 +45,9 @@ next-env.d.ts
 
 # Documentation & Work Files
 *.md
+!AGENTS.md
+!README.md
+!.agents/**/*.md
 
 /rekap-file-md/
 /Logo/

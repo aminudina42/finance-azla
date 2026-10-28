@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.trip_items (
   keluarga_id UUID NOT NULL REFERENCES public.keluarga(id) ON DELETE CASCADE,
   day_number INT NOT NULL DEFAULT 1 CHECK (day_number >= 1),
   start_time TIME,
+  end_time TIME,
   category TEXT NOT NULL CHECK (category IN ('transport', 'ticket', 'food', 'lodging', 'shopping', 'other')),
   title TEXT NOT NULL,
   location TEXT,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS public.trip_items (
 CREATE INDEX IF NOT EXISTS idx_trip_items_order ON public.trip_items(trip_id, day_number, start_time);
 CREATE INDEX IF NOT EXISTS idx_trip_items_tx ON public.trip_items(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_trip_items_fuel ON public.trip_items(fuel_log_id);
+ALTER TABLE public.trip_items ADD COLUMN IF NOT EXISTS end_time TIME;
 
 -- 3. Tabel Checklist Bawaan Kolaboratif (Trip Checklists)
 CREATE TABLE IF NOT EXISTS public.trip_checklists (

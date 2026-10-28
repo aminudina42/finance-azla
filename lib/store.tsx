@@ -597,8 +597,27 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
 
         if (memberData) {
           setCurrentMember(memberData as unknown as Member);
-          if (memberData.keluarga) {
-            setCurrentKeluarga(memberData.keluarga as unknown as Keluarga);
+          const rawKeluarga = (memberData as any).keluarga;
+          const kObj = Array.isArray(rawKeluarga) ? rawKeluarga[0] : rawKeluarga;
+          if (kObj && kObj.id) {
+            setCurrentKeluarga(kObj as unknown as Keluarga);
+          } else if (memberData.keluarga_id) {
+            const { data: kData } = await supabase
+              .from("keluarga")
+              .select("*")
+              .eq("id", memberData.keluarga_id)
+              .maybeSingle();
+            if (kData) {
+              setCurrentKeluarga(kData as unknown as Keluarga);
+            } else {
+              setCurrentKeluarga({
+                id: memberData.keluarga_id,
+                nama_keluarga: "Keluarga Kami",
+                invite_code: "",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            }
           }
           if (pathname === "/onboarding" || pathname === "/login") {
             router.replace("/");
@@ -1892,8 +1911,27 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
 
       if (memberData) {
         setCurrentMember(memberData as unknown as Member);
-        if (memberData.keluarga) {
-          setCurrentKeluarga(memberData.keluarga as unknown as Keluarga);
+        const rawKeluarga = (memberData as any).keluarga;
+        const kObj = Array.isArray(rawKeluarga) ? rawKeluarga[0] : rawKeluarga;
+        if (kObj && kObj.id) {
+          setCurrentKeluarga(kObj as unknown as Keluarga);
+        } else if (memberData.keluarga_id) {
+          const { data: kData } = await supabase
+            .from("keluarga")
+            .select("*")
+            .eq("id", memberData.keluarga_id)
+            .maybeSingle();
+          if (kData) {
+            setCurrentKeluarga(kData as unknown as Keluarga);
+          } else {
+            setCurrentKeluarga({
+              id: memberData.keluarga_id,
+              nama_keluarga: "Keluarga Kami",
+              invite_code: "",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          }
         }
       } else {
         setCurrentMember(null);

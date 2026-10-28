@@ -11,8 +11,7 @@ import AllFeaturesModal from "@/components/Modals/AllFeaturesModal";
 import GeneralHistory from "@/components/GeneralHistory";
 import AppHeader from "@/components/Dashboard/AppHeader";
 import BudgetSummaryCard from "@/components/Dashboard/BudgetSummaryCard";
-import BirthdayCard from "@/components/Dashboard/BirthdayCard";
-import ExpenseReminderCard from "@/components/Dashboard/ExpenseReminderCard";
+import ReminderFlagbox from "@/components/Dashboard/ReminderFlagbox";
 import QuickMenuGrid from "@/components/Dashboard/QuickMenuGrid";
 import ContentTabs from "@/components/Dashboard/ContentTabs";
 import PosCard from "@/components/Dashboard/PosCard";
@@ -20,11 +19,6 @@ import FirstCycleSetupModal from "@/components/Modals/FirstCycleSetupModal";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import Skeleton from "@/components/Skeleton";
 import { isDebtPaidThisMonth } from "@/lib/debt-utils";
-
-function formatRp(n: number): string {
-  const prefix = n < 0 ? "-" : "";
-  return prefix + "Rp " + Math.abs(n).toLocaleString("id-ID");
-}
 
 const subscribeHideNominal = (callback: () => void) => {
   window.addEventListener("storage", callback);
@@ -332,16 +326,7 @@ export default function Home() {
         onNotificationClick={() => router.push("/notifikasi")}
       />
 
-      {/* 1.5 Kartu Perayaan Ulang Tahun Anggota Keluarga */}
-      <BirthdayCard
-        keluargaId={currentKeluarga?.id}
-        currentMember={currentMember}
-      />
-
-      {/* 1.6 Pengingat Pencatatan Keuangan Harian (Pukul 18:00) */}
-      <ExpenseReminderCard />
-
-      {/* 2. Kartu Ringkasan Sisa Budget */}
+      {/* 2. Kartu Ringkasan Sisa Budget (Hero Saldo Siklus Ini) */}
       <BudgetSummaryCard
         sisaBudget={sisaBudget}
         totalBudget={totalBudget}
@@ -351,36 +336,13 @@ export default function Home() {
         onToggleHideNominal={handleToggleHideNominal}
       />
 
-      {/* 2.1 Peringatan Jatuh Tempo Hutang Terdekat */}
-      {upcomingDebts.length > 0 && (
-        <section className="debt-warning" aria-label="Peringatan jatuh tempo hutang">
-          <div className="dw-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }} aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <span>Jatuh Tempo Terdekat</span>
-          </div>
-          {upcomingDebts.map((d) => {
-            const daysLeft =
-              d.due_date >= todayDate
-                ? d.due_date - todayDate
-                : 30 - todayDate + d.due_date;
-            return (
-              <div className="dw-item" key={d.id}>
-                <span>
-                  {d.icon} {d.name}
-                </span>
-                <span className="dw-due">
-                  {daysLeft === 0 ? "HARI INI!" : `${daysLeft} hari lagi`}
-                  {" · "}
-                  {formatRp(d.monthly_payment)}
-                </span>
-              </div>
-            );
-          })}
-        </section>
-      )}
+      {/* 2.1 Unified Reminder Flagbox Carousel (Ulang Tahun, Catat Pengeluaran, Hutang) */}
+      <ReminderFlagbox
+        keluargaId={currentKeluarga?.id}
+        currentMember={currentMember}
+        upcomingDebts={upcomingDebts}
+        todayDate={todayDate}
+      />
 
       {/* 2.2 Banner: Menunggu Gajian (First-time user waiting for payday) */}
       {isWaitingForPayday && (

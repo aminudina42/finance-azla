@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import { createTripItem, updateTripItem } from "@/lib/wisata-service";
 import { useApp } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import { CATEGORY_META } from "@/lib/wisata-utils";
 import type { TripCategory, TripItem } from "@/lib/types";
 import { AlertCircle, Plus, Edit2 } from "lucide-react";
@@ -27,10 +28,11 @@ export default function AddTripItemModal({
   itemToEdit,
   onSuccess,
 }: AddTripItemModalProps) {
-  const { currentKeluarga } = useApp();
+  const { currentKeluarga, currentMember } = useApp();
 
   const [dayNumber, setDayNumber] = useState(currentDay || 1);
   const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("");
   const [category, setCategory] = useState<TripCategory>("ticket");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -46,6 +48,7 @@ export default function AddTripItemModal({
       if (itemToEdit) {
         setDayNumber(itemToEdit.day_number);
         setStartTime(itemToEdit.start_time ? itemToEdit.start_time.slice(0, 5) : "09:00");
+        setEndTime(itemToEdit.end_time ? itemToEdit.end_time.slice(0, 5) : "");
         setCategory(itemToEdit.category);
         setTitle(itemToEdit.title);
         setLocation(itemToEdit.location || "");
@@ -57,6 +60,7 @@ export default function AddTripItemModal({
       } else {
         setDayNumber(currentDay || 1);
         setStartTime("09:00");
+        setEndTime("");
         setCategory("ticket");
         setTitle("");
         setLocation("");
@@ -78,19 +82,36 @@ export default function AddTripItemModal({
       setErrorMsg("Nama acara wajib diisi");
       return;
     }
-    if (!currentKeluarga?.id) {
-      setErrorMsg("Data keluarga tidak ditemukan");
-      return;
-    }
-
     setLoading(true);
     try {
+      let effectiveKeluargaId = currentKeluarga?.id || currentMember?.keluarga_id || itemToEdit?.keluarga_id;
+
+      if (!effectiveKeluargaId) {
+        const { data: t } = await supabase.from("trips").select("keluarga_id").eq("id", tripId).maybeSingle();
+        if (t?.keluarga_id) effectiveKeluargaId = t.keluarga_id;
+      }
+
+      if (!effectiveKeluargaId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          const { data: m } = await supabase.from("members").select("keluarga_id").eq("id", session.user.id).maybeSingle();
+          if (m?.keluarga_id) effectiveKeluargaId = m.keluarga_id;
+        }
+      }
+
+      if (!effectiveKeluargaId) {
+        setErrorMsg("Data keluarga tidak ditemukan");
+        setLoading(false);
+        return;
+      }
+
       const estimatedCost = Number(estimatedCostStr.replace(/\D/g, "")) || 0;
 
       if (itemToEdit) {
         const { error } = await updateTripItem(itemToEdit.id, {
           day_number: dayNumber,
           start_time: startTime || null,
+          end_time: endTime || null,
           category,
           title: title.trim(),
           location: location.trim() || null,
@@ -105,6 +126,7 @@ export default function AddTripItemModal({
             trip_id: tripId,
             day_number: dayNumber,
             start_time: startTime || null,
+            end_time: endTime || null,
             category,
             title: title.trim(),
             location: location.trim() || null,
@@ -112,7 +134,7 @@ export default function AddTripItemModal({
             estimated_cost: estimatedCost,
             notes: notes.trim() || null,
           },
-          currentKeluarga.id
+          effectiveKeluargaId
         );
         if (error) throw new Error(error.message);
       }
@@ -158,8 +180,8 @@ export default function AddTripItemModal({
         )}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {/* Hari & Jam */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          {/* Hari, Jam Mulai, & Jam Selesai */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr", gap: "8px" }}>
             <div>
               <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
                 Pilih Hari
@@ -169,16 +191,16 @@ export default function AddTripItemModal({
                 onChange={(e) => setDayNumber(Number(e.target.value))}
                 style={{
                   width: "100%",
-                  padding: "8px 10px",
+                  padding: "8px 6px",
                   borderRadius: "8px",
                   border: "1px solid var(--border, #cbd5e1)",
-                  fontSize: "13px",
+                  fontSize: "12px",
                   boxSizing: "border-box",
                 }}
               >
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>
-                    Hari ke-{d}
+                    Hari {d}
                   </option>
                 ))}
               </select>
@@ -194,10 +216,29 @@ export default function AddTripItemModal({
                 onChange={(e) => setStartTime(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "8px 10px",
+                  padding: "8px 6px",
                   borderRadius: "8px",
                   border: "1px solid var(--border, #cbd5e1)",
-                  fontSize: "13px",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                Selesai (Opsional)
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px 6px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border, #cbd5e1)",
+                  fontSize: "12px",
                   boxSizing: "border-box",
                 }}
               />
@@ -251,14 +292,14 @@ export default function AddTripItemModal({
             />
           </div>
 
-          {/* Lokasi / Alamat */}
+          {/* Lokasi / Alamat atau Link Google Maps */}
           <div>
             <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
-              Lokasi / Alamat
+              Lokasi, Alamat, atau Link Google Maps (Opsional)
             </label>
             <input
               type="text"
-              placeholder="Contoh: Jl. Raya Solo - Yogyakarta No.16"
+              placeholder="Contoh: Pantai Kuta atau paste link maps.app.goo.gl/..."
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               style={{
@@ -270,6 +311,9 @@ export default function AddTripItemModal({
                 boxSizing: "border-box",
               }}
             />
+            <span style={{ display: "block", marginTop: "3px", fontSize: "10px", color: "var(--text-muted, #64748b)" }}>
+              💡 Bisa diisi nama tempat, alamat, atau link share Google Maps. Tombol &quot;Buka Maps&quot; di jadwal akan langsung membuka titik lokasi ini.
+            </span>
           </div>
 
           {/* Estimasi Biaya & Kode Booking */}

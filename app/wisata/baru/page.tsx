@@ -7,12 +7,13 @@ import { useApp } from "@/lib/store";
 import { createTrip, createTripItem } from "@/lib/wisata-service";
 import { getVehicles, getVehicleFuelLogs } from "@/lib/vehicle-service";
 import { calculateFuelEstimate, calculateTripDays, formatRp } from "@/lib/wisata-utils";
+import { supabase } from "@/lib/supabase";
 import type { Vehicle, VehicleFuelLog } from "@/lib/types";
-import { Car, Fuel, Info, MapPin, Sparkles, AlertCircle } from "lucide-react";
+import { Car, Fuel, Info, MapPin, Sparkles, AlertCircle, ChevronDown, ChevronUp, Route, Check } from "lucide-react";
 
 export default function BaruWisataPage() {
   const router = useRouter();
-  const { currentKeluarga, posList } = useApp();
+  const { currentKeluarga, currentMember, posList } = useApp();
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -35,8 +36,12 @@ export default function BaruWisataPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [fuelLogs, setFuelLogs] = useState<VehicleFuelLog[]>([]);
+  const [isRoundTrip, setIsRoundTrip] = useState(true);
   const [distanceKmStr, setDistanceKmStr] = useState("");
   const [tollCostStr, setTollCostStr] = useState("");
+  const [customEfficiencyStr, setCustomEfficiencyStr] = useState("");
+  const [customFuelPriceStr, setCustomFuelPriceStr] = useState("");
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [autoAddTransportItem, setAutoAddTransportItem] = useState(true);
 
   const [loading, setLoading] = useState(false);
@@ -120,11 +125,20 @@ export default function BaruWisataPage() {
     const dist = Number(distanceKmStr) || 0;
     const toll = Number(tollCostStr.replace(/\D/g, "")) || 0;
 
+    const eff = customEfficiencyStr.trim()
+      ? Number(customEfficiencyStr)
+      : fuelStats?.avgEfficiency;
+    const price = customFuelPriceStr.trim()
+      ? Number(customFuelPriceStr.replace(/\D/g, ""))
+      : fuelStats?.lastPrice;
+
     const est = calculateFuelEstimate(
       dist,
-      fuelStats?.avgEfficiency,
-      fuelStats?.lastPrice,
-      selectedVehicle.vehicle_type
+      eff,
+      price,
+      selectedVehicle.vehicle_type,
+      isRoundTrip,
+      20
     );
 
     return {
@@ -132,7 +146,16 @@ export default function BaruWisataPage() {
       tollCost: toll,
       totalTransportCost: est.cost + toll,
     };
-  }, [isRoadTrip, selectedVehicle, distanceKmStr, tollCostStr, fuelStats]);
+  }, [
+    isRoadTrip,
+    selectedVehicle,
+    distanceKmStr,
+    tollCostStr,
+    fuelStats,
+    isRoundTrip,
+    customEfficiencyStr,
+    customFuelPriceStr,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,13 +173,46 @@ export default function BaruWisataPage() {
       setErrorMsg("Tanggal kepulangan tidak boleh lebih awal dari tanggal berangkat");
       return;
     }
-    if (!currentKeluarga?.id) {
-      setErrorMsg("Data keluarga tidak ditemukan");
-      return;
-    }
 
     setLoading(true);
     try {
+      // Resolusi ID Keluarga secara bertingkat & robust
+      let effectiveKeluargaId = currentKeluarga?.id || currentMember?.keluarga_id;
+
+      if (!effectiveKeluargaId) {
+        const posKeluarga = posList.find((p) => p.keluarga_id)?.keluarga_id;
+        if (posKeluarga) effectiveKeluargaId = posKeluarga;
+      }
+
+      if (!effectiveKeluargaId) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          const { data: mData } = await supabase
+            .from("members")
+            .select("keluarga_id")
+            .eq("id", session.user.id)
+            .maybeSingle();
+          if (mData?.keluarga_id) effectiveKeluargaId = mData.keluarga_id;
+        }
+      }
+
+      if (!effectiveKeluargaId) {
+        try {
+          const { data: rpcId } = await supabase.rpc("get_my_keluarga_id");
+          if (rpcId) effectiveKeluargaId = rpcId;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!effectiveKeluargaId) {
+        setErrorMsg("Data keluarga tidak ditemukan. Harap pastikan profil keluarga Anda sudah aktif.");
+        setLoading(false);
+        return;
+      }
+
       const totalBudgetLimit = Number(budgetLimitStr.replace(/\D/g, "")) || 0;
 
       const { data: newTrip, error } = await createTrip(
@@ -171,7 +227,7 @@ export default function BaruWisataPage() {
           notes: notes.trim() || null,
           status: "planning",
         },
-        currentKeluarga.id
+        effectiveKeluargaId
       );
 
       if (error || !newTrip) {
@@ -184,6 +240,10 @@ export default function BaruWisataPage() {
         if (fuelEstimate.cost > 0) descParts.push(`BBM: ${fuelEstimate.liters}L (${formatRp(fuelEstimate.cost)})`);
         if (fuelEstimate.tollCost > 0) descParts.push(`Tol: ${formatRp(fuelEstimate.tollCost)}`);
 
+        const routeDetail = fuelEstimate.isRoundTrip
+          ? `PP (${fuelEstimate.oneWayDistanceKm} km × 2 = ${fuelEstimate.baseDistanceKm} km)`
+          : `Sekali Jalan (${fuelEstimate.baseDistanceKm} km)`;
+
         await createTripItem(
           {
             trip_id: newTrip.id,
@@ -193,9 +253,9 @@ export default function BaruWisataPage() {
             title: `BBM & Tol (${selectedVehicle?.brand || "Kendaraan"})`,
             location: destination.trim(),
             estimated_cost: fuelEstimate.totalTransportCost,
-            notes: descParts.join(" • ") + ` • Jarak PP ~${distanceKmStr} km`,
+            notes: `${descParts.join(" • ")} • ${routeDetail} + buffer 20% (macet/keliling)`,
           },
-          currentKeluarga.id
+          effectiveKeluargaId
         );
       }
 
@@ -529,26 +589,214 @@ export default function BaruWisataPage() {
                     </select>
 
                     {fuelStats && (
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "6px", fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
-                        <Fuel size={12} style={{ color: "#2563eb" }} />
-                        <span>
-                          Efisiensi riil: <strong>{fuelStats.avgEfficiency ? `${fuelStats.avgEfficiency} km/l` : "Menggunakan default 10 km/l"}</strong>
-                        </span>
-                        {fuelStats.lastPrice && (
-                          <span>• Harga: <strong>{formatRp(fuelStats.lastPrice)}/L</strong></span>
-                        )}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginTop: "6px",
+                          fontSize: "11px",
+                          color: "var(--text-muted, #64748b)",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <Fuel size={12} style={{ color: "#2563eb" }} />
+                          <span>
+                            Konsumsi: <strong>{customEfficiencyStr ? `${customEfficiencyStr} km/l (Kustom)` : fuelStats.avgEfficiency ? `${fuelStats.avgEfficiency} km/l` : "Default 10 km/l"}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            BBM: <strong>{customFuelPriceStr ? `${formatRp(Number(customFuelPriceStr.replace(/\D/g, "")))}/L (Kustom)` : fuelStats.lastPrice ? `${formatRp(fuelStats.lastPrice)}/L` : "Rp 10.000/L"}</strong>
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAdvancedSettings((prev) => !prev)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "#2563eb",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: "2px 4px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "2px",
+                          }}
+                        >
+                          <span>{showAdvancedSettings ? "Tutup" : "Sesuaikan"}</span>
+                          {showAdvancedSettings ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* Panel Kustomisasi Konsumsi & Harga BBM */}
+                  {showAdvancedSettings && (
+                    <div
+                      style={{
+                        padding: "12px",
+                        borderRadius: "12px",
+                        backgroundColor: "var(--background, #f8fafc)",
+                        border: "1px solid var(--border, #cbd5e1)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
+                        fontSize: "12px",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: "var(--text, #1e293b)", fontSize: "12px" }}>
+                        ⚙️ Kustomisasi Efisiensi & Harga BBM
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                            Konsumsi BBM (km/L)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            placeholder={fuelStats?.avgEfficiency ? String(fuelStats.avgEfficiency) : "10"}
+                            value={customEfficiencyStr}
+                            onChange={(e) => setCustomEfficiencyStr(e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              borderRadius: "8px",
+                              border: "1px solid var(--border, #cbd5e1)",
+                              backgroundColor: "var(--surface, #ffffff)",
+                              fontSize: "13px",
+                              boxSizing: "border-box",
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                            Harga BBM per Liter (Rp)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={fuelStats?.lastPrice ? Number(fuelStats.lastPrice).toLocaleString("id-ID") : "10.000"}
+                            value={customFuelPriceStr}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
+                              setCustomFuelPriceStr(raw ? Number(raw).toLocaleString("id-ID") : "");
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              borderRadius: "8px",
+                              border: "1px solid var(--border, #cbd5e1)",
+                              backgroundColor: "var(--surface, #ffffff)",
+                              fontSize: "13px",
+                              boxSizing: "border-box",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Preset Bensin Cepat */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted, #64748b)" }}>Preset:</span>
+                        {[
+                          { label: "Pertalite (10k)", price: "10.000" },
+                          { label: "Pertamax (12.95k)", price: "12.950" },
+                          { label: "Dexlite/Solar (14k)", price: "14.000" },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => setCustomFuelPriceStr(p.price)}
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: "6px",
+                              border: "1px solid var(--border, #cbd5e1)",
+                              backgroundColor: customFuelPriceStr === p.price ? "#2563eb" : "var(--surface, #ffffff)",
+                              color: customFuelPriceStr === p.price ? "#ffffff" : "var(--text, #1e293b)",
+                              fontSize: "10px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pilihan Rute: Pulang-Pergi vs Sekali Jalan */}
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "6px" }}>
+                      Tipe Rute Perjalanan
+                    </label>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "6px",
+                        padding: "3px",
+                        borderRadius: "10px",
+                        backgroundColor: "var(--background, #f1f5f9)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setIsRoundTrip(true)}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          border: "none",
+                          backgroundColor: isRoundTrip ? "#2563eb" : "transparent",
+                          color: isRoundTrip ? "#ffffff" : "var(--text-muted, #64748b)",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <Route size={14} />
+                        <span>Pulang-Pergi (PP)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsRoundTrip(false)}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          border: "none",
+                          backgroundColor: !isRoundTrip ? "#2563eb" : "transparent",
+                          color: !isRoundTrip ? "#ffffff" : "var(--text-muted, #64748b)",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span>Sekali Jalan</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "6px" }}>
-                        Jarak Tempuh PP (km)
+                        {isRoundTrip ? "Jarak Satu Arah (km)" : "Jarak Tempuh (km)"}
                       </label>
                       <input
                         type="number"
-                        placeholder="Contoh: 360"
+                        placeholder={isRoundTrip ? "Contoh: 180" : "Contoh: 360"}
                         min="0"
                         value={distanceKmStr}
                         onChange={(e) => setDistanceKmStr(e.target.value)}
@@ -563,6 +811,11 @@ export default function BaruWisataPage() {
                           boxSizing: "border-box",
                         }}
                       />
+                      <span style={{ display: "block", marginTop: "4px", fontSize: "10px", color: "var(--text-muted, #64748b)" }}>
+                        {isRoundTrip
+                          ? `💡 Dihitung PP (2x): ${(Number(distanceKmStr) || 0) * 2} km`
+                          : `Perjalanan searah: ${Number(distanceKmStr) || 0} km`}
+                      </span>
                     </div>
 
                     <div>
@@ -588,41 +841,94 @@ export default function BaruWisataPage() {
                           boxSizing: "border-box",
                         }}
                       />
+                      <span style={{ display: "block", marginTop: "4px", fontSize: "10px", color: "var(--text-muted, #64748b)" }}>
+                        Total tarif e-toll keseluruhan
+                      </span>
                     </div>
                   </div>
 
-                  {/* Ringkasan Kalkulasi Road Trip */}
+                  {/* Ringkasan Kalkulasi Road Trip yang Transparan & Bebas Ambiguitas */}
                   {fuelEstimate && fuelEstimate.totalTransportCost > 0 && (
                     <div
                       style={{
-                        padding: "12px",
-                        borderRadius: "12px",
-                        backgroundColor: "rgba(37, 99, 235, 0.08)",
+                        padding: "14px",
+                        borderRadius: "14px",
+                        backgroundColor: "rgba(37, 99, 235, 0.05)",
                         border: "1px solid rgba(37, 99, 235, 0.2)",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "6px",
+                        gap: "8px",
                         fontSize: "12px",
                       }}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, color: "#1e40af" }}>
-                        <span>Estimasi Kebutuhan BBM (buffer 20%):</span>
-                        <span>~{fuelEstimate.liters} Liter ({formatRp(fuelEstimate.cost)})</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 700, color: "#1e40af", fontSize: "13px" }}>
+                        <Car size={16} />
+                        <span>Rincian Transparan Biaya Road Trip</span>
                       </div>
-                      {fuelEstimate.tollCost > 0 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
-                          <span>Tarif Tol:</span>
-                          <span>{formatRp(fuelEstimate.tollCost)}</span>
+
+                      {/* Itemized Calculation */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "11px", color: "#334155" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Jarak Tempuh Bersih:</span>
+                          <span style={{ fontWeight: 600 }}>
+                            {fuelEstimate.baseDistanceKm} km{" "}
+                            <span style={{ color: "var(--text-muted, #64748b)", fontWeight: 400 }}>
+                              ({fuelEstimate.isRoundTrip ? `${fuelEstimate.oneWayDistanceKm} km × 2 arah` : "Sekali jalan"})
+                            </span>
+                          </span>
                         </div>
-                      )}
+
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span title="Antisipasi macet liburan, AC ekstra, & muter-muter di kota tujuan">
+                            Buffer Kemacetan & Keliling (+{fuelEstimate.bufferPercent}%):
+                          </span>
+                          <span style={{ fontWeight: 600, color: "#2563eb" }}>
+                            +{fuelEstimate.bufferDistanceKm} km
+                          </span>
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b" }}>
+                          <span>Total Jarak Dihitung:</span>
+                          <span>{fuelEstimate.totalCalculatedDistanceKm} km</span>
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "4px", borderTop: "1px dashed rgba(37, 99, 235, 0.15)" }}>
+                          <span>Kebutuhan Bensin:</span>
+                          <span style={{ fontWeight: 600 }}>
+                            ~{fuelEstimate.liters} Liter{" "}
+                            <span style={{ color: "var(--text-muted, #64748b)", fontWeight: 400 }}>
+                              ({fuelEstimate.totalCalculatedDistanceKm} km ÷ {fuelEstimate.efficiencyUsed} km/l)
+                            </span>
+                          </span>
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Biaya Bensin ({fuelEstimate.liters} L × {formatRp(fuelEstimate.priceUsed)}):</span>
+                          <span style={{ fontWeight: 600, color: "#1e40af" }}>
+                            {formatRp(fuelEstimate.cost)}
+                          </span>
+                        </div>
+
+                        {fuelEstimate.tollCost > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span>Estimasi Tarif Tol:</span>
+                            <span style={{ fontWeight: 600, color: "#1e40af" }}>
+                              {formatRp(fuelEstimate.tollCost)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Total Biaya */}
                       <div
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
-                          paddingTop: "6px",
-                          borderTop: "1px solid rgba(37, 99, 235, 0.2)",
+                          paddingTop: "8px",
+                          marginTop: "2px",
+                          borderTop: "1.5px solid rgba(37, 99, 235, 0.25)",
                           fontWeight: 700,
-                          fontSize: "13px",
+                          fontSize: "14px",
                           color: "#1e3a8a",
                         }}
                       >
@@ -630,12 +936,13 @@ export default function BaruWisataPage() {
                         <span>{formatRp(fuelEstimate.totalTransportCost)}</span>
                       </div>
 
+                      {/* Checkbox auto add */}
                       <label
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "8px",
-                          marginTop: "6px",
+                          marginTop: "4px",
                           cursor: "pointer",
                           fontSize: "11px",
                           color: "#1e293b",
@@ -649,6 +956,21 @@ export default function BaruWisataPage() {
                         />
                         <span>Otomatis masukkan pos transport ini ke jadwal Hari ke-1</span>
                       </label>
+
+                      {/* Notice: Tidak memotong saldo langsung */}
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: "#64748b",
+                          backgroundColor: "#ffffff",
+                          padding: "6px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(0,0,0,0.05)",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        ℹ️ <strong>Catatan:</strong> Biaya ini adalah estimasi di jadwal liburan. Saldo Pos Keuangan <strong>tidak akan terpotong</strong> sampai Anda mengonfirmasi tombol <em>Catat Aktual</em> saat liburan berlangsung.
+                      </div>
                     </div>
                   )}
                 </>

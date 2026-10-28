@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   getTripChecklists,
   createTripChecklist,
@@ -8,13 +8,25 @@ import {
   deleteTripChecklist,
 } from "@/lib/wisata-service";
 import { useApp } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import type { TripChecklist, TripChecklistAssignee } from "@/lib/types";
-import { Plus, Trash2, CheckCircle2, Circle, AlertCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Circle, AlertCircle, Loader2, Sparkles } from "lucide-react";
 
 interface ChecklistSectionProps {
   tripId: string;
   canEdit: boolean;
 }
+
+const PRESET_SUGGESTIONS: Array<{ label: string; name: string; assigned: TripChecklistAssignee }> = [
+  { label: "👕 Baju Ganti", name: "Pakaian Ganti", assigned: "semua" },
+  { label: "💊 Obat / P3K", name: "Obat-obatan & P3K", assigned: "semua" },
+  { label: "🔌 Charger & Powerbank", name: "Charger & Powerbank", assigned: "semua" },
+  { label: "🍿 Camilan & Minuman", name: "Camilan & Air Minum", assigned: "semua" },
+  { label: "🪪 Dompet & Tiket", name: "Dompet, KTP & Tiket", assigned: "suami" },
+  { label: "🧴 Alat Mandi", name: "Perlengkapan Mandi", assigned: "istri" },
+  { label: "🧥 Jaket Hangat", name: "Jaket / Pakaian Hangat", assigned: "anak" },
+  { label: "🌧️ Payung", name: "Payung / Jas Hujan", assigned: "semua" },
+];
 
 export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionProps) {
   const { currentKeluarga, currentMember } = useApp();
@@ -28,6 +40,7 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
   const [newAssignedTo, setNewAssignedTo] = useState<TripChecklistAssignee>("semua");
   const [isAdding, setIsAdding] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -75,7 +88,22 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItemName.trim() || !currentKeluarga?.id) return;
+    if (!newItemName.trim()) {
+      setErrorMsg("Silakan ketik nama barang bawaan terlebih dahulu.");
+      inputRef.current?.focus();
+      return;
+    }
+
+    let effectiveKeluargaId = currentKeluarga?.id || currentMember?.keluarga_id;
+    if (!effectiveKeluargaId) {
+      const { data: t } = await supabase.from("trips").select("keluarga_id").eq("id", tripId).maybeSingle();
+      if (t?.keluarga_id) effectiveKeluargaId = t.keluarga_id;
+    }
+
+    if (!effectiveKeluargaId) {
+      setErrorMsg("Data keluarga tidak ditemukan");
+      return;
+    }
 
     setIsAdding(true);
     setErrorMsg(null);
@@ -86,13 +114,57 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
           item_name: newItemName.trim(),
           assigned_to: newAssignedTo,
         },
-        currentKeluarga.id
+        effectiveKeluargaId
       );
 
       if (error || !data) throw new Error(error?.message || "Gagal menambah barang");
 
       setChecklists((prev) => [...prev, data]);
       setNewItemName("");
+      inputRef.current?.focus();
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Gagal menambah barang");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleQuickAdd = async (preset: { name: string; assigned: TripChecklistAssignee }) => {
+    const exists = checklists.some(
+      (c) => c.item_name.trim().toLowerCase() === preset.name.trim().toLowerCase()
+    );
+    if (exists) {
+      setErrorMsg(`"${preset.name}" sudah ada di daftar bawaan.`);
+      return;
+    }
+
+    let effectiveKeluargaId = currentKeluarga?.id || currentMember?.keluarga_id;
+    if (!effectiveKeluargaId) {
+      const { data: t } = await supabase.from("trips").select("keluarga_id").eq("id", tripId).maybeSingle();
+      if (t?.keluarga_id) effectiveKeluargaId = t.keluarga_id;
+    }
+
+    if (!effectiveKeluargaId) {
+      setErrorMsg("Data keluarga tidak ditemukan.");
+      return;
+    }
+
+    setIsAdding(true);
+    setErrorMsg(null);
+    try {
+      const { data, error } = await createTripChecklist(
+        {
+          trip_id: tripId,
+          item_name: preset.name,
+          assigned_to: preset.assigned,
+        },
+        effectiveKeluargaId
+      );
+
+      if (error || !data) throw new Error(error?.message || "Gagal menambah barang");
+
+      setChecklists((prev) => [...prev, data]);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "Gagal menambah barang");
@@ -195,66 +267,144 @@ export default function ChecklistSection({ tripId, canEdit }: ChecklistSectionPr
       </div>
 
       {/* Form Tambah Item */}
-      <form onSubmit={handleAdd} style={{ display: "flex", gap: "8px" }}>
-        <input
-          type="text"
-          placeholder="Tambah barang bawaan..."
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
+      {canEdit && (
+        <div
           style={{
-            flex: 1,
-            padding: "10px 14px",
-            borderRadius: "12px",
-            border: "1px solid var(--border, #cbd5e1)",
-            backgroundColor: "var(--input-bg, #ffffff)",
-            fontSize: "13px",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
-
-        <select
-          value={newAssignedTo}
-          onChange={(e) => setNewAssignedTo(e.target.value as TripChecklistAssignee)}
-          style={{
-            width: "90px",
-            padding: "10px 8px",
-            borderRadius: "12px",
-            border: "1px solid var(--border, #cbd5e1)",
-            backgroundColor: "var(--input-bg, #ffffff)",
-            fontSize: "12px",
-            outline: "none",
-          }}
-        >
-          <option value="semua">Semua</option>
-          <option value="suami">Ayah</option>
-          <option value="istri">Ibu</option>
-          <option value="anak">Anak</option>
-        </select>
-
-        <button
-          type="submit"
-          disabled={isAdding || !newItemName.trim()}
-          style={{
-            padding: "10px 14px",
-            borderRadius: "12px",
-            border: "none",
-            backgroundColor: !newItemName.trim() ? "var(--text-muted, #cbd5e1)" : "var(--brand-primary, #287ff0)",
-            color: "#ffffff",
-            cursor: !newItemName.trim() ? "not-allowed" : "pointer",
+            backgroundColor: "var(--surface, #ffffff)",
+            borderRadius: "16px",
+            border: "1px solid var(--border, rgba(0,0,0,0.08))",
+            padding: "14px",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            flexDirection: "column",
+            gap: "10px",
           }}
         >
-          <Plus size={18} />
-        </button>
-      </form>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+              Tambah Barang Bawaan
+            </span>
+            <span style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
+              Ketik atau tap rekomendasi cepat
+            </span>
+          </div>
 
-      {errorMsg && (
-        <div style={{ fontSize: "11px", color: "var(--color-danger, #f04467)", display: "flex", alignItems: "center", gap: "4px" }}>
-          <AlertCircle size={12} />
-          <span>{errorMsg}</span>
+          <form onSubmit={handleAdd} style={{ display: "flex", gap: "8px" }}>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Contoh: Baju hangat, Charger, Obat..."
+              value={newItemName}
+              onChange={(e) => {
+                setNewItemName(e.target.value);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              style={{
+                flex: 1,
+                padding: "10px 14px",
+                borderRadius: "12px",
+                border: errorMsg ? "1px solid var(--color-danger, #f04467)" : "1px solid var(--border, #cbd5e1)",
+                backgroundColor: "var(--input-bg, #ffffff)",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+                transition: "border 0.2s ease",
+              }}
+            />
+
+            <select
+              value={newAssignedTo}
+              onChange={(e) => setNewAssignedTo(e.target.value as TripChecklistAssignee)}
+              title="Tugas Untuk"
+              style={{
+                width: "95px",
+                padding: "10px 8px",
+                borderRadius: "12px",
+                border: "1px solid var(--border, #cbd5e1)",
+                backgroundColor: "var(--input-bg, #ffffff)",
+                fontSize: "12px",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="semua">👥 Semua</option>
+              <option value="suami">👨 Ayah</option>
+              <option value="istri">👩 Ibu</option>
+              <option value="anak">🧒 Anak</option>
+            </select>
+
+            <button
+              type="submit"
+              disabled={isAdding}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "12px",
+                border: "none",
+                backgroundColor: isAdding ? "var(--text-muted, #94a3b8)" : "var(--brand-primary, #287ff0)",
+                color: "#ffffff",
+                cursor: isAdding ? "wait" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+                fontWeight: 600,
+                fontSize: "13px",
+                whiteSpace: "nowrap",
+                boxShadow: "0 2px 6px rgba(40, 127, 240, 0.25)",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              <span>Tambah</span>
+            </button>
+          </form>
+
+          {errorMsg && (
+            <div style={{ fontSize: "11px", color: "var(--color-danger, #f04467)", display: "flex", alignItems: "center", gap: "5px" }}>
+              <AlertCircle size={13} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Rekomendasi Cepat (1-Klik Tambah) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingTop: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)" }}>
+              <Sparkles size={12} style={{ color: "#eab308" }} />
+              <span>Rekomendasi Cepat (1-Klik Tambah):</span>
+            </div>
+            <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
+              {PRESET_SUGGESTIONS.map((preset) => {
+                const isAlreadyAdded = checklists.some(
+                  (c) => c.item_name.trim().toLowerCase() === preset.name.trim().toLowerCase()
+                );
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    disabled={isAdding || isAlreadyAdded}
+                    onClick={() => handleQuickAdd(preset)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      border: "1px dashed var(--border, #cbd5e1)",
+                      backgroundColor: isAlreadyAdded ? "rgba(0,0,0,0.03)" : "rgba(40, 127, 240, 0.05)",
+                      color: isAlreadyAdded ? "var(--text-muted, #94a3b8)" : "var(--brand-primary, #287ff0)",
+                      cursor: isAlreadyAdded ? "default" : "pointer",
+                      whiteSpace: "nowrap",
+                      textDecoration: isAlreadyAdded ? "line-through" : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <span>{preset.label}</span>
+                    {isAlreadyAdded && <CheckCircle2 size={10} style={{ color: "#0d9488" }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

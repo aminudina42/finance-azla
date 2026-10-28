@@ -11,6 +11,7 @@ import TimelineItemCard from "@/components/Wisata/TimelineItemCard";
 import OneTapExpenseModal from "@/components/Wisata/OneTapExpenseModal";
 import AddTripItemModal from "@/components/Wisata/AddTripItemModal";
 import ChecklistSection from "@/components/Wisata/ChecklistSection";
+import Modal from "@/components/Modal";
 import { useApp } from "@/lib/store";
 import {
   getTripById,
@@ -62,6 +63,11 @@ export default function DetailWisataPage() {
 
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
   const [itemForExpense, setItemForExpense] = useState<TripItem | null>(null);
+
+  // Vehicle Switch Modal State
+  const [isChangeVehicleOpen, setIsChangeVehicleOpen] = useState(false);
+  const [selectedVehicleForTrip, setSelectedVehicleForTrip] = useState<string>("");
+  const [savingVehicle, setSavingVehicle] = useState(false);
 
   const [noticeMsg, setNoticeMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -213,6 +219,23 @@ export default function DetailWisataPage() {
     }
   };
 
+  const handleSaveVehicle = async (vehicleId: string | null) => {
+    if (!trip) return;
+    setSavingVehicle(true);
+    try {
+      const { error } = await updateTrip(trip.id, { vehicle_id: vehicleId });
+      if (error) throw new Error(error.message);
+      setTrip((prev) => (prev ? { ...prev, vehicle_id: vehicleId } : null));
+      setIsChangeVehicleOpen(false);
+      showToast(vehicleId ? "Kendaraan perjalanan berhasil diperbarui" : "Kendaraan perjalanan dilepas");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Gagal memperbarui kendaraan: " + err.message, "error");
+    } finally {
+      setSavingVehicle(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ maxWidth: "480px", margin: "0 auto", padding: "20px" }}>
@@ -347,6 +370,71 @@ export default function DetailWisataPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Info Kendaraan Road Trip & Opsi Ganti Kendaraan */}
+        <div
+          style={{
+            backgroundColor: "var(--surface, #ffffff)",
+            borderRadius: "14px",
+            border: "1px solid var(--border, rgba(0,0,0,0.08))",
+            padding: "12px 14px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: "12px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                backgroundColor: linkedVehicle ? "rgba(37, 99, 235, 0.1)" : "rgba(100, 116, 139, 0.1)",
+                color: linkedVehicle ? "#2563eb" : "#64748b",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Car size={16} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
+                {linkedVehicle
+                  ? `${linkedVehicle.vehicle_type === "Motor" ? "🛵" : "🚗"} ${linkedVehicle.brand} ${linkedVehicle.model} (${linkedVehicle.plate_number})`
+                  : "Tanpa Kendaraan Keluarga"}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
+                {linkedVehicle
+                  ? `Odometer: ${(linkedVehicle.last_odometer || 0).toLocaleString("id-ID")} km`
+                  : "Kendaraan umum / rental (klik ganti untuk hubungkan)"}
+              </div>
+            </div>
+          </div>
+
+          {canExecuteExpense && (
+            <button
+              onClick={() => {
+                setSelectedVehicleForTrip(trip.vehicle_id || "");
+                setIsChangeVehicleOpen(true);
+              }}
+              style={{
+                padding: "5px 10px",
+                borderRadius: "8px",
+                border: "1px solid var(--border, #cbd5e1)",
+                backgroundColor: "transparent",
+                color: "var(--brand-primary, #287ff0)",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {linkedVehicle ? "Ganti" : "+ Hubungkan"}
+            </button>
+          )}
         </div>
 
         {/* 3 Tab Navigasi Workspace */}
@@ -618,6 +706,114 @@ export default function DetailWisataPage() {
           showToast("Pengeluaran berhasil dicatat & saldo pos terpotong", "success");
         }}
       />
+
+      {/* Modal Ganti / Hubungkan Kendaraan */}
+      <Modal isOpen={isChangeVehicleOpen} onClose={() => setIsChangeVehicleOpen(false)}>
+        <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+              Pilih Kendaraan Perjalanan
+            </h3>
+            <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted, #64748b)" }}>
+              Tentukan kendaraan keluarga untuk mencatat konsumsi BBM dan update odometer selama liburan
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: !selectedVehicleForTrip ? "2px solid var(--brand-primary, #287ff0)" : "1px solid var(--border, #cbd5e1)",
+                backgroundColor: !selectedVehicleForTrip ? "rgba(40, 127, 240, 0.05)" : "transparent",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="radio"
+                name="vehicleChoice"
+                checked={!selectedVehicleForTrip}
+                onChange={() => setSelectedVehicleForTrip("")}
+              />
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text, #1e293b)" }}>
+                Tanpa Kendaraan (Transportasi Umum / Sewa)
+              </span>
+            </label>
+
+            {vehicles.map((v) => (
+              <label
+                key={v.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: selectedVehicleForTrip === v.id ? "2px solid var(--brand-primary, #287ff0)" : "1px solid var(--border, #cbd5e1)",
+                  backgroundColor: selectedVehicleForTrip === v.id ? "rgba(40, 127, 240, 0.05)" : "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="vehicleChoice"
+                  checked={selectedVehicleForTrip === v.id}
+                  onChange={() => setSelectedVehicleForTrip(v.id)}
+                />
+                <div style={{ fontSize: "13px" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
+                    {v.vehicle_type === "Motor" ? "🛵" : "🚗"} {v.brand} {v.model} ({v.plate_number})
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
+                    Odometer: {(v.last_odometer || 0).toLocaleString("id-ID")} km
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+            <button
+              type="button"
+              onClick={() => setIsChangeVehicleOpen(false)}
+              style={{
+                flex: 1,
+                padding: "10px",
+                borderRadius: "10px",
+                border: "1px solid var(--border, #cbd5e1)",
+                backgroundColor: "transparent",
+                color: "var(--text-muted, #64748b)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={savingVehicle}
+              onClick={() => handleSaveVehicle(selectedVehicleForTrip || null)}
+              style={{
+                flex: 2,
+                padding: "10px",
+                borderRadius: "10px",
+                border: "none",
+                backgroundColor: "var(--brand-primary, #287ff0)",
+                color: "#ffffff",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: savingVehicle ? "not-allowed" : "pointer",
+              }}
+            >
+              {savingVehicle ? "Menyimpan..." : "Simpan Kendaraan"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -479,6 +479,7 @@ export interface TripItem {
   keluarga_id: string;
   day_number: number;
   start_time?: string | null;
+  end_time?: string | null;
   category: TripCategory;
   title: string;
   location?: string | null;

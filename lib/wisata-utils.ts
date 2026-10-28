@@ -1,6 +1,13 @@
 import type { TripCategory } from "./types";
 
 export interface FuelEstimateResult {
+  oneWayDistanceKm: number;
+  isRoundTrip: boolean;
+  baseDistanceKm: number;
+  bufferPercent: number;
+  bufferDistanceKm: number;
+  totalCalculatedDistanceKm: number;
+  rawLiters: number;
   liters: number;
   cost: number;
   efficiencyUsed: number;
@@ -9,26 +16,42 @@ export interface FuelEstimateResult {
 }
 
 /**
- * Menghitung estimasi liter dan biaya BBM Road Trip dengan buffer 20% dan proteksi divide-by-zero.
+ * Menghitung estimasi liter dan biaya BBM Road Trip dengan rincian transparan,
+ * opsi Pulang-Pergi (PP), buffer kemacetan/keliling wisata, dan proteksi divide-by-zero.
  */
 export function calculateFuelEstimate(
   distanceKm: number,
   efficiencyKmL?: number | null,
   fuelPricePerLiter?: number | null,
-  vehicleType: "Mobil" | "Motor" = "Mobil"
+  vehicleType: "Mobil" | "Motor" = "Mobil",
+  isRoundTrip: boolean = true,
+  bufferPercent: number = 20
 ): FuelEstimateResult {
-  const safeDistance = Math.max(0, distanceKm);
+  const safeOneWay = Math.max(0, distanceKm);
+  const baseDistanceKm = isRoundTrip ? safeOneWay * 2 : safeOneWay;
   const fallbackEfficiency = vehicleType === "Motor" ? 35.0 : 10.0;
   const isFallbackEfficiency = !efficiencyKmL || efficiencyKmL <= 0;
   const effectiveEfficiency = isFallbackEfficiency ? fallbackEfficiency : efficiencyKmL!;
   const effectivePrice = !fuelPricePerLiter || fuelPricePerLiter <= 0 ? 10000 : fuelPricePerLiter;
 
-  // Rumus: ceil((distance * 1.2) / efficiency)
-  const rawLiters = (safeDistance * 1.2) / effectiveEfficiency;
+  // Buffer kemacetan liburan, AC, & rute muter-muter keliling tempat wisata
+  const safeBufferPercent = Math.max(0, bufferPercent);
+  const bufferDistanceKm = Math.round(((baseDistanceKm * safeBufferPercent) / 100) * 10) / 10;
+  const totalCalculatedDistanceKm = Math.round((baseDistanceKm + bufferDistanceKm) * 10) / 10;
+
+  // Rumus: ceil(totalCalculatedDistanceKm / effectiveEfficiency)
+  const rawLiters = effectiveEfficiency > 0 ? totalCalculatedDistanceKm / effectiveEfficiency : 0;
   const liters = Math.ceil(rawLiters);
   const cost = liters * effectivePrice;
 
   return {
+    oneWayDistanceKm: safeOneWay,
+    isRoundTrip,
+    baseDistanceKm,
+    bufferPercent: safeBufferPercent,
+    bufferDistanceKm,
+    totalCalculatedDistanceKm,
+    rawLiters: Math.round(rawLiters * 10) / 10,
     liters,
     cost,
     efficiencyUsed: effectiveEfficiency,
@@ -164,9 +187,23 @@ export const CATEGORY_META: Record<TripCategory, CategoryMeta> = {
 };
 
 /**
- * Menghasilkan link Google Maps pencarian berdasarkan nama tempat dan lokasi/alamat.
+ * Menghasilkan link Google Maps.
+ * Jika pengguna memasukkan URL link Google Maps, fungsi langsung mengembalikan link tersebut.
+ * Jika berupa teks alamat/tempat, fungsi membentuk URL pencarian otomatis.
  */
 export function getGoogleMapsUrl(title: string, location?: string | null): string {
+  if (location) {
+    const trimmed = location.trim();
+    if (
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://") ||
+      trimmed.includes("maps.app.goo.gl") ||
+      trimmed.includes("goo.gl/maps") ||
+      trimmed.includes("google.com/maps")
+    ) {
+      return trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
+    }
+  }
   const query = [title, location].filter(Boolean).join(" ");
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }

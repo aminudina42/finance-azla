@@ -43,6 +43,8 @@ AS $$
 DECLARE
   v_user_id UUID;
   v_keluarga_id UUID;
+  v_clean_name TEXT;
+  v_prefix TEXT;
   v_invite_code TEXT;
   v_cycle_id UUID;
   v_start_date DATE;
@@ -57,8 +59,31 @@ BEGIN
     RAISE EXCEPTION 'Nama keluarga tidak boleh kosong.';
   END IF;
 
-  -- Buat kode undangan unik CSPRNG 8 karakter (4.29 miliar kombinasi unik)
-  v_invite_code := 'AZLA-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+  -- 1. Bersihkan nama keluarga untuk dijadikan prefix dinamis
+  -- Buang kata umum di awal seperti "Keluarga", "Family", atau "The" jika diikuti spasi
+  v_clean_name := TRIM(REGEXP_REPLACE(p_nama_keluarga, '^(keluarga|family|the)\s+', '', 'i'));
+  
+  -- Jika setelah dibersihkan ternyata kosong (misal nama diinput hanya "Keluarga"), gunakan nama awal
+  IF v_clean_name = '' THEN
+    v_clean_name := TRIM(p_nama_keluarga);
+  END IF;
+
+  -- 2. Ambil hanya karakter alfanumerik (A-Z, 0-9) dan jadikan UPPERCASE
+  v_prefix := UPPER(REGEXP_REPLACE(v_clean_name, '[^a-zA-Z0-9]', '', 'g'));
+
+  -- 3. Batasi panjang prefix maksimal 8 karakter
+  v_prefix := SUBSTRING(v_prefix FROM 1 FOR 8);
+
+  -- 4. Fallback jika nama hanya berupa simbol atau kurang dari 2 karakter
+  IF v_prefix IS NULL OR LENGTH(v_prefix) < 2 THEN
+    v_prefix := 'CK';
+  END IF;
+
+  -- 5. Buat kode undangan unik CSPRNG 8 karakter (looping defensif untuk mencegah collision)
+  LOOP
+    v_invite_code := v_prefix || '-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM public.keluarga WHERE invite_code = v_invite_code);
+  END LOOP;
 
   -- Buat record keluarga
   INSERT INTO public.keluarga (

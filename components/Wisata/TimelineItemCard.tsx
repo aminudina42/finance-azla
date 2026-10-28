@@ -76,7 +76,11 @@ export default function TimelineItemCard({
               }}
             >
               <Clock size={11} />
-              <span>{item.start_time.slice(0, 5)}</span>
+              <span>
+                {item.end_time
+                  ? `${item.start_time.slice(0, 5)} - ${item.end_time.slice(0, 5)} WIB`
+                  : `${item.start_time.slice(0, 5)} WIB`}
+              </span>
             </span>
           )}
         </div>
