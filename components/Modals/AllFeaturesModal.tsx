@@ -6,6 +6,7 @@ import Modal from "@/components/Modal";
 import AlertModal from "@/components/Modals/AlertModal";
 import { useApp } from "@/lib/store";
 import { AVAILABLE_MENUS, getMenuItem, MenuIcon, DEFAULT_QUICK_MENU } from "@/lib/menu-config";
+import { dismissModalWithoutHistoryTrap } from "@/lib/hooks/useModalBackHandler";
 
 interface AllFeaturesModalProps {
   isOpen: boolean;
@@ -17,7 +18,16 @@ export default function AllFeaturesModal({
   onClose,
 }: AllFeaturesModalProps) {
   const router = useRouter();
-  const { sessionUser, currentMember, currentKeluarga, logout, quickMenuItems, updateQuickMenuItems, menuIconOverrides } = useApp();
+  const {
+    sessionUser,
+    currentMember,
+    currentKeluarga,
+    logout,
+    quickMenuItems,
+    updateQuickMenuItems,
+    menuIconOverrides,
+    setIsNavigating,
+  } = useApp();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -58,7 +68,9 @@ export default function AllFeaturesModal({
   };
 
   const handleItemClick = (path: string) => {
+    dismissModalWithoutHistoryTrap();
     onClose();
+    setIsNavigating(true);
     router.push(path);
   };
 

@@ -12,6 +12,24 @@ export interface UseModalBackHandlerOptions {
 const modalStack: string[] = [];
 
 /**
+ * Safely marks the current history state as non-modal so that
+ * when the modal unmounts, useModalBackHandler will NOT trigger window.history.back().
+ * Use this when navigating away from the page directly from a modal.
+ */
+export function dismissModalWithoutHistoryTrap(): void {
+  if (typeof window !== "undefined" && window.history.state?.isModalTrap) {
+    try {
+      window.history.replaceState(
+        { ...window.history.state, isModalTrap: false },
+        ""
+      );
+    } catch {
+      // Ignore if state cannot be modified
+    }
+  }
+}
+
+/**
  * Custom hook to intercept browser hardware back button and swipe-back gestures
  * when a modal or bottomsheet is open, preventing accidental page exits.
  */
@@ -86,7 +104,11 @@ export function useModalBackHandler({
 
       // If closed via UI (✕ button, backdrop tap, form submit), clean up virtual entry
       if (!isClosingByPopstate.current) {
-        if (typeof window !== "undefined" && window.history.state?.isModalTrap) {
+        if (
+          typeof window !== "undefined" &&
+          window.history.state?.isModalTrap &&
+          window.history.state?.modalId === modalId
+        ) {
           window.history.back();
         }
       }

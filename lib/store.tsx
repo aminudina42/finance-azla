@@ -146,6 +146,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   const [isNavigating, setIsNavigating] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const isMutatingCycleRef = useRef(false);
+  const pathnameRef = useRef(pathname);
 
   // Global click interceptor for relative route links (Perpindahan halaman)
   useEffect(() => {
@@ -179,7 +180,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
       }
     };
 
-    const handlePopState = () => {
+    const handlePopState = (e: PopStateEvent) => {
+      // Jangan tampilkan loading navigasi jika:
+      // 1. Pathname tidak berubah (misal: penutupan bottomsheet via back button / history.back, atau hash change)
+      // 2. Event berasal dari modal trap internal
+      if (
+        window.location.pathname === pathnameRef.current ||
+        (e.state && e.state.isModalTrap)
+      ) {
+        return;
+      }
       setIsNavigating(true);
     };
 
@@ -191,8 +201,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     };
   }, []);
 
-  // Matikan loading navigasi saat path berubah
+  // Matikan loading navigasi saat path berubah dan sinkronkan pathnameRef
   useEffect(() => {
+    pathnameRef.current = pathname;
     setIsNavigating(false);
   }, [pathname]);
 
