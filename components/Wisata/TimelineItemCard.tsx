@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { TripItem } from "@/lib/types";
-import { CATEGORY_META, formatRp, getGoogleMapsUrl } from "@/lib/wisata-utils";
+import { CATEGORY_META, formatRp, getGoogleMapsUrl, isLocationLink } from "@/lib/wisata-utils";
 import { Clock, MapPin, ExternalLink, Ticket, CheckCircle2, RotateCcw, Trash2, Edit2 } from "lucide-react";
 
 interface TimelineItemCardProps {
@@ -12,6 +12,7 @@ interface TimelineItemCardProps {
   onRollback: (item: TripItem) => void;
   onDelete: (item: TripItem) => void;
   onEdit?: (item: TripItem) => void;
+  isOngoing?: boolean;
 }
 
 export default function TimelineItemCard({
@@ -21,16 +22,11 @@ export default function TimelineItemCard({
   onRollback,
   onDelete,
   onEdit,
+  isOngoing = false,
 }: TimelineItemCardProps) {
   const cat = CATEGORY_META[item.category] || CATEGORY_META.other;
   const mapsUrl = getGoogleMapsUrl(item.title, item.location);
-
-  const isLocationUrl =
-    item.location &&
-    (item.location.startsWith("http://") ||
-      item.location.startsWith("https://") ||
-      item.location.includes("google.com/maps") ||
-      item.location.includes("goo.gl"));
+  const isLocationUrl = isLocationLink(item.location);
 
   const displayLocation = isLocationUrl ? "Titik Lokasi Google Maps" : item.location;
 
@@ -42,11 +38,20 @@ export default function TimelineItemCard({
   return (
     <div
       style={{
-        backgroundColor: "var(--surface, #ffffff)",
+        backgroundColor: isOngoing && !item.is_completed ? "rgba(40, 127, 240, 0.03)" : "var(--surface, #ffffff)",
         borderRadius: "16px",
-        border: `1px solid ${item.is_completed ? "rgba(22, 168, 154, 0.3)" : "var(--border, rgba(0,0,0,0.08))"}`,
+        border: item.is_completed
+          ? "1px solid rgba(22, 168, 154, 0.3)"
+          : isOngoing
+          ? "1.5px solid var(--brand-primary, #287ff0)"
+          : "1px solid var(--border, rgba(0,0,0,0.08))",
+        borderLeft: isOngoing && !item.is_completed ? "5px solid var(--brand-primary, #287ff0)" : undefined,
         padding: "14px 16px",
-        boxShadow: item.is_completed ? "0 2px 8px rgba(22, 168, 154, 0.06)" : "0 2px 8px rgba(0,0,0,0.03)",
+        boxShadow: item.is_completed
+          ? "0 2px 8px rgba(22, 168, 154, 0.06)"
+          : isOngoing
+          ? "0 4px 16px rgba(40, 127, 240, 0.14), 0 0 0 1px rgba(40, 127, 240, 0.1)"
+          : "0 2px 8px rgba(0,0,0,0.03)",
         display: "flex",
         flexDirection: "column",
         gap: "10px",
@@ -56,6 +61,7 @@ export default function TimelineItemCard({
         minWidth: 0,
         boxSizing: "border-box",
         overflow: "hidden",
+        transition: "all 0.2s ease",
       }}
     >
       {/* Baris Atas: Kategori, Jam & Aksi Hapus */}
@@ -97,6 +103,26 @@ export default function TimelineItemCard({
                   ? `${item.start_time.slice(0, 5)} - ${item.end_time.slice(0, 5)} WIB`
                   : `${item.start_time.slice(0, 5)} WIB`}
               </span>
+            </span>
+          )}
+
+          {isOngoing && !item.is_completed && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px",
+                padding: "2px 7px",
+                borderRadius: "6px",
+                fontSize: "10.5px",
+                fontWeight: 700,
+                backgroundColor: "var(--brand-primary, #287ff0)",
+                color: "#ffffff",
+                boxShadow: "0 2px 6px rgba(40, 127, 240, 0.25)",
+              }}
+            >
+              <span>⚡</span>
+              <span>Sedang Berlangsung</span>
             </span>
           )}
         </div>
@@ -174,48 +200,52 @@ export default function TimelineItemCard({
         )}
       </div>
 
-      {/* Badge Kode Booking & Link Google Maps */}
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
-        {item.booking_code && (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              padding: "2px 8px",
-              borderRadius: "6px",
-              backgroundColor: "rgba(124, 58, 237, 0.08)",
-              color: "#7c3aed",
-              fontSize: "11px",
-              fontWeight: 700,
-            }}
-          >
-            <Ticket size={11} />
-            <span>#{item.booking_code}</span>
-          </div>
-        )}
+      {/* Badge Kode Booking & Link Google Maps (Hanya jika tujuan/lokasi berupa URL tautan) */}
+      {(item.booking_code || isLocationUrl) && (
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+          {item.booking_code && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "2px 8px",
+                borderRadius: "6px",
+                backgroundColor: "rgba(124, 58, 237, 0.08)",
+                color: "#7c3aed",
+                fontSize: "11px",
+                fontWeight: 700,
+              }}
+            >
+              <Ticket size={11} />
+              <span>#{item.booking_code}</span>
+            </div>
+          )}
 
-        <a
-          href={mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "3px",
-            padding: "2px 8px",
-            borderRadius: "6px",
-            backgroundColor: "rgba(37, 99, 235, 0.08)",
-            color: "#2563eb",
-            fontSize: "11px",
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          <span>Buka Maps</span>
-          <ExternalLink size={10} />
-        </a>
-      </div>
+          {isLocationUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px",
+                padding: "2px 8px",
+                borderRadius: "6px",
+                backgroundColor: "rgba(37, 99, 235, 0.08)",
+                color: "#2563eb",
+                fontSize: "11px",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              <span>Buka Maps</span>
+              <ExternalLink size={10} />
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Catatan Tambahan jika ada */}
       {item.notes && (

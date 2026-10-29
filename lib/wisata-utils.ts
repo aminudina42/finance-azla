@@ -214,3 +214,59 @@ export function getGoogleMapsUrl(title: string, location?: string | null): strin
 export function formatRp(amount: number): string {
   return "Rp " + (Number(amount) || 0).toLocaleString("id-ID");
 }
+
+/**
+ * Memeriksa apakah nilai lokasi merupakan tautan/URL (Google Maps atau link eksternal)
+ */
+export function isLocationLink(location?: string | null): boolean {
+  if (!location) return false;
+  const trimmed = location.trim().toLowerCase();
+  return (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("maps.app.goo.gl") ||
+    trimmed.startsWith("goo.gl") ||
+    trimmed.includes("google.com/maps") ||
+    trimmed.includes("maps.google.com")
+  );
+}
+
+/**
+ * Memeriksa apakah agenda trip sedang berlangsung saat ini.
+ * Membandingkan waktu saat ini dengan rentang start_time - end_time pada agenda,
+ * serta memeriksa kesesuaian tanggal jika tripStartDate diberikan.
+ */
+export function isTripItemOngoing(
+  item: { day_number: number; start_time?: string | null; end_time?: string | null },
+  tripStartDate?: string
+): boolean {
+  if (!item.start_time) return false;
+
+  const now = new Date();
+
+  // Jika tanggal mulai trip diberikan, validasi apakah hari ini adalah tanggal hari agenda tersebut
+  if (tripStartDate) {
+    const itemDate = new Date(tripStartDate);
+    itemDate.setDate(itemDate.getDate() + (item.day_number - 1));
+    const nowDayStr = now.toLocaleDateString("en-CA"); // Format YYYY-MM-DD
+    const itemDayStr = itemDate.toLocaleDateString("en-CA");
+    if (nowDayStr !== itemDayStr) return false;
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [startH, startM] = item.start_time.split(":").map(Number);
+  const startMinutes = (startH || 0) * 60 + (startM || 0);
+
+  let endMinutes: number;
+  if (item.end_time) {
+    const [endH, endM] = item.end_time.split(":").map(Number);
+    endMinutes = (endH || 0) * 60 + (endM || 0);
+  } else {
+    // Default rentang 1 jam jika end_time tidak diisi
+    endMinutes = startMinutes + 60;
+  }
+
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
+

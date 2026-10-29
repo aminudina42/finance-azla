@@ -116,7 +116,8 @@ CREATE OR REPLACE FUNCTION public.record_trip_expense_tx(
   p_odometer_km INT DEFAULT NULL,
   p_fuel_liters NUMERIC DEFAULT NULL,
   p_saku_id UUID DEFAULT NULL,
-  p_saku_withdraw_amount BIGINT DEFAULT 0
+  p_saku_withdraw_amount BIGINT DEFAULT 0,
+  p_pos_id UUID DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -128,6 +129,7 @@ DECLARE
   v_trip RECORD;
   v_pos RECORD;
   v_saku RECORD;
+  v_effective_pos_id UUID;
   v_tx_id UUID := NULL;
   v_fuel_log_id UUID := NULL;
   v_my_keluarga_id UUID;
@@ -160,9 +162,16 @@ BEGIN
     RAISE EXCEPTION 'Perjalanan wisata induk tidak ditemukan';
   END IF;
 
-  -- 4. Mutasi Saldo Pos & Saku (Shortfall Protection)
-  IF v_trip.finance_pos_id IS NOT NULL AND p_actual_cost > 0 THEN
-    SELECT * INTO v_pos FROM public.pos WHERE id = v_trip.finance_pos_id;
+  -- 4. Tentukan Pos Keuangan Efektif (Prioritas: p_pos_id dari modal belanja -> fallback ke pos bawaan trip)
+  v_effective_pos_id := COALESCE(p_pos_id, v_trip.finance_pos_id);
+
+  -- 5. Mutasi Saldo Pos & Saku jika ada biaya riil
+  IF p_actual_cost > 0 THEN
+    IF v_effective_pos_id IS NULL THEN
+      RAISE EXCEPTION 'Pos pengeluaran wajib dipilih untuk mencatat pengeluaran';
+    END IF;
+
+    SELECT * INTO v_pos FROM public.pos WHERE id = v_effective_pos_id;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Pos keuangan terhubung tidak ditemukan';
     END IF;
@@ -196,21 +205,21 @@ BEGIN
     -- Potong saldo pos keuangan
     UPDATE public.pos 
     SET current_balance = current_balance - v_pos_deduction 
-    WHERE id = v_trip.finance_pos_id;
+    WHERE id = v_effective_pos_id;
 
     -- Catat transaksi belanja di tabel transactions
     INSERT INTO public.transactions (
       keluarga_id, pos_id, amount, type, user_id, user_name, user_role,
       description, saku_id, saku_withdraw_amount
     ) VALUES (
-      v_item.keluarga_id, v_trip.finance_pos_id, p_actual_cost, 'expense',
+      v_item.keluarga_id, v_effective_pos_id, p_actual_cost, 'expense',
       p_user_id, p_user_name, p_user_role::public.status_keluarga,
       v_trip.title || ' — ' || v_item.title,
       p_saku_id, v_effective_saku_withdraw
     ) RETURNING id INTO v_tx_id;
   END IF;
 
-  -- 5. Jika kategori Transport & Odometer diinput -> Catat BBM Atomik
+  -- 6. Jika kategori Transport & Odometer diinput -> Catat BBM Atomik
   IF v_item.category = 'transport' AND v_trip.vehicle_id IS NOT NULL AND p_odometer_km IS NOT NULL THEN
     -- Cari log BBM terakhir untuk menghitung efisiensi riil
     SELECT * INTO v_prev_log 
@@ -237,10 +246,16 @@ BEGIN
       log_date, odometer_km, fuel_type, fuel_liters, total_cost,
       distance_km, efficiency_km_l, notes
     ) VALUES (
-      v_item.keluarga_id, v_trip.vehicle_id, v_trip.finance_pos_id, v_tx_id,
+      v_item.keluarga_id, v_trip.vehicle_id, v_effective_pos_id, v_tx_id,
       CURRENT_DATE, p_odometer_km, 'BBM Wisata', COALESCE(p_fuel_liters, 0), p_actual_cost,
       v_distance_km, v_efficiency_km_l, 'Road Trip: ' || v_trip.title
     ) RETURNING id INTO v_fuel_log_id;
+
+    -- Update last_odometer kendaraan
+    UPDATE public.vehicles 
+    SET last_odometer = GREATEST(last_odometer, p_odometer_km), updated_at = now() 
+    WHERE id = v_trip.vehicle_id;
+  END IF;
 
     -- Update last_odometer kendaraan
     UPDATE public.vehicles 

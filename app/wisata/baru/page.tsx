@@ -57,7 +57,7 @@ export default function BaruWisataPage() {
     });
   }, []);
 
-  // Preselect pos jika ada pos bertipe goal/liburan
+  // Preselect pos jika ada pos bertipe goal/liburan (opsional)
   useEffect(() => {
     if (posList.length > 0 && !financePosId) {
       const holidayPos = posList.find(
@@ -69,8 +69,6 @@ export default function BaruWisataPage() {
       );
       if (holidayPos) {
         setFinancePosId(holidayPos.id);
-      } else {
-        setFinancePosId(posList[0].id);
       }
     }
   }, [posList, financePosId]);
@@ -470,7 +468,7 @@ export default function BaruWisataPage() {
 
           <div>
             <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "6px" }}>
-              Pos Pengeluaran Terhubung
+              Pos Pengeluaran Terhubung <span style={{ fontWeight: 400, color: "var(--text-muted, #64748b)" }}>(Opsional)</span>
             </label>
             <select
               value={financePosId}
@@ -486,6 +484,7 @@ export default function BaruWisataPage() {
                 boxSizing: "border-box",
               }}
             >
+              <option value="">-- Tanpa Pos Terkait (Pilih Pos Saat Belanja) --</option>
               {posList.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.icon} {p.name} {p.is_goal ? "(Tabungan Goal)" : ""} — Saldo: {formatRp(p.current_balance)}
@@ -493,7 +492,7 @@ export default function BaruWisataPage() {
               ))}
             </select>
             <span style={{ fontSize: "11px", color: "var(--text-muted, #64748b)", display: "block", marginTop: "4px" }}>
-              Pengeluaran riil di tempat wisata akan memotong saldo pos ini.
+              Opsional. Jika dipilih, pos ini akan menjadi pilihan bawaan saat mencatat pengeluaran agenda di lapangan.
             </span>
           </div>
 

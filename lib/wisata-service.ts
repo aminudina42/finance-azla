@@ -51,6 +51,7 @@ export interface RecordTripExpenseInput {
   fuel_liters?: number | null;
   saku_id?: string | null;
   saku_withdraw_amount?: number;
+  pos_id?: string | null;
 }
 
 // ── Trips CRUD ──
@@ -68,7 +69,7 @@ export async function getTrips(keluargaId?: string): Promise<Trip[]> {
   const { data, error } = await query;
   if (error) {
     console.error("Error fetching trips:", error);
-    return [];
+    throw error;
   }
   return data || [];
 }
@@ -82,7 +83,7 @@ export async function getTripById(id: string): Promise<Trip | null> {
 
   if (error) {
     console.error(`Error fetching trip ${id}:`, error);
-    return null;
+    throw error;
   }
   return data;
 }
@@ -137,7 +138,7 @@ export async function getTripItems(tripId: string): Promise<TripItem[]> {
 
   if (error) {
     console.error(`Error fetching trip items for ${tripId}:`, error);
-    return [];
+    throw error;
   }
   return data || [];
 }
@@ -204,6 +205,7 @@ export async function recordTripExpense(
     p_fuel_liters: params.fuel_liters || null,
     p_saku_id: params.saku_id || null,
     p_saku_withdraw_amount: params.saku_withdraw_amount || 0,
+    p_pos_id: params.pos_id || null,
   });
 
   if (error) {

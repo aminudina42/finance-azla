@@ -317,7 +317,7 @@ export default function AddTripItemModal({
               }}
             />
             <span style={{ display: "block", marginTop: "3px", fontSize: "10px", color: "var(--text-muted, #64748b)" }}>
-              💡 Bisa diisi nama tempat, alamat, atau link share Google Maps. Tombol &quot;Buka Maps&quot; di jadwal akan langsung membuka titik lokasi ini.
+              💡 Masukkan link Google Maps jika ingin memunculkan tombol &quot;Buka Maps&quot; di jadwal. Teks alamat biasa tetap tersimpan sebagai informasi lokasi.
             </span>
           </div>
 

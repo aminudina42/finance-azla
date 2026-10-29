@@ -26,6 +26,7 @@ import {
   formatTripDates,
   formatRp,
   CATEGORY_META,
+  isTripItemOngoing,
 } from "@/lib/wisata-utils";
 import type { Trip, TripItem, Vehicle, TripStatus, TripCategory } from "@/lib/types";
 import {
@@ -39,6 +40,9 @@ import {
   Clock,
   Printer,
   ChevronRight,
+  Wallet,
+  WifiOff,
+  RotateCcw,
 } from "lucide-react";
 
 export default function DetailWisataPage() {
@@ -69,11 +73,20 @@ export default function DetailWisataPage() {
   const [selectedVehicleForTrip, setSelectedVehicleForTrip] = useState<string>("");
   const [savingVehicle, setSavingVehicle] = useState(false);
 
+  // POS Switch Modal State
+  const [isChangePosOpen, setIsChangePosOpen] = useState(false);
+  const [selectedPosForTrip, setSelectedPosForTrip] = useState<string>("");
+  const [savingPos, setSavingPos] = useState(false);
+
+  // Connection & Offline State
+  const [connectionError, setConnectionError] = useState(false);
+
   const [noticeMsg, setNoticeMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!tripId) return;
     setLoading(true);
+    setConnectionError(false);
     try {
       const [tripData, itemsData, vehiclesData] = await Promise.all([
         getTripById(tripId),
@@ -86,6 +99,7 @@ export default function DetailWisataPage() {
       setVehicles(vehiclesData);
     } catch (err) {
       console.error("Gagal memuat detail trip:", err);
+      setConnectionError(true);
     } finally {
       setLoading(false);
     }
@@ -236,12 +250,90 @@ export default function DetailWisataPage() {
     }
   };
 
+  const handleSaveTripPos = async (posId: string | null) => {
+    if (!trip) return;
+    setSavingPos(true);
+    try {
+      const { error } = await updateTrip(trip.id, { finance_pos_id: posId });
+      if (error) throw new Error(error.message);
+      setTrip((prev) => (prev ? { ...prev, finance_pos_id: posId } : null));
+      setIsChangePosOpen(false);
+      showToast(posId ? "Sumber pos trip berhasil diperbarui" : "Sumber pos trip dilepas");
+    } catch (err: any) {
+      console.error(err);
+      showToast("Gagal memperbarui sumber pos: " + err.message, "error");
+    } finally {
+      setSavingPos(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ maxWidth: "480px", margin: "0 auto", padding: "20px" }}>
         <Skeleton height={60} borderRadius={12} />
         <div style={{ marginTop: "16px" }}>
           <Skeleton height={140} borderRadius={18} />
+        </div>
+      </div>
+    );
+  }
+
+  if (connectionError) {
+    return (
+      <div style={{ maxWidth: "480px", margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
+        <div
+          style={{
+            width: "64px",
+            height: "64px",
+            borderRadius: "50%",
+            backgroundColor: "rgba(240, 68, 103, 0.12)",
+            color: "#f04467",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "16px",
+          }}
+        >
+          <WifiOff size={32} />
+        </div>
+        <h3 style={{ fontSize: "17px", fontWeight: 700, margin: "0 0 6px", color: "var(--text, #1e293b)" }}>
+          Koneksi Internet Terganggu
+        </h3>
+        <p style={{ color: "var(--text-muted, #64748b)", fontSize: "13px", lineHeight: "1.5", margin: "0 0 20px" }}>
+          Gagal memuat rencana wisata karena kendala jaringan internet. Pastikan perangkat Anda terhubung ke internet dan coba lagi.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
+          <button
+            onClick={() => loadData()}
+            style={{
+              padding: "10px 20px",
+              borderRadius: "10px",
+              border: "none",
+              backgroundColor: "var(--brand-primary, #287ff0)",
+              color: "#ffffff",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <RotateCcw size={15} />
+            <span>Segarkan Halaman</span>
+          </button>
+          <Link
+            href="/wisata"
+            style={{
+              color: "var(--text-muted, #64748b)",
+              fontSize: "13px",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            Kembali ke Daftar Wisata
+          </Link>
         </div>
       </div>
     );
@@ -482,6 +574,92 @@ export default function DetailWisataPage() {
           )}
         </div>
 
+        {/* Info Sumber Pos Anggaran & Opsi Ganti Sumber Pos */}
+        <div
+          style={{
+            backgroundColor: "var(--surface, #ffffff)",
+            borderRadius: "14px",
+            border: "1px solid var(--border, rgba(0,0,0,0.08))",
+            padding: "12px 14px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "10px",
+            fontSize: "12px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                backgroundColor: linkedPos ? "rgba(16, 185, 129, 0.1)" : "rgba(100, 116, 139, 0.1)",
+                color: linkedPos ? "#10b981" : "#64748b",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                fontSize: "16px",
+              }}
+            >
+              {linkedPos?.icon || <Wallet size={16} />}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  color: "var(--text, #1e293b)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {linkedPos ? `${linkedPos.name} (Pos Bawaan)` : "Tanpa Pos Terkait (Opsional)"}
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: "var(--text-muted, #64748b)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {linkedPos
+                  ? `Sisa Saldo: ${formatRp(linkedPos.current_balance)}`
+                  : "Pilih pos manual saat mencatat belanja agenda"}
+              </div>
+            </div>
+          </div>
+
+          {canExecuteExpense && (
+            <button
+              onClick={() => {
+                setSelectedPosForTrip(trip.finance_pos_id || "");
+                setIsChangePosOpen(true);
+              }}
+              style={{
+                padding: "5px 10px",
+                borderRadius: "8px",
+                border: "1px solid var(--border, #cbd5e1)",
+                backgroundColor: "transparent",
+                color: "var(--brand-primary, #287ff0)",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              {linkedPos ? "Ganti" : "+ Hubungkan"}
+            </button>
+          )}
+        </div>
+
         {/* 3 Tab Navigasi Workspace */}
         <div
           style={{
@@ -626,20 +804,24 @@ export default function DetailWisataPage() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {itemsForSelectedDay.map((item) => (
-                  <TimelineItemCard
-                    key={item.id}
-                    item={item}
-                    canExecuteExpense={canExecuteExpense}
-                    onCatatAktual={handleOpenCatatAktual}
-                    onRollback={handleRollbackItem}
-                    onDelete={handleDeleteItem}
-                    onEdit={(it) => {
-                      setItemToEdit(it);
-                      setIsAddItemOpen(true);
-                    }}
-                  />
-                ))}
+                {itemsForSelectedDay.map((item) => {
+                  const isOngoing = isTripItemOngoing(item, trip.start_date);
+                  return (
+                    <TimelineItemCard
+                      key={item.id}
+                      item={item}
+                      canExecuteExpense={canExecuteExpense}
+                      onCatatAktual={handleOpenCatatAktual}
+                      onRollback={handleRollbackItem}
+                      onDelete={handleDeleteItem}
+                      onEdit={(it) => {
+                        setItemToEdit(it);
+                        setIsAddItemOpen(true);
+                      }}
+                      isOngoing={isOngoing}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -775,6 +957,7 @@ export default function DetailWisataPage() {
         item={itemForExpense}
         trip={trip}
         pos={linkedPos}
+        posList={posList}
         sakuList={sakuList}
         vehicle={linkedVehicle}
         userRole={userRole}
@@ -890,6 +1073,114 @@ export default function DetailWisataPage() {
               }}
             >
               {savingVehicle ? "Menyimpan..." : "Simpan Kendaraan"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Ganti / Hubungkan Sumber Pos Anggaran */}
+      <Modal isOpen={isChangePosOpen} onClose={() => setIsChangePosOpen(false)}>
+        <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+              Pilih Sumber Pos Anggaran
+            </h3>
+            <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted, #64748b)" }}>
+              Tentukan pos keuangan yang menjadi pos bawaan saat mencatat pengeluaran agenda trip ini
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: !selectedPosForTrip ? "2px solid var(--brand-primary, #287ff0)" : "1px solid var(--border, #cbd5e1)",
+                backgroundColor: !selectedPosForTrip ? "rgba(40, 127, 240, 0.05)" : "transparent",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="radio"
+                name="posChoice"
+                checked={!selectedPosForTrip}
+                onChange={() => setSelectedPosForTrip("")}
+              />
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text, #1e293b)" }}>
+                Tanpa Pos Terkait (Pilih Pos Saat Belanja)
+              </span>
+            </label>
+
+            {posList.map((p) => (
+              <label
+                key={p.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: selectedPosForTrip === p.id ? "2px solid var(--brand-primary, #287ff0)" : "1px solid var(--border, #cbd5e1)",
+                  backgroundColor: selectedPosForTrip === p.id ? "rgba(40, 127, 240, 0.05)" : "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="posChoice"
+                  checked={selectedPosForTrip === p.id}
+                  onChange={() => setSelectedPosForTrip(p.id)}
+                />
+                <div style={{ fontSize: "13px" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
+                    {p.icon || "💰"} {p.name} {p.is_goal ? "(Tabungan Goal)" : ""}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
+                    Sisa Saldo: {formatRp(p.current_balance)}
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+            <button
+              type="button"
+              onClick={() => setIsChangePosOpen(false)}
+              style={{
+                flex: 1,
+                padding: "10px",
+                borderRadius: "10px",
+                border: "1px solid var(--border, #cbd5e1)",
+                backgroundColor: "transparent",
+                color: "var(--text-muted, #64748b)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={savingPos}
+              onClick={() => handleSaveTripPos(selectedPosForTrip || null)}
+              style={{
+                flex: 2,
+                padding: "10px",
+                borderRadius: "10px",
+                border: "none",
+                backgroundColor: "var(--brand-primary, #287ff0)",
+                color: "#ffffff",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: savingPos ? "not-allowed" : "pointer",
+              }}
+            >
+              {savingPos ? "Menyimpan..." : "Simpan Pos"}
             </button>
           </div>
         </div>

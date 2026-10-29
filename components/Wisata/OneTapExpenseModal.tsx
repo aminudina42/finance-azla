@@ -14,6 +14,7 @@ interface OneTapExpenseModalProps {
   item: TripItem | null;
   trip: Trip | null;
   pos: Pos | null;
+  posList?: Pos[];
   sakuList: Child[];
   vehicle: Vehicle | null;
   userRole: StatusKeluarga;
@@ -28,6 +29,7 @@ export default function OneTapExpenseModal({
   item,
   trip,
   pos,
+  posList,
   sakuList,
   vehicle,
   userRole,
@@ -38,6 +40,7 @@ export default function OneTapExpenseModal({
   const [actualCostStr, setActualCostStr] = useState("");
   const [odometerKmStr, setOdometerKmStr] = useState("");
   const [fuelLitersStr, setFuelLitersStr] = useState("");
+  const [selectedPosId, setSelectedPosId] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,14 +56,27 @@ export default function OneTapExpenseModal({
       setFuelLitersStr("");
       setErrorMsg(null);
       setShowSakuBorrow(false);
+
+      // Pos bawaan trip jika ada, jika tidak ada user harus pilih pos
+      if (trip?.finance_pos_id) {
+        setSelectedPosId(trip.finance_pos_id);
+      } else if (pos?.id) {
+        setSelectedPosId(pos.id);
+      } else {
+        setSelectedPosId("");
+      }
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, trip, pos]);
 
   if (!isOpen || !item || !trip) return null;
 
   const actualAmount = Number(actualCostStr.replace(/\D/g, "")) || 0;
   const isTransport = item.category === "transport" && !!trip.vehicle_id;
-  const posBalance = pos?.current_balance ?? 0;
+
+  // Cari data Pos yang sedang aktif dipilih
+  const availablePosList = posList && posList.length > 0 ? posList : pos ? [pos] : [];
+  const currentSelectedPos = availablePosList.find((p) => p.id === selectedPosId) || null;
+  const posBalance = currentSelectedPos?.current_balance ?? 0;
   const isShortfall = actualAmount > posBalance && actualAmount > 0;
 
   const handlePreSubmit = (e: React.FormEvent) => {
@@ -69,6 +85,11 @@ export default function OneTapExpenseModal({
 
     if (actualAmount < 0) {
       setErrorMsg("Nominal pengeluaran tidak boleh negatif");
+      return;
+    }
+
+    if (actualAmount > 0 && !selectedPosId) {
+      setErrorMsg("Silakan pilih pos pengeluaran terlebih dahulu");
       return;
     }
 
@@ -110,6 +131,7 @@ export default function OneTapExpenseModal({
         fuel_liters: liters,
         saku_id: sakuId || null,
         saku_withdraw_amount: sakuWithdrawAmount || 0,
+        pos_id: selectedPosId || null,
       });
 
       if (!res.success) {
@@ -162,8 +184,45 @@ export default function OneTapExpenseModal({
             </div>
           )}
 
-          {/* Form Input Nominal Aktual */}
+          {/* Form Input Nominal Aktual & Sumber Pos */}
           <form onSubmit={handlePreSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {/* Pilihan Sumber Pos Keuangan */}
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "6px" }}>
+                Sumber Pos Keuangan <span style={{ color: "red" }}>*</span>
+              </label>
+              <select
+                value={selectedPosId}
+                onChange={(e) => {
+                  setSelectedPosId(e.target.value);
+                  setErrorMsg(null);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border, #cbd5e1)",
+                  backgroundColor: "var(--input-bg, #ffffff)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              >
+                {!trip?.finance_pos_id && (
+                  <option value="">-- Pilih Pos Pengeluaran --</option>
+                )}
+                {availablePosList.map((p) => {
+                  const isTripDefault = p.id === trip?.finance_pos_id;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.icon || "💰"} {p.name} {isTripDefault ? "(Pos Bawaan Trip)" : ""} — Sisa: {formatRp(p.current_balance)}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "6px" }}>
                 Nominal Aktual yang Dikeluarkan (Rp)
@@ -208,9 +267,12 @@ export default function OneTapExpenseModal({
               >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                   <Wallet size={12} style={{ flexShrink: 0 }} />
-                  <span>Sisa Saldo Pos: <strong>{formatRp(posBalance)}</strong></span>
+                  <span>
+                    Sisa Saldo Pos:{" "}
+                    <strong>{selectedPosId ? formatRp(posBalance) : "Pilih pos terlebih dahulu"}</strong>
+                  </span>
                 </span>
-                {isShortfall && (
+                {selectedPosId && isShortfall && (
                   <span style={{ fontWeight: 600 }}>
                     (Kurang {formatRp(actualAmount - posBalance)})
                   </span>
