@@ -198,6 +198,38 @@
     min-height: 100vh;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
+
+  /* Global touch ergonomics */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  .bni,
+  .bnav-fab-btn {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent accidental text selection on interactive chrome */
+  button,
+  [role="button"],
+  .bnav,
+  .bni,
+  .bnav-fab-btn,
+  .mh,
+  .page-header-sticky {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Preserve text selection on inputs and editable elements */
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 @layer components {
@@ -2936,7 +2968,7 @@
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 22px 22px 0 0;
-    padding: 20px 20px 32px;
+    padding: 20px 20px max(32px, env(safe-area-inset-bottom));
     width: 100%;
     max-width: 480px;
     animation: sheetUp .25s ease;
@@ -2960,6 +2992,8 @@
     border-radius: 2px;
     background: var(--border);
     margin: 0 auto 20px;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .mt {

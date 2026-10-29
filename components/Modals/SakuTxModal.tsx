@@ -66,6 +66,9 @@ export default function SakuTxModal({
             <input
               className="amt-input"
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              enterKeyHint="done"
               placeholder="0"
               value={amountStr}
               onChange={handleAmtChange}

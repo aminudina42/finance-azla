@@ -187,6 +187,9 @@ export default function PayDebtModal({
             <span className="amt-pre" style={{ fontSize: "14px" }}>Rp</span>
             <input
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              enterKeyHint="done"
               className="fi"
               value={amountStr}
               onChange={handleAmtChange}
