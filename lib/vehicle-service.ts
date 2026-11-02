@@ -40,6 +40,19 @@ export interface RecordFuelInput {
   notes?: string;
 }
 
+export interface UpdateFuelInput {
+  fuel_log_id: string;
+  vehicle_id: string;
+  log_date: string;
+  odometer_km: number;
+  fuel_type: string;
+  cost_per_liter?: number | null;
+  fuel_liters: number;
+  total_cost: number;
+  finance_pos_id: string;
+  notes?: string | null;
+}
+
 export interface RecordTaxPaymentInput {
   vehicle_id: string;
   tax_period: string;
@@ -432,7 +445,7 @@ export async function getVehicleFuelLogs(vehicleId: string): Promise<VehicleFuel
     if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
       return rpcData;
     }
-  } catch (err) {
+  } catch {
     // Abaikan jika RPC belum diinstall di Supabase
   }
 
@@ -479,7 +492,7 @@ export async function getFuelLogsByPosId(posId: string): Promise<VehicleFuelLog[
 
 export async function recordVehicleFuelTx(
   input: RecordFuelInput
-): Promise<{ data: any; error: any }> {
+): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
   // 1. Coba RPC atomic PostgreSQL terlebih dahulu
   const { data, error } = await supabase.rpc("record_vehicle_fuel_tx", {
     p_vehicle_id: input.vehicle_id,
@@ -496,8 +509,8 @@ export async function recordVehicleFuelTx(
     p_notes: input.notes || null,
   });
 
-  if (!error && data?.success) {
-    return { data, error: null };
+  if (!error && (data as { success?: boolean } | null)?.success) {
+    return { data: data as Record<string, unknown>, error: null };
   }
 
   // 2. Sequential Fallback jika RPC gagal atau belum terinstall
@@ -609,21 +622,236 @@ export async function recordVehicleFuelTx(
       },
       error: null,
     };
-  } catch (err: any) {
+  } catch (err) {
     console.error("Fallback fuel record error:", err);
-    return { data: null, error: err };
+    return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+  }
+}
+
+export async function recalculateVehicleFuelChain(vehicleId: string): Promise<void> {
+  // 1. Coba RPC database PostgreSQL terlebih dahulu
+  const { error } = await supabase.rpc("recalculate_vehicle_fuel_logs", {
+    p_vehicle_id: vehicleId,
+  });
+
+  if (!error) return;
+
+  console.warn("RPC recalculate_vehicle_fuel_logs failed or not found, using TS fallback:", error?.message);
+
+  // 2. TypeScript fallback: Ambil semua log diurutkan berdasarkan odo ASC, log_date ASC
+  try {
+    const { data: logs, error: fetchErr } = await supabase
+      .from("vehicle_fuel_logs")
+      .select("id, odometer_km, fuel_liters")
+      .eq("vehicle_id", vehicleId)
+      .order("odometer_km", { ascending: true })
+      .order("log_date", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (fetchErr || !logs) return;
+
+    let prevOdo: number | null = null;
+    let maxOdo = 0;
+
+    for (const log of logs) {
+      let distanceKm: number | null = null;
+      let efficiencyKmL: number | null = null;
+
+      if (prevOdo !== null) {
+        const dist = log.odometer_km - prevOdo;
+        if (dist > 0 && log.fuel_liters > 0) {
+          distanceKm = dist;
+          efficiencyKmL = Math.round((dist / log.fuel_liters) * 100) / 100;
+        }
+      }
+
+      await supabase
+        .from("vehicle_fuel_logs")
+        .update({
+          distance_km: distanceKm,
+          efficiency_km_l: efficiencyKmL,
+        })
+        .eq("id", log.id);
+
+      prevOdo = log.odometer_km;
+      if (log.odometer_km > maxOdo) {
+        maxOdo = log.odometer_km;
+      }
+    }
+
+    // Kalibrasi vehicles.last_odometer
+    const { data: services } = await supabase
+      .from("vehicle_services")
+      .select("odometer_km")
+      .eq("vehicle_id", vehicleId);
+
+    const maxServiceOdo = services?.reduce((max, s) => Math.max(max, s.odometer_km || 0), 0) || 0;
+    const finalOdo = Math.max(maxOdo, maxServiceOdo);
+
+    await supabase
+      .from("vehicles")
+      .update({
+        last_odometer: finalOdo,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", vehicleId);
+  } catch (err) {
+    console.error("Error in fallback recalculateVehicleFuelChain:", err);
+  }
+}
+
+export async function updateVehicleFuelTx(
+  input: UpdateFuelInput
+): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
+  // 1. Coba RPC atomic PostgreSQL terlebih dahulu
+  const { data, error } = await supabase.rpc("update_vehicle_fuel_tx", {
+    p_fuel_log_id: input.fuel_log_id,
+    p_log_date: input.log_date,
+    p_odometer_km: input.odometer_km,
+    p_fuel_type: input.fuel_type,
+    p_cost_per_liter: input.cost_per_liter || null,
+    p_fuel_liters: input.fuel_liters,
+    p_total_cost: input.total_cost,
+    p_finance_pos_id: input.finance_pos_id,
+    p_notes: input.notes || null,
+  });
+
+  if (!error && (data as { success?: boolean } | null)?.success) {
+    return { data: data as Record<string, unknown>, error: null };
+  }
+
+  console.warn("RPC update_vehicle_fuel_tx failed or not found, using sequential fallback:", error?.message);
+
+  // 2. Sequential fallback jika RPC belum terpasang
+  try {
+    const { data: oldLog, error: oldErr } = await supabase
+      .from("vehicle_fuel_logs")
+      .select("*")
+      .eq("id", input.fuel_log_id)
+      .single();
+
+    if (oldErr || !oldLog) {
+      throw new Error("Catatan bensin tidak ditemukan");
+    }
+
+    const { data: veh } = await supabase
+      .from("vehicles")
+      .select("brand, model, plate_number")
+      .eq("id", input.vehicle_id)
+      .single();
+
+    const newDesc = `BBM ${input.fuel_type} — ${veh?.brand || ""} ${veh?.model || ""} (${veh?.plate_number || ""}) @ ${input.odometer_km.toLocaleString("id-ID")} km`;
+
+    // Penyesuaian POS Keuangan & Transaksi
+    if (oldLog.finance_transaction_id) {
+      // Jika POS Berubah
+      if (oldLog.finance_pos_id !== input.finance_pos_id) {
+        // Refund pos lama
+        if (oldLog.finance_pos_id && oldLog.total_cost > 0) {
+          const { data: oldPos } = await supabase
+            .from("pos")
+            .select("current_balance")
+            .eq("id", oldLog.finance_pos_id)
+            .single();
+          if (oldPos) {
+            await supabase
+              .from("pos")
+              .update({ current_balance: oldPos.current_balance + oldLog.total_cost })
+              .eq("id", oldLog.finance_pos_id);
+          }
+        }
+        // Potong pos baru
+        if (input.finance_pos_id && input.total_cost > 0) {
+          const { data: newPos } = await supabase
+            .from("pos")
+            .select("current_balance")
+            .eq("id", input.finance_pos_id)
+            .single();
+          if (newPos) {
+            await supabase
+              .from("pos")
+              .update({ current_balance: newPos.current_balance - input.total_cost })
+              .eq("id", input.finance_pos_id);
+          }
+        }
+        // Update transaksi
+        await supabase
+          .from("transactions")
+          .update({
+            pos_id: input.finance_pos_id,
+            amount: input.total_cost,
+            description: newDesc,
+            date: input.log_date,
+          })
+          .eq("id", oldLog.finance_transaction_id);
+      } else {
+        // POS sama, cek perbedaan nominal
+        const diff = input.total_cost - oldLog.total_cost;
+        if (diff !== 0 && input.finance_pos_id) {
+          const { data: currentPos } = await supabase
+            .from("pos")
+            .select("current_balance")
+            .eq("id", input.finance_pos_id)
+            .single();
+          if (currentPos) {
+            await supabase
+              .from("pos")
+              .update({ current_balance: currentPos.current_balance - diff })
+              .eq("id", input.finance_pos_id);
+          }
+        }
+        // Update transaksi
+        await supabase
+          .from("transactions")
+          .update({
+            amount: input.total_cost,
+            description: newDesc,
+            date: input.log_date,
+          })
+          .eq("id", oldLog.finance_transaction_id);
+      }
+    }
+
+    // Update vehicle_fuel_logs
+    const { error: updErr } = await supabase
+      .from("vehicle_fuel_logs")
+      .update({
+        log_date: input.log_date,
+        odometer_km: input.odometer_km,
+        fuel_type: input.fuel_type,
+        cost_per_liter: input.cost_per_liter || null,
+        fuel_liters: input.fuel_liters,
+        total_cost: input.total_cost,
+        finance_pos_id: input.finance_pos_id,
+        notes: input.notes || null,
+      })
+      .eq("id", input.fuel_log_id);
+
+    if (updErr) throw updErr;
+
+    // Recalculate chain
+    await recalculateVehicleFuelChain(input.vehicle_id);
+
+    return { data: { success: true }, error: null };
+  } catch (err) {
+    console.error("Fallback update fuel log error:", err);
+    return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
   }
 }
 
 export async function deleteVehicleFuelTx(
-  fuelLogId: string
-): Promise<{ success: boolean; error: any }> {
+  fuelLogId: string,
+  vehicleId?: string
+): Promise<{ success: boolean; error: Error | null }> {
   // 1. Coba RPC atomic PostgreSQL terlebih dahulu
   const { data, error } = await supabase.rpc("delete_vehicle_fuel_tx", {
     p_fuel_log_id: fuelLogId,
   });
 
-  if (!error && data?.success) {
+  if (!error && (data as { success?: boolean } | null)?.success) {
+    if (vehicleId) {
+      await recalculateVehicleFuelChain(vehicleId);
+    }
     return { success: true, error: null };
   }
 
@@ -636,6 +864,8 @@ export async function deleteVehicleFuelTx(
       .select("*")
       .eq("id", fuelLogId)
       .single();
+
+    const targetVehicleId = vehicleId || logRecord?.vehicle_id;
 
     if (logRecord) {
       let txExists = false;
@@ -674,9 +904,13 @@ export async function deleteVehicleFuelTx(
       await supabase.from("vehicle_fuel_logs").delete().eq("id", fuelLogId);
     }
 
+    if (targetVehicleId) {
+      await recalculateVehicleFuelChain(targetVehicleId);
+    }
+
     return { success: true, error: null };
-  } catch (err: any) {
+  } catch (err) {
     console.error("Fallback delete fuel log error:", err);
-    return { success: false, error: err };
+    return { success: false, error: err instanceof Error ? err : new Error(String(err)) };
   }
 }

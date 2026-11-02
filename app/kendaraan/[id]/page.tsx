@@ -10,6 +10,8 @@ import {
   getVehicleServices,
   getVehicleFuelLogs,
   deleteVehicleFuelTx,
+  updateVehicleFuelTx,
+  type UpdateFuelInput,
   archiveVehicle,
 } from "@/lib/vehicle-service";
 import {
@@ -22,6 +24,7 @@ import {
 } from "@/lib/vehicle-utils";
 import VehicleStatusBadge from "@/components/Kendaraan/VehicleStatusBadge";
 import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
+import EditFuelLogModal from "@/components/Kendaraan/EditFuelLogModal";
 import PageHeader from "@/components/PageHeader";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import { useApp } from "@/lib/store";
@@ -44,8 +47,9 @@ export default function DetailKendaraanPage({ params }: PageProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<"bbm" | "servis" | "pajak">("bbm");
 
-  // Modal confirmation states
+  // Modal confirmation & edit states
   const [deleteFuelLogTarget, setDeleteFuelLogTarget] = useState<VehicleFuelLog | null>(null);
+  const [editFuelLogTarget, setEditFuelLogTarget] = useState<VehicleFuelLog | null>(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   // Auto-switch tab jika diakses via parameter URL (misal: ?tab=bbm)
@@ -108,10 +112,23 @@ export default function DetailKendaraanPage({ params }: PageProps) {
     setDeleteFuelLogTarget(null);
     setIsMutating(true);
     try {
-      const { success } = await deleteVehicleFuelTx(targetId);
+      const { success } = await deleteVehicleFuelTx(targetId, id);
       if (success) {
         await loadData();
       }
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleSaveFuelLog = async (input: UpdateFuelInput) => {
+    setIsMutating(true);
+    try {
+      const { error } = await updateVehicleFuelTx(input);
+      if (error) {
+        throw error;
+      }
+      await loadData();
     } finally {
       setIsMutating(false);
     }
@@ -143,10 +160,6 @@ export default function DetailKendaraanPage({ params }: PageProps) {
     vehicle.last_service_date,
     vehicle.service_reminder_interval_months || 1
   );
-
-  const totalTaxExpense = taxPayments.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  const totalServiceExpense = services.reduce((sum, s) => sum + Number(s.total_cost || 0), 0);
-  const totalFuelExpenseAllTime = fuelLogs.reduce((sum, f) => sum + Number(f.total_cost || 0), 0);
 
   return (
     <main className="page active" style={{ paddingBottom: "110px" }}>
@@ -811,21 +824,44 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                           <span style={{ color: "var(--muted)", margin: "0 4px" }}>·</span>
                           <span style={{ color: "var(--text-secondary)" }}>{log.fuel_liters} L</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteFuelLogTarget(log)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "var(--muted)",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            padding: "2px 6px",
-                          }}
-                        >
-                          Hapus
-                        </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={() => setEditFuelLogTarget(log)}
+                            style={{
+                              background: "#fffbeb",
+                              border: "1px solid #fde68a",
+                              color: "#b45309",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span>✏️</span>
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteFuelLogTarget(log)}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "var(--muted)",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              padding: "2px 6px",
+                            }}
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -935,6 +971,19 @@ export default function DetailKendaraanPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Modal Edit Riwayat BBM */}
+      {editFuelLogTarget && (
+        <EditFuelLogModal
+          key={editFuelLogTarget.id}
+          isOpen={true}
+          onClose={() => setEditFuelLogTarget(null)}
+          fuelLog={editFuelLogTarget}
+          vehicle={vehicle}
+          posList={posList}
+          onSave={handleSaveFuelLog}
+        />
+      )}
 
       {/* Modal Konfirmasi Hapus Catatan BBM */}
       <ConfirmModal
