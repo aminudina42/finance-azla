@@ -65,7 +65,13 @@ export default function DetailServisPage({ params }: PageProps) {
       <PageHeader
         title="Detail Servis"
         subtitle={`${vehicle.brand} ${vehicle.model} • ${vehicle.plate_number}`}
-        onBack={() => router.push(`/kendaraan/${id}/servis`)}
+        onBack={() => {
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+          } else {
+            router.push(`/kendaraan/${id}?tab=servis`);
+          }
+        }}
       />
 
       <div style={{ padding: "0 20px" }}>
@@ -216,25 +222,51 @@ export default function DetailServisPage({ params }: PageProps) {
           </div>
         )}
 
-        <Link
-          href={`/kendaraan/${id}/servis`}
-          style={{
-            width: "100%",
-            height: "44px",
-            borderRadius: "12px",
-            background: "transparent",
-            color: "var(--text-secondary)",
-            fontSize: "13.5px",
-            fontWeight: 650,
-            border: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textDecoration: "none",
-          }}
-        >
-          Kembali ke Riwayat Servis
-        </Link>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <Link
+            href={`/kendaraan/${id}/servis`}
+            style={{
+              width: "100%",
+              height: "44px",
+              borderRadius: "12px",
+              background: "var(--surface)",
+              color: "var(--primary)",
+              fontSize: "13.5px",
+              fontWeight: 700,
+              border: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              textDecoration: "none",
+              boxShadow: "0 2px 6px rgba(16, 45, 85, 0.02)",
+            }}
+          >
+            <span>Daftar Riwayat Servis Lengkap</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </Link>
+
+          <Link
+            href={`/kendaraan/${id}?tab=servis`}
+            style={{
+              width: "100%",
+              height: "42px",
+              borderRadius: "12px",
+              background: "transparent",
+              color: "var(--text-secondary)",
+              fontSize: "13px",
+              fontWeight: 650,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+            }}
+          >
+            &larr; Kembali ke Detail Kendaraan
+          </Link>
+        </div>
       </div>
     </main>
   );

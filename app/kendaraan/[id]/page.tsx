@@ -880,42 +880,157 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                   background: "var(--surface)",
                   borderRadius: "16px",
                   border: "1px dashed var(--border)",
-                  padding: "30px 20px",
+                  padding: "32px 20px",
                   textAlign: "center",
                 }}
               >
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    background: "#eaf5fc",
+                    color: "#287ff0",
+                    display: "grid",
+                    placeItems: "center",
+                    margin: "0 auto 10px",
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                  </svg>
+                </div>
                 <div style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)", marginBottom: "4px" }}>
                   Belum Ada Riwayat Servis
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                  Catat servis rutin atau servis besar kendaraan Anda.
+                <div style={{ fontSize: "12px", color: "var(--muted)", maxWidth: "260px", margin: "0 auto 16px", lineHeight: 1.4 }}>
+                  Catat servis rutin atau servis besar kendaraan Anda agar kondisi mesin terpantau.
                 </div>
+                <Link
+                  href={`/kendaraan/${id}/servis/tambah`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 18px",
+                    borderRadius: "10px",
+                    background: "var(--primary)",
+                    color: "#ffffff",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
+                  }}
+                >
+                  <span>＋ Tambah Servis Pertama</span>
+                </Link>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {services.map((srv) => (
-                  <div
-                    key={srv.id}
+              <div>
+                {/* Header row dengan tautan ke halaman riwayat servis lengkap */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", padding: "0 2px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                    {services.length} Catatan Servis
+                  </span>
+                  <Link
+                    href={`/kendaraan/${id}/servis`}
                     style={{
-                      background: "var(--surface)",
-                      borderRadius: "16px",
-                      border: "1px solid var(--border)",
-                      padding: "14px 16px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--primary)",
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "13.5px", fontWeight: 750, color: "var(--navy)" }}>
-                        {srv.service_type}
-                      </span>
-                      <span style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--navy)" }}>
-                        {formatRp(srv.total_cost)}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                      {formatDateIndo(srv.service_date)} · {srv.odometer_km.toLocaleString("id-ID")} km
-                    </div>
-                  </div>
-                ))}
+                    <span>Lihat Semua Riwayat</span>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </Link>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {services.map((srv) => (
+                    <Link
+                      key={srv.id}
+                      href={`/kendaraan/${id}/servis/${srv.id}`}
+                      style={{ textDecoration: "none", color: "inherit", display: "block" }}
+                    >
+                      <div
+                        style={{
+                          background: "var(--surface)",
+                          borderRadius: "14px",
+                          border: "1px solid var(--border)",
+                          padding: "14px 16px",
+                          boxShadow: "0 2px 8px rgba(16, 45, 85, 0.03)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "12px",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "12px",
+                            background: "#eaf5fc",
+                            color: "#287ff0",
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                          </svg>
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>
+                              {srv.service_type}
+                            </span>
+                            <span
+                              style={{
+                                padding: "2px 7px",
+                                borderRadius: "999px",
+                                background: srv.service_type === "Servis Besar" ? "#fef3c7" : "#e6f8f5",
+                                color: srv.service_type === "Servis Besar" ? "#b45309" : "#16a89a",
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {srv.service_type === "Servis Besar" ? "Besar" : "Ringan"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                            {formatDateIndo(srv.service_date)} · {srv.odometer_km.toLocaleString("id-ID")} km
+                          </div>
+                          {srv.workshop_name && (
+                            <div style={{ fontSize: "11.5px", color: "var(--muted)", marginTop: "1px" }}>
+                              Bengkel: {srv.workshop_name}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ textAlign: "right", flexShrink: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div>
+                            <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--navy)", fontVariantNumeric: "tabular-nums" }}>
+                              {formatRp(srv.total_cost)}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--primary)", fontWeight: 700, marginTop: "1px" }}>
+                              Detail &rsaquo;
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -930,42 +1045,163 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                   background: "var(--surface)",
                   borderRadius: "16px",
                   border: "1px dashed var(--border)",
-                  padding: "30px 20px",
+                  padding: "32px 20px",
                   textAlign: "center",
                 }}
               >
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    background: "#fef2f2",
+                    color: "#f04467",
+                    display: "grid",
+                    placeItems: "center",
+                    margin: "0 auto 10px",
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
                 <div style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)", marginBottom: "4px" }}>
                   Belum Ada Riwayat Pembayaran Pajak
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                  Catat pembayaran pajak tahunan kendaraan Anda.
+                <div style={{ fontSize: "12px", color: "var(--muted)", maxWidth: "260px", margin: "0 auto 16px", lineHeight: 1.4 }}>
+                  Catat pembayaran pajak tahunan dan perpanjangan STNK kendaraan Anda.
                 </div>
+                <Link
+                  href={`/kendaraan/${id}/pajak`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "8px 18px",
+                    borderRadius: "10px",
+                    background: "#f04467",
+                    color: "#ffffff",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 2px 8px rgba(240, 68, 103, 0.25)",
+                  }}
+                >
+                  <span>＋ Bayar Pajak Pertama</span>
+                </Link>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {taxPayments.map((tax) => (
-                  <div
-                    key={tax.id}
+              <div>
+                {/* Header row dengan tautan ke halaman riwayat pajak lengkap */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", padding: "0 2px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                    {taxPayments.length} Pembayaran Pajak
+                  </span>
+                  <Link
+                    href={`/kendaraan/${id}/pajak/riwayat`}
                     style={{
-                      background: "var(--surface)",
-                      borderRadius: "16px",
-                      border: "1px solid var(--border)",
-                      padding: "14px 16px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "#f04467",
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "13.5px", fontWeight: 750, color: "var(--navy)" }}>
-                        Pajak Periode {tax.tax_period}
-                      </span>
-                      <span style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--navy)" }}>
-                        {formatRp(tax.amount)}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                      Dibayar: {formatDateIndo(tax.payment_date)}
-                    </div>
-                  </div>
-                ))}
+                    <span>Lihat Semua Riwayat</span>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </Link>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {taxPayments.map((tax) => (
+                    <Link
+                      key={tax.id}
+                      href={`/kendaraan/${id}/pajak/riwayat`}
+                      style={{ textDecoration: "none", color: "inherit", display: "block" }}
+                    >
+                      <div
+                        style={{
+                          background: "var(--surface)",
+                          borderRadius: "14px",
+                          border: "1px solid var(--border)",
+                          padding: "14px 16px",
+                          boxShadow: "0 2px 8px rgba(16, 45, 85, 0.03)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "12px",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "12px",
+                            background: "#fef2f2",
+                            color: "#f04467",
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                          </svg>
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "14px", fontWeight: 750, color: "var(--navy)" }}>
+                              Pajak Periode {tax.tax_period}
+                            </span>
+                            <span
+                              style={{
+                                padding: "2px 7px",
+                                borderRadius: "999px",
+                                background: "#e6f8f5",
+                                color: "#16a89a",
+                                fontSize: "10.5px",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Lunas
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                            Dibayar: {formatDateIndo(tax.payment_date)}
+                          </div>
+                          {tax.notes && (
+                            <div style={{ fontSize: "11.5px", color: "var(--muted)", marginTop: "1px", fontStyle: "italic" }}>
+                              &ldquo;{tax.notes}&rdquo;
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ textAlign: "right", flexShrink: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div>
+                            <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--navy)", fontVariantNumeric: "tabular-nums" }}>
+                              {formatRp(tax.amount)}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#f04467", fontWeight: 700, marginTop: "1px" }}>
+                              Riwayat &rsaquo;
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>

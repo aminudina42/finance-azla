@@ -64,7 +64,7 @@ export default function RiwayatServisListPage({ params }: PageProps) {
       <PageHeader
         title="Riwayat Servis"
         subtitle="Log perawatan dan pemeliharaan mesin"
-        onBack={() => router.push(`/kendaraan/${id}`)}
+        onBack={() => router.push(`/kendaraan/${id}?tab=servis`)}
         action={
           <Link
             href={`/kendaraan/${id}/servis/tambah`}

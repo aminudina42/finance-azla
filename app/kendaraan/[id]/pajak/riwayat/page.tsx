@@ -58,7 +58,7 @@ export default function RiwayatPajakPage({ params }: PageProps) {
       <PageHeader
         title="Riwayat Pajak"
         subtitle="Daftar pembayaran pajak dan STNK"
-        onBack={() => router.push(`/kendaraan/${id}`)}
+        onBack={() => router.push(`/kendaraan/${id}?tab=pajak`)}
         action={
           <Link
             href={`/kendaraan/${id}/pajak`}
