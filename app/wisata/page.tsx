@@ -6,22 +6,25 @@ import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
 import Modal from "@/components/Modal";
 import TripCard from "@/components/Wisata/TripCard";
+import TouristDestinationsTab from "@/components/Wisata/TouristDestinationsTab";
 import { useApp } from "@/lib/store";
 import { getTrips } from "@/lib/wisata-service";
 import { getVehicles } from "@/lib/vehicle-service";
 import { supabase } from "@/lib/supabase";
 import type { Trip, Vehicle } from "@/lib/types";
 import { formatRp } from "@/lib/wisata-utils";
-import { Plus, Compass, Palmtree, Sparkles, CheckCircle2, WifiOff, RotateCcw } from "lucide-react";
+import { Plus, Compass, Palmtree, Sparkles, CheckCircle2, WifiOff, RotateCcw, MapPin } from "lucide-react";
 
 export default function WisataPage() {
-  const { currentKeluarga } = useApp();
+  const { currentKeluarga, currentMember } = useApp();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [costsMap, setCostsMap] = useState<Record<string, { actual: number; estimated: number }>>({});
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
+  const [mainTab, setMainTab] = useState<"rencana" | "katalog">("rencana");
   const [activeTab, setActiveTab] = useState<"aktif" | "semua" | "selesai">("aktif");
+  const [isAddDestinationOpen, setIsAddDestinationOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -114,25 +117,48 @@ export default function WisataPage() {
         subtitle="Rencana liburan & anggaran keluarga"
         backHref="/"
         action={
-          <Link
-            href="/wisata/baru"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              padding: "6px 12px",
-              borderRadius: "10px",
-              backgroundColor: "var(--brand-primary, #287ff0)",
-              color: "#ffffff",
-              fontSize: "13px",
-              fontWeight: 600,
-              textDecoration: "none",
-              boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
-            }}
-          >
-            <Plus size={16} />
-            <span>Trip Baru</span>
-          </Link>
+          mainTab === "rencana" ? (
+            <Link
+              href="/wisata/baru"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "6px 12px",
+                borderRadius: "10px",
+                backgroundColor: "var(--brand-primary, #287ff0)",
+                color: "#ffffff",
+                fontSize: "13px",
+                fontWeight: 600,
+                textDecoration: "none",
+                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
+              }}
+            >
+              <Plus size={16} />
+              <span>Trip Baru</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setIsAddDestinationOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "6px 12px",
+                borderRadius: "10px",
+                backgroundColor: "var(--brand-primary, #287ff0)",
+                color: "#ffffff",
+                fontSize: "13px",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
+              }}
+            >
+              <Plus size={16} />
+              <span>Spot Baru</span>
+            </button>
+          )
         }
       />
 
@@ -148,7 +174,76 @@ export default function WisataPage() {
           boxSizing: "border-box",
         }}
       >
-        {/* Ringkasan Header Banner */}
+        {/* Segmented Control Level 1: Rencana Trip vs Katalog Destinasi */}
+        <div
+          style={{
+            display: "flex",
+            backgroundColor: "rgba(100, 116, 139, 0.08)",
+            padding: "4px",
+            borderRadius: "14px",
+            gap: "4px",
+          }}
+        >
+          <button
+            onClick={() => setMainTab("rencana")}
+            style={{
+              flex: 1,
+              padding: "9px 0",
+              borderRadius: "10px",
+              fontSize: "13px",
+              fontWeight: mainTab === "rencana" ? 700 : 500,
+              border: "none",
+              cursor: "pointer",
+              backgroundColor: mainTab === "rencana" ? "var(--surface, #ffffff)" : "transparent",
+              color: mainTab === "rencana" ? "var(--brand-primary, #287ff0)" : "var(--text-muted, #64748b)",
+              boxShadow: mainTab === "rencana" ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+              transition: "all 0.15s ease",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+            }}
+          >
+            <Compass size={15} />
+            <span>Rencana Trip ({trips.length})</span>
+          </button>
+
+          <button
+            onClick={() => setMainTab("katalog")}
+            style={{
+              flex: 1,
+              padding: "9px 0",
+              borderRadius: "10px",
+              fontSize: "13px",
+              fontWeight: mainTab === "katalog" ? 700 : 500,
+              border: "none",
+              cursor: "pointer",
+              backgroundColor: mainTab === "katalog" ? "var(--surface, #ffffff)" : "transparent",
+              color: mainTab === "katalog" ? "var(--brand-primary, #287ff0)" : "var(--text-muted, #64748b)",
+              boxShadow: mainTab === "katalog" ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+              transition: "all 0.15s ease",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+            }}
+          >
+            <MapPin size={15} />
+            <span>Katalog Spot Bersama</span>
+          </button>
+        </div>
+
+        {mainTab === "katalog" ? (
+          <TouristDestinationsTab
+            currentMemberId={currentMember?.id}
+            currentFamilyName={currentKeluarga?.nama_keluarga}
+            isSuperAdmin={currentMember?.role === "admin"}
+            isAddModalOpenExternal={isAddDestinationOpen}
+            onCloseAddModalExternal={() => setIsAddDestinationOpen(false)}
+          />
+        ) : (
+          <>
+            {/* Ringkasan Header Banner */}
         <div
           style={{
             background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
@@ -385,6 +480,8 @@ export default function WisataPage() {
               );
             })}
           </div>
+        )}
+          </>
         )}
       </div>
 

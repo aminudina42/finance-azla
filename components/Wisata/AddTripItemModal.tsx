@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Modal from "@/components/Modal";
-import { createTripItem, updateTripItem } from "@/lib/wisata-service";
+import {
+  createTripItem,
+  updateTripItem,
+  getTouristDestinations,
+  createTouristDestination,
+} from "@/lib/wisata-service";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
-import { CATEGORY_META } from "@/lib/wisata-utils";
-import type { TripCategory, TripItem } from "@/lib/types";
-import { AlertCircle, Plus, Edit2 } from "lucide-react";
+import { CATEGORY_META, DESTINATION_CATEGORY_META, formatCityName } from "@/lib/wisata-utils";
+import type { TripCategory, TripItem, TouristDestination } from "@/lib/types";
+import { AlertCircle, Plus, Edit2, Sparkles, MapPin, Check, Ticket, X } from "lucide-react";
 
 interface AddTripItemModalProps {
   isOpen: boolean;
@@ -40,11 +45,23 @@ export default function AddTripItemModal({
   const [estimatedCostStr, setEstimatedCostStr] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Integrasi Katalog Destinasi
+  const [destinations, setDestinations] = useState<TouristDestination[]>([]);
+  const [selectedDestination, setSelectedDestination] = useState<TouristDestination | null>(null);
+  const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
+  const [saveNewToCatalog, setSaveNewToCatalog] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
+      // Ambil data katalog publik
+      getTouristDestinations()
+        .then((data) => setDestinations(data))
+        .catch((err) => console.error("Error loading destinations for itinerary modal:", err));
+
       if (itemToEdit) {
         setDayNumber(itemToEdit.day_number);
         setStartTime(itemToEdit.start_time ? itemToEdit.start_time.slice(0, 5) : "09:00");
@@ -67,10 +84,43 @@ export default function AddTripItemModal({
         setBookingCode("");
         setEstimatedCostStr("");
         setNotes("");
+        setSelectedDestination(null);
+        setSaveNewToCatalog(false);
       }
+      setShowCatalogSuggestions(false);
       setErrorMsg(null);
     }
   }, [isOpen, itemToEdit, currentDay]);
+
+  // Filter destinasi untuk live autocomplete
+  const suggestedDestinations = useMemo(() => {
+    if (!title.trim()) return destinations.slice(0, 6);
+    const q = title.toLowerCase().trim();
+    return destinations
+      .filter((d) => d.name.toLowerCase().includes(q) || d.city.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [destinations, title]);
+
+  const handleSelectDestination = (dest: TouristDestination) => {
+    setSelectedDestination(dest);
+    setTitle(dest.name);
+    setLocation(dest.maps_url || dest.city);
+
+    // Kategori mapping
+    if (dest.category === "kuliner") setCategory("food");
+    else if (dest.category === "penginapan") setCategory("lodging");
+    else if (dest.category === "belanja") setCategory("shopping");
+    else setCategory("ticket");
+
+    // Otomatis estimasi biaya tiket
+    if (dest.estimated_ticket_price > 0) {
+      setEstimatedCostStr(dest.estimated_ticket_price.toLocaleString("id-ID"));
+    }
+    if (dest.notes && !notes) {
+      setNotes(dest.notes);
+    }
+    setShowCatalogSuggestions(false);
+  };
 
   if (!isOpen) return null;
 
@@ -118,6 +168,7 @@ export default function AddTripItemModal({
           booking_code: bookingCode.trim() || null,
           estimated_cost: estimatedCost,
           notes: notes.trim() || null,
+          destination_id: selectedDestination?.id || itemToEdit.destination_id || null,
         });
         if (error) throw new Error(error.message);
       } else {
@@ -133,10 +184,31 @@ export default function AddTripItemModal({
             booking_code: bookingCode.trim() || null,
             estimated_cost: estimatedCost,
             notes: notes.trim() || null,
+            destination_id: selectedDestination?.id || null,
           },
           effectiveKeluargaId
         );
         if (error) throw new Error(error.message);
+
+        // Jika user mencentang untuk berkontribusi menambahkan tempat baru ke katalog bersama
+        if (!selectedDestination && saveNewToCatalog && title.trim()) {
+          try {
+            await createTouristDestination(
+              {
+                name: title.trim(),
+                city: location.trim().startsWith("http") ? "Wisata" : location.trim() || "Wisata",
+                maps_url: location.trim().startsWith("http") ? location.trim() : null,
+                category: category === "food" ? "kuliner" : category === "lodging" ? "penginapan" : category === "shopping" ? "belanja" : "rekreasi",
+                estimated_ticket_price: estimatedCost,
+                notes: notes.trim() || null,
+              },
+              currentMember?.id || undefined,
+              currentKeluarga?.nama_keluarga || undefined
+            );
+          } catch (cErr) {
+            console.warn("Gagal auto-share ke katalog publik:", cErr);
+          }
+        }
       }
 
       onSuccess();
@@ -275,27 +347,233 @@ export default function AddTripItemModal({
             </select>
           </div>
 
-          {/* Judul Acara */}
-          <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
-              Nama Acara / Tujuan <span style={{ color: "red" }}>*</span>
-            </label>
+          {/* Judul Acara dengan Autocomplete Rekomendasi Spot Wisata */}
+          <div style={{ position: "relative" }} ref={dropdownRef}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)" }}>
+                Nama Acara / Tujuan <span style={{ color: "red" }}>*</span>
+              </label>
+              {destinations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowCatalogSuggestions((prev) => !prev)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--brand-primary, #287ff0)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "3px",
+                    padding: 0,
+                  }}
+                >
+                  <Sparkles size={11} />
+                  <span>{showCatalogSuggestions ? "Tutup Rekomendasi" : "Pilih dari Katalog"}</span>
+                </button>
+              )}
+            </div>
+
             <input
               type="text"
               required
-              placeholder="Contoh: Tiket Masuk Candi Prambanan"
+              placeholder="Contoh: Kawah Putih, Candi Prambanan..."
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onFocus={() => setShowCatalogSuggestions(true)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (selectedDestination && e.target.value !== selectedDestination.name) {
+                  setSelectedDestination(null);
+                }
+                setShowCatalogSuggestions(true);
+              }}
               style={{
                 width: "100%",
                 padding: "8px 10px",
                 borderRadius: "8px",
-                border: "1px solid var(--border, #cbd5e1)",
+                border: selectedDestination
+                  ? "1.5px solid var(--brand-primary, #287ff0)"
+                  : "1px solid var(--border, #cbd5e1)",
                 fontSize: "13px",
                 boxSizing: "border-box",
+                backgroundColor: "var(--input-bg, #ffffff)",
               }}
             />
+
+            {/* Terhubung ke Destinasi Katalog Badge */}
+            {selectedDestination && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  marginTop: "5px",
+                  padding: "3px 8px",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(22, 168, 154, 0.1)",
+                  color: "#0d9488",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                }}
+              >
+                <Check size={11} />
+                <span>Terhubung ke Katalog: {selectedDestination.name} ({selectedDestination.city})</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDestination(null)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#0d9488",
+                    display: "inline-flex",
+                    padding: "0 2px",
+                  }}
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            )}
+
+            {/* Dropdown Popover Rekomendasi Tempat Wisata */}
+            {showCatalogSuggestions && suggestedDestinations.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  zIndex: 50,
+                  marginTop: "4px",
+                  backgroundColor: "var(--surface, #ffffff)",
+                  borderRadius: "12px",
+                  border: "1px solid var(--border, #cbd5e1)",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  maxHeight: "220px",
+                  overflowY: "auto",
+                  padding: "6px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "4px 8px",
+                    borderBottom: "1px solid var(--border, #f1f5f9)",
+                    marginBottom: "4px",
+                  }}
+                >
+                  <span style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
+                    Rekomendasi Spot Wisata Bersama
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCatalogSuggestions(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--text-muted, #94a3b8)",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                      padding: "2px",
+                    }}
+                  >
+                    Tutup
+                  </button>
+                </div>
+
+                {suggestedDestinations.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => handleSelectDestination(d)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: "none",
+                      backgroundColor: "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      transition: "background-color 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(40, 127, 240, 0.08)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text, #1e293b)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {d.name}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                        <MapPin size={10} style={{ color: "var(--brand-primary, #287ff0)" }} />
+                        <span>{d.city}</span>
+                        {d.estimated_ticket_price > 0 && (
+                          <>
+                            <span>•</span>
+                            <span style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
+                              Rp {d.estimated_ticket_price.toLocaleString("id-ID")}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "var(--brand-primary, #287ff0)",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        backgroundColor: "rgba(40, 127, 240, 0.1)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      Pilih
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Opsi Kontribusi Balik jika tempat manual belum ada di katalog */}
+          {!itemToEdit && !selectedDestination && title.trim().length >= 3 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "8px",
+                padding: "8px 10px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(40, 127, 240, 0.04)",
+                border: "1px dashed rgba(40, 127, 240, 0.25)",
+              }}
+            >
+              <input
+                type="checkbox"
+                id="saveNewToCatalog"
+                checked={saveNewToCatalog}
+                onChange={(e) => setSaveNewToCatalog(e.target.checked)}
+                style={{ marginTop: "2px", cursor: "pointer" }}
+              />
+              <label
+                htmlFor="saveNewToCatalog"
+                style={{ fontSize: "11.5px", color: "var(--text, #1e293b)", cursor: "pointer", lineHeight: "1.4" }}
+              >
+                <strong>Bagikan tempat ini ke Katalog Wisata Bersama</strong>
+                <span style={{ display: "block", fontSize: "10.5px", color: "var(--text-muted, #64748b)" }}>
+                  Agar keluarga lain juga dapat langsung memilih lokasi ini di itinerary mereka.
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Lokasi / Alamat atau Link Google Maps */}
           <div>

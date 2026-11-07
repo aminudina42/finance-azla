@@ -490,8 +490,46 @@ export interface TripItem {
   is_completed: boolean;
   transaction_id?: string | null;
   fuel_log_id?: string | null;
+  destination_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type TouristDestinationCategory =
+  | "rekreasi"
+  | "alam"
+  | "kuliner"
+  | "edukasi"
+  | "belanja"
+  | "penginapan"
+  | "budaya"
+  | "lainnya";
+
+export interface TouristDestination {
+  id: string;
+  name: string;
+  city: string;
+  category: TouristDestinationCategory;
+  maps_url?: string | null;
+  social_url?: string | null;
+  estimated_ticket_price: number;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_family_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTouristDestinationInput {
+  name: string;
+  city: string;
+  category?: TouristDestinationCategory;
+  maps_url?: string | null;
+  social_url?: string | null;
+  estimated_ticket_price?: number;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_family_name?: string | null;
 }
 
 export interface TripChecklist {
@@ -743,6 +781,15 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<TripChecklist>;
+      };
+      tourist_destinations: {
+        Row: TouristDestination;
+        Insert: Omit<TouristDestination, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<TouristDestination>;
       };
     };
     Views: {

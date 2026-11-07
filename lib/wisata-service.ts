@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { PostgrestError } from "@supabase/supabase-js";
+import { formatCityName, formatMapsUrl, formatSocialUrl } from "@/lib/wisata-utils";
 import type {
   Trip,
   TripItem,
@@ -8,6 +9,8 @@ import type {
   TripStatus,
   TripChecklistAssignee,
   StatusKeluarga,
+  TouristDestination,
+  CreateTouristDestinationInput,
 } from "./types";
 
 export interface CreateTripInput {
@@ -33,6 +36,7 @@ export interface CreateTripItemInput {
   booking_code?: string | null;
   notes?: string | null;
   estimated_cost: number;
+  destination_id?: string | null;
 }
 
 export interface CreateTripChecklistInput {
@@ -300,5 +304,120 @@ export async function toggleTripChecklist(
 
 export async function deleteTripChecklist(id: string): Promise<{ error: PostgrestError | null }> {
   const { error } = await supabase.from("trip_checklists").delete().eq("id", id);
+  return { error };
+}
+
+// ── Tourist Destinations (Katalog Destinasi Bersama) ──
+
+export async function getTouristDestinations(
+  searchQuery?: string,
+  cityFilter?: string
+): Promise<TouristDestination[]> {
+  let query = supabase
+    .from("tourist_destinations")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (cityFilter && cityFilter !== "semua") {
+    query = query.ilike("city", `%${cityFilter.trim()}%`);
+  }
+
+  if (searchQuery && searchQuery.trim()) {
+    const q = searchQuery.trim();
+    query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,notes.ilike.%${q}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("Error fetching tourist destinations:", error);
+    throw error;
+  }
+  return data || [];
+}
+
+export async function getTouristCities(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("tourist_destinations")
+    .select("city");
+
+  if (error) {
+    console.error("Error fetching destination cities:", error);
+    return [];
+  }
+
+  const uniqueCities = Array.from(
+    new Set((data || []).map((d) => formatCityName(d.city)).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  return uniqueCities;
+}
+
+export async function createTouristDestination(
+  input: CreateTouristDestinationInput,
+  memberId?: string,
+  familyName?: string
+): Promise<{ data: TouristDestination | null; error: PostgrestError | null }> {
+  const payload = {
+    name: input.name.trim(),
+    city: formatCityName(input.city),
+    category: input.category || "rekreasi",
+    maps_url: formatMapsUrl(input.maps_url),
+    social_url: formatSocialUrl(input.social_url),
+    estimated_ticket_price: Math.max(0, Number(input.estimated_ticket_price) || 0),
+    notes: input.notes?.trim() || null,
+    created_by: memberId || null,
+    created_by_family_name: familyName || null,
+  };
+
+  const { data, error } = await supabase
+    .from("tourist_destinations")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating tourist destination:", error);
+  }
+  return { data, error };
+}
+
+export async function updateTouristDestination(
+  id: string,
+  input: Partial<CreateTouristDestinationInput>
+): Promise<{ error: PostgrestError | null }> {
+  const payload: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.name !== undefined) payload.name = input.name.trim();
+  if (input.city !== undefined) payload.city = formatCityName(input.city);
+  if (input.category !== undefined) payload.category = input.category;
+  if (input.maps_url !== undefined) payload.maps_url = formatMapsUrl(input.maps_url);
+  if (input.social_url !== undefined) payload.social_url = formatSocialUrl(input.social_url);
+  if (input.estimated_ticket_price !== undefined) {
+    payload.estimated_ticket_price = Math.max(0, Number(input.estimated_ticket_price) || 0);
+  }
+  if (input.notes !== undefined) payload.notes = input.notes ? input.notes.trim() : null;
+
+  const { error } = await supabase
+    .from("tourist_destinations")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) {
+    console.error(`Error updating tourist destination ${id}:`, error);
+  }
+  return { error };
+}
+
+export async function deleteTouristDestination(id: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from("tourist_destinations")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error(`Error deleting tourist destination ${id}:`, error);
+  }
   return { error };
 }

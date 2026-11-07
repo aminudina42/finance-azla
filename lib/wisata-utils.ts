@@ -270,3 +270,117 @@ export function isTripItemOngoing(
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 
+export interface DestinationCategoryMeta {
+  label: string;
+  icon: string;
+  color: string;
+  bgColor: string;
+}
+
+export const DESTINATION_CATEGORY_META: Record<string, DestinationCategoryMeta> = {
+  rekreasi: {
+    label: "Rekreasi",
+    icon: "🎡",
+    color: "#2563eb",
+    bgColor: "rgba(37, 99, 235, 0.1)",
+  },
+  alam: {
+    label: "Wisata Alam",
+    icon: "🌲",
+    color: "#059669",
+    bgColor: "rgba(5, 150, 105, 0.1)",
+  },
+  kuliner: {
+    label: "Kuliner",
+    icon: "🍽️",
+    color: "#d97706",
+    bgColor: "rgba(217, 119, 6, 0.1)",
+  },
+  edukasi: {
+    label: "Edukasi & Sejarah",
+    icon: "🏛️",
+    color: "#7c3aed",
+    bgColor: "rgba(124, 58, 237, 0.1)",
+  },
+  budaya: {
+    label: "Seni & Budaya",
+    icon: "🎭",
+    color: "#db2777",
+    bgColor: "rgba(219, 39, 119, 0.1)",
+  },
+  belanja: {
+    label: "Belanja & Oleh-oleh",
+    icon: "🛍️",
+    color: "#ea580c",
+    bgColor: "rgba(234, 88, 12, 0.1)",
+  },
+  penginapan: {
+    label: "Hotel & Resort",
+    icon: "🏨",
+    color: "#0891b2",
+    bgColor: "rgba(8, 145, 178, 0.1)",
+  },
+  lainnya: {
+    label: "Lainnya",
+    icon: "📍",
+    color: "#475569",
+    bgColor: "rgba(71, 85, 105, 0.1)",
+  },
+};
+
+/**
+ * Format string nama kota menjadi Title Case (misal: "kota bandung" -> "Kota Bandung")
+ */
+export function formatCityName(city: string): string {
+  if (!city) return "";
+  return city
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * Sanitasi & perbaikan URL Media Sosial / Review:
+ * - Jika diawali "@", otomatis diubah menjadi Instagram link
+ * - Menjamin protocol https://
+ */
+export function formatSocialUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("@")) {
+    const handle = trimmed.slice(1);
+    return `https://instagram.com/${handle}`;
+  }
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
+/**
+ * Validasi dan format URL Google Maps:
+ * - Menjamin protocol https:// jika dimasukkan tanpa protocol
+ */
+export function formatMapsUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  if (trimmed.includes("google.com/maps") || trimmed.includes("maps.app.goo.gl") || trimmed.includes("goo.gl/maps")) {
+    return `https://${trimmed}`;
+  }
+
+  return `https://${trimmed}`;
+}
+
+
