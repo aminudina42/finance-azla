@@ -357,7 +357,7 @@ export default function AddTripItemModal({
             >
               {Object.entries(CATEGORY_META).map(([key, val]) => (
                 <option key={key} value={key}>
-                  {val.icon} {val.label}
+                  {val.label}
                 </option>
               ))}
             </select>
@@ -611,7 +611,7 @@ export default function AddTripItemModal({
               }}
             />
             <span style={{ display: "block", marginTop: "3px", fontSize: "10px", color: "var(--text-muted, #64748b)" }}>
-              💡 Masukkan link Google Maps jika ingin memunculkan tombol &quot;Buka Maps&quot; di jadwal. Teks alamat biasa tetap tersimpan sebagai informasi lokasi.
+              Petunjuk: Masukkan link Google Maps jika ingin memunculkan tombol &quot;Buka Maps&quot; di jadwal. Teks alamat biasa tetap tersimpan sebagai informasi lokasi.
             </span>
           </div>
 

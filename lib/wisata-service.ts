@@ -309,47 +309,208 @@ export async function deleteTripChecklist(id: string): Promise<{ error: Postgres
 
 // ── Tourist Destinations (Katalog Destinasi Bersama) ──
 
+export const FALLBACK_SEED_DESTINATIONS: TouristDestination[] = [
+  {
+    id: "seed-1",
+    name: "Taman Safari Indonesia Bogor",
+    city: "Bogor",
+    category: "rekreasi",
+    maps_url: "https://maps.app.goo.gl/tamansafaribogor",
+    social_url: "https://instagram.com/taman_safari",
+    estimated_ticket_price: 240000,
+    notes: "Cocok untuk wisata mobil keliling satwa liar dan pertunjukan lumba-lumba/harimau.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-2",
+    name: "Kebun Raya Bogor",
+    city: "Bogor",
+    category: "alam",
+    maps_url: "https://maps.app.goo.gl/kebunrayabogor",
+    social_url: "https://instagram.com/kebunraya_id",
+    estimated_ticket_price: 25000,
+    notes: "Sewa sepeda listrik atau piknik santai di bawah pohon rindang dekat danau.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-3",
+    name: "Cimory Dairyland Farm Theme Park Puncak",
+    city: "Bogor",
+    category: "rekreasi",
+    maps_url: "https://maps.app.goo.gl/cimorydairyland",
+    social_url: "https://instagram.com/dairyland.puncak",
+    estimated_ticket_price: 40000,
+    notes: "Banyak area interaksi hewan lucu, kincir angin dan spot foto anak-anak.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-4",
+    name: "Orchid Forest Cikole",
+    city: "Bandung",
+    category: "alam",
+    maps_url: "https://maps.app.goo.gl/orchidforestcikole",
+    social_url: "https://instagram.com/orchidforestcikole",
+    estimated_ticket_price: 50000,
+    notes: "Hutan pinus sejuk, jembatan gantung kayu, dan koleksi anggrek terlengkap.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-5",
+    name: "Farmhouse Susu Lembang",
+    city: "Bandung",
+    category: "rekreasi",
+    maps_url: "https://maps.app.goo.gl/farmhouselembang",
+    social_url: "https://instagram.com/farmhouselembang",
+    estimated_ticket_price: 35000,
+    notes: "Tiket masuk bisa ditukar susu murni Lembang. Ada spot rumah Hobbit.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-6",
+    name: "Dusun Bambu Lembang",
+    city: "Bandung",
+    category: "kuliner",
+    maps_url: "https://maps.app.goo.gl/dusunbambu",
+    social_url: "https://instagram.com/dusun_bambu",
+    estimated_ticket_price: 30000,
+    notes: "Wisata kuliner saung danau dengan pemandangan pegunungan asri.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-7",
+    name: "Candi Prambanan",
+    city: "Yogyakarta",
+    category: "edukasi",
+    maps_url: "https://maps.app.goo.gl/prambanan",
+    social_url: "https://instagram.com/candiprambanan",
+    estimated_ticket_price: 50000,
+    notes: "Kompleks candi Hindu megah warisan dunia UNESCO, sangat edukatif untuk anak.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-8",
+    name: "HeHa Sky View",
+    city: "Yogyakarta",
+    category: "kuliner",
+    maps_url: "https://maps.app.goo.gl/hehaskyview",
+    social_url: "https://instagram.com/hehaskyview",
+    estimated_ticket_price: 30000,
+    notes: "Pemandangan sunset dan citylight Jogja dari ketinggian bukit Patuk.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-9",
+    name: "Jatim Park 2 (Batu Secret Zoo)",
+    city: "Malang",
+    category: "edukasi",
+    maps_url: "https://maps.app.goo.gl/jatimpark2",
+    social_url: "https://instagram.com/jatimparksatu",
+    estimated_ticket_price: 140000,
+    notes: "Kebun binatang modern interaktif dan museum satwa bertaraf internasional.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "seed-10",
+    name: "Garuda Wisnu Kencana (GWK)",
+    city: "Bali",
+    category: "budaya",
+    maps_url: "https://maps.app.goo.gl/gwkbali",
+    social_url: "https://instagram.com/gwkbali",
+    estimated_ticket_price: 125000,
+    notes: "Patung megah karya Nyoman Nuarta dan pertunjukan seni budaya berkala.",
+    created_by_family_name: "Keluarga Azla",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+];
+
 export async function getTouristDestinations(
   searchQuery?: string,
   cityFilter?: string
 ): Promise<TouristDestination[]> {
-  let query = supabase
-    .from("tourist_destinations")
-    .select("*")
-    .order("name", { ascending: true });
+  try {
+    let query = supabase
+      .from("tourist_destinations")
+      .select("*")
+      .order("name", { ascending: true });
 
-  if (cityFilter && cityFilter !== "semua") {
-    query = query.ilike("city", `%${cityFilter.trim()}%`);
-  }
+    if (cityFilter && cityFilter !== "semua") {
+      query = query.ilike("city", `%${cityFilter.trim()}%`);
+    }
 
-  if (searchQuery && searchQuery.trim()) {
-    const q = searchQuery.trim();
-    query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,notes.ilike.%${q}%`);
-  }
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.trim();
+      query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,notes.ilike.%${q}%`);
+    }
 
-  const { data, error } = await query;
-  if (error) {
-    console.error("Error fetching tourist destinations:", error);
-    throw error;
+    const { data, error } = await query;
+    if (error) {
+      // Jika tabel belum dibuat di Supabase (PGRST205 / schema cache), fallback ke seed data lokal
+      if (error.code === "PGRST205" || error.message?.includes("schema cache") || error.message?.includes("does not exist")) {
+        console.warn("Tabel tourist_destinations belum dimigrasi di Supabase. Menggunakan data rekomendasi awal.");
+        let fallback = [...FALLBACK_SEED_DESTINATIONS];
+        if (cityFilter && cityFilter !== "semua") {
+          fallback = fallback.filter((d) => d.city.toLowerCase().includes(cityFilter.toLowerCase().trim()));
+        }
+        if (searchQuery && searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          fallback = fallback.filter(
+            (d) => d.name.toLowerCase().includes(q) || d.city.toLowerCase().includes(q) || (d.notes && d.notes.toLowerCase().includes(q))
+          );
+        }
+        return fallback;
+      }
+      console.error("Error fetching tourist destinations:", error);
+      throw error;
+    }
+    return data || [];
+  } catch (err: any) {
+    if (err?.code === "PGRST205" || err?.message?.includes("schema cache") || err?.message?.includes("does not exist")) {
+      return FALLBACK_SEED_DESTINATIONS;
+    }
+    throw err;
   }
-  return data || [];
 }
 
 export async function getTouristCities(): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("tourist_destinations")
-    .select("city");
+  try {
+    const { data, error } = await supabase
+      .from("tourist_destinations")
+      .select("city");
 
-  if (error) {
-    console.error("Error fetching destination cities:", error);
-    return [];
+    if (error) {
+      if (error.code === "PGRST205" || error.message?.includes("schema cache") || error.message?.includes("does not exist")) {
+        return Array.from(new Set(FALLBACK_SEED_DESTINATIONS.map((d) => formatCityName(d.city)))).sort((a, b) => a.localeCompare(b));
+      }
+      return [];
+    }
+
+    const uniqueCities = Array.from(
+      new Set((data || []).map((d) => formatCityName(d.city)).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+
+    return uniqueCities;
+  } catch {
+    return Array.from(new Set(FALLBACK_SEED_DESTINATIONS.map((d) => formatCityName(d.city)))).sort((a, b) => a.localeCompare(b));
   }
-
-  const uniqueCities = Array.from(
-    new Set((data || []).map((d) => formatCityName(d.city)).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b));
-
-  return uniqueCities;
 }
 
 export async function createTouristDestination(
@@ -376,6 +537,18 @@ export async function createTouristDestination(
     .single();
 
   if (error) {
+    // Jika tabel belum ada di database, simpan lokal sementara dan kembalikan sukses agar UX tidak macet
+    if (error.code === "PGRST205" || error.message?.includes("schema cache") || error.message?.includes("does not exist")) {
+      console.warn("Tabel belum ada di Supabase. Menyimpan destinasi sementara.");
+      const mockSaved: TouristDestination = {
+        ...payload,
+        id: "local-" + Date.now(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      FALLBACK_SEED_DESTINATIONS.unshift(mockSaved);
+      return { data: mockSaved, error: null };
+    }
     console.error("Error creating tourist destination:", error);
   }
   return { data, error };

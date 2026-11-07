@@ -114,7 +114,7 @@ export default function TouristDestinationsTab({
     }
   };
 
-  const isModalOpen = isAddModalOpenExternal !== undefined ? isAddModalOpenExternal : isAddModalOpenLocal;
+  const isModalOpen = Boolean(isAddModalOpenLocal || isAddModalOpenExternal);
 
   const handleCloseModal = () => {
     setIsAddModalOpenLocal(false);
@@ -416,7 +416,6 @@ export default function TouristDestinationsTab({
                 gap: "3px",
               }}
             >
-              <span>{meta.icon}</span>
               <span>{meta.label}</span>
             </button>
           );
@@ -681,7 +680,7 @@ export default function TouristDestinationsTab({
                 </div>
                 {destForTrip.notes && (
                   <div style={{ color: "var(--text-muted, #64748b)", fontSize: "11px", marginTop: "2px" }}>
-                    💡 {destForTrip.notes}
+                    Catatan: {destForTrip.notes}
                   </div>
                 )}
               </div>

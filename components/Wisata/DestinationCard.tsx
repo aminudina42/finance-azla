@@ -80,7 +80,6 @@ export default function DestinationCard({
               whiteSpace: "nowrap",
             }}
           >
-            <span>{cat.icon}</span>
             <span>{cat.label}</span>
           </span>
 
@@ -307,7 +306,7 @@ export default function DestinationCard({
             gap: "4px",
           }}
         >
-          <span>✨ Disarankan oleh</span>
+          <span>Disarankan oleh</span>
           <strong style={{ color: "var(--text-muted, #64748b)", fontWeight: 600 }}>
             {destination.created_by_family_name}
           </strong>

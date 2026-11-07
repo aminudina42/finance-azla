@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.tourist_destinations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   city TEXT NOT NULL,
-  category TEXT NOT NULL DEFAULT 'rekreasi' CHECK (category IN ('rekreasi', 'alam', 'kuliner', 'edukasi', 'belanja', 'penginapan', 'lainnya')),
+  category TEXT NOT NULL DEFAULT 'rekreasi' CHECK (category IN ('rekreasi', 'alam', 'kuliner', 'edukasi', 'budaya', 'belanja', 'penginapan', 'lainnya')),
   maps_url TEXT,
   social_url TEXT,
   estimated_ticket_price BIGINT NOT NULL DEFAULT 0 CHECK (estimated_ticket_price >= 0),
@@ -18,6 +18,13 @@ CREATE TABLE IF NOT EXISTS public.tourist_destinations (
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Pastikan check constraint mencakup 'budaya' jika tabel sudah sempat terbentuk sebelumnya
+ALTER TABLE public.tourist_destinations 
+  DROP CONSTRAINT IF EXISTS tourist_destinations_category_check;
+ALTER TABLE public.tourist_destinations 
+  ADD CONSTRAINT tourist_destinations_category_check 
+  CHECK (category IN ('rekreasi', 'alam', 'kuliner', 'edukasi', 'budaya', 'belanja', 'penginapan', 'lainnya'));
 
 -- Index Performa untuk Pencarian Cepat & Filter
 CREATE INDEX IF NOT EXISTS idx_tourist_destinations_city ON public.tourist_destinations(city);
@@ -46,13 +53,22 @@ CREATE POLICY "tourist_destinations_insert_auth" ON public.tourist_destinations
 -- Policy Update: Pembuat asli atau superadmin dapat mengedit data destinasi
 DROP POLICY IF EXISTS "tourist_destinations_update_owner" ON public.tourist_destinations;
 CREATE POLICY "tourist_destinations_update_owner" ON public.tourist_destinations
-  FOR UPDATE USING (created_by = auth.uid() OR public.is_superadmin(auth.uid()))
-  WITH CHECK (created_by = auth.uid() OR public.is_superadmin(auth.uid()));
+  FOR UPDATE USING (
+    created_by = auth.uid() 
+    OR EXISTS (SELECT 1 FROM public.superadmins WHERE user_id = auth.uid())
+  )
+  WITH CHECK (
+    created_by = auth.uid() 
+    OR EXISTS (SELECT 1 FROM public.superadmins WHERE user_id = auth.uid())
+  );
 
 -- Policy Delete: Pembuat asli atau superadmin dapat menghapus data destinasi
 DROP POLICY IF EXISTS "tourist_destinations_delete_owner" ON public.tourist_destinations;
 CREATE POLICY "tourist_destinations_delete_owner" ON public.tourist_destinations
-  FOR DELETE USING (created_by = auth.uid() OR public.is_superadmin(auth.uid()));
+  FOR DELETE USING (
+    created_by = auth.uid() 
+    OR EXISTS (SELECT 1 FROM public.superadmins WHERE user_id = auth.uid())
+  );
 
 -- Berikan izin akses tabel
 GRANT ALL ON TABLE public.tourist_destinations TO authenticated, service_role;

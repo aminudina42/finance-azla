@@ -81,7 +81,6 @@ export default function TimelineItemCard({
               whiteSpace: "nowrap",
             }}
           >
-            <span>{cat.icon}</span>
             <span>{cat.label}</span>
           </span>
 
@@ -121,7 +120,6 @@ export default function TimelineItemCard({
                 boxShadow: "0 2px 6px rgba(40, 127, 240, 0.25)",
               }}
             >
-              <span>⚡</span>
               <span>Sedang Berlangsung</span>
             </span>
           )}

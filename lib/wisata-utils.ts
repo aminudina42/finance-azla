@@ -178,12 +178,12 @@ export interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<TripCategory, CategoryMeta> = {
-  transport: { label: "Transportasi", icon: "🚗", color: "#2563eb", bgColor: "#eff6ff" },
-  ticket: { label: "Tiket Wisata", icon: "🎟️", color: "#7c3aed", bgColor: "#f5f3ff" },
-  food: { label: "Kuliner & Makan", icon: "🍽️", color: "#ea580c", bgColor: "#fff7ed" },
-  lodging: { label: "Penginapan", icon: "🏨", color: "#0d9488", bgColor: "#f0fdfa" },
-  shopping: { label: "Oleh-oleh / Belanja", icon: "🛍️", color: "#db2777", bgColor: "#fdf2f8" },
-  other: { label: "Lainnya", icon: "✨", color: "#4b5563", bgColor: "#f3f4f6" },
+  transport: { label: "Transportasi", icon: "", color: "#2563eb", bgColor: "#eff6ff" },
+  ticket: { label: "Tiket Wisata", icon: "", color: "#7c3aed", bgColor: "#f5f3ff" },
+  food: { label: "Kuliner & Makan", icon: "", color: "#ea580c", bgColor: "#fff7ed" },
+  lodging: { label: "Penginapan", icon: "", color: "#0d9488", bgColor: "#f0fdfa" },
+  shopping: { label: "Oleh-oleh / Belanja", icon: "", color: "#db2777", bgColor: "#fdf2f8" },
+  other: { label: "Lainnya", icon: "", color: "#4b5563", bgColor: "#f3f4f6" },
 };
 
 /**
@@ -280,49 +280,49 @@ export interface DestinationCategoryMeta {
 export const DESTINATION_CATEGORY_META: Record<string, DestinationCategoryMeta> = {
   rekreasi: {
     label: "Rekreasi",
-    icon: "🎡",
+    icon: "",
     color: "#2563eb",
     bgColor: "rgba(37, 99, 235, 0.1)",
   },
   alam: {
     label: "Wisata Alam",
-    icon: "🌲",
+    icon: "",
     color: "#059669",
     bgColor: "rgba(5, 150, 105, 0.1)",
   },
   kuliner: {
     label: "Kuliner",
-    icon: "🍽️",
+    icon: "",
     color: "#d97706",
     bgColor: "rgba(217, 119, 6, 0.1)",
   },
   edukasi: {
     label: "Edukasi & Sejarah",
-    icon: "🏛️",
+    icon: "",
     color: "#7c3aed",
     bgColor: "rgba(124, 58, 237, 0.1)",
   },
   budaya: {
     label: "Seni & Budaya",
-    icon: "🎭",
+    icon: "",
     color: "#db2777",
     bgColor: "rgba(219, 39, 119, 0.1)",
   },
   belanja: {
     label: "Belanja & Oleh-oleh",
-    icon: "🛍️",
+    icon: "",
     color: "#ea580c",
     bgColor: "rgba(234, 88, 12, 0.1)",
   },
   penginapan: {
     label: "Hotel & Resort",
-    icon: "🏨",
+    icon: "",
     color: "#0891b2",
     bgColor: "rgba(8, 145, 178, 0.1)",
   },
   lainnya: {
     label: "Lainnya",
-    icon: "📍",
+    icon: "",
     color: "#475569",
     bgColor: "rgba(71, 85, 105, 0.1)",
   },

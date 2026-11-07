@@ -271,7 +271,7 @@ export default function AddDestinationModal({
               >
                 {Object.entries(DESTINATION_CATEGORY_META).map(([key, val]) => (
                   <option key={key} value={key}>
-                    {val.icon} {val.label}
+                    {val.label}
                   </option>
                 ))}
               </select>
@@ -343,7 +343,7 @@ export default function AddDestinationModal({
               }}
             />
             <span style={{ display: "block", marginTop: "3px", fontSize: "10px", color: "var(--text-muted, #64748b)" }}>
-              💡 Masukkan handle Instagram diawali @ (contoh: @taman_safari) atau link video TikTok review tempat ini.
+              Petunjuk: Masukkan handle Instagram diawali @ (contoh: @taman_safari) atau tautan video review tempat ini.
             </span>
           </div>
 
