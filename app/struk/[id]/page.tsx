@@ -40,6 +40,7 @@ export default function DetailStrukPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState("");
+  const [showClipboardNotice, setShowClipboardNotice] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -354,60 +355,114 @@ export default function DetailStrukPage() {
     }
   };
 
-  const handleShareImage = async () => {
+  const handleShareWA = async () => {
     if (!receiptRef.current) return;
     setIsProcessing(true);
     try {
       const blob = await generateReceiptBlob();
-      if (!blob) throw new Error("Gagal membuat gambar");
+      if (!blob) throw new Error("Gagal membuat gambar struk");
 
       const fileName = `Struk_${receiptNumber}.png`;
       const file = new File([blob], fileName, { type: "image/png" });
 
+      // 1. Salin gambar langsung ke clipboard perangkat (sangat berguna untuk WhatsApp Web / Desktop)
+      let copiedToClipboard = false;
+      try {
+        if (typeof ClipboardItem !== "undefined" && navigator.clipboard && navigator.clipboard.write) {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob }),
+          ]);
+          copiedToClipboard = true;
+        }
+      } catch {
+        // clipboard write opsional
+      }
+
+      // 2. Jika di Mobile (Android/iOS) dan mendukung share file:
+      // Panggil Web Share API dengan menyertakan FILE GAMBAR STRUK
+      // Ini akan membuka share sheet dan ketika user memilih WhatsApp, WhatsApp akan langsung
+      // membuka tampilan pengiriman GAMBAR STRUK!
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Struk Transaksi - ${storeName || "Toko"}`,
-          text: `Struk ${receiptNumber} • Total: ${formatRp(total)}`,
-          files: [file],
-        });
-      } else {
-        // Jika browser tidak mendukung share file, alihkan ke share teks WhatsApp
-        handleShareWAText();
+        try {
+          await navigator.share({
+            title: `Struk Transaksi - ${storeName || "Toko"}`,
+            text: `Berikut struk transaksi ${storeName || "Toko"} (${receiptNumber}) • Total: ${formatRp(total)}`,
+            files: [file],
+          });
+          setIsProcessing(false);
+          return;
+        } catch (shareErr: any) {
+          if (shareErr?.name === "AbortError") {
+            setIsProcessing(false);
+            return;
+          }
+          console.warn("Native share file gagal, fallback ke upload & link WA:", shareErr);
+        }
+      }
+
+      // 3. Jika browser tidak mendukung direct file share (misal: Desktop Chrome / browser tanpa Web Share API):
+      // Upload gambar struk ke Supabase Storage agar tersedia link publik gambar yang bisa dibuka pelanggan di WA
+      let publicImageUrl = "";
+      for (const bucketName of ["feedbacks", "receipt-images", "logos"]) {
+        try {
+          const storagePath = `struk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.png`;
+          const { error: upErr } = await supabase.storage
+            .from(bucketName)
+            .upload(storagePath, file, {
+              contentType: "image/png",
+              upsert: true,
+            });
+          if (!upErr) {
+            const { data: { publicUrl } } = supabase.storage
+              .from(bucketName)
+              .getPublicUrl(storagePath);
+            if (publicUrl) {
+              publicImageUrl = publicUrl;
+              break;
+            }
+          }
+        } catch {
+          // lanjut coba bucket berikutnya
+        }
+      }
+
+      // Buat pesan WhatsApp dengan rincian struk & link gambar struk
+      const lines = [
+        `🧾 *STRUK TRANSAKSI*`,
+        `🏪 *${storeName || "TOKO"}*`,
+        storeAddress ? `📍 ${storeAddress}` : "",
+        `No: *${receiptNumber}*`,
+        `Tanggal: ${date}`,
+        `--------------------------------`,
+        ...items.map((it) => {
+          const q = it.quantity || 1;
+          const p = it.price || 0;
+          const d = it.discount || 0;
+          const normalSub = (p - d) * q;
+          return `• *${it.item_name || "Barang"}*\n  ${q} x Rp${p.toLocaleString("id-ID")}${d > 0 ? ` (Disc: -Rp${d.toLocaleString("id-ID")})` : ""} = *Rp${normalSub.toLocaleString("id-ID")}*`;
+        }),
+        `--------------------------------`,
+        `*TOTAL: Rp ${total.toLocaleString("id-ID")}*`,
+        qrisName ? `Pembayaran: QRIS a/n ${qrisName}` : "",
+        publicImageUrl ? `\n🖼️ *Lihat Gambar Struk Lengkap:*\n${publicImageUrl}` : "",
+        `\n★ *Terima Kasih Atas Kunjungan Anda* ★`,
+      ].filter(Boolean).join("\n");
+
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines)}`;
+      window.open(waUrl, "_blank");
+
+      // Jika gambar berhasil disalin ke clipboard dan pengguna ada di Desktop, beri petunjuk
+      if (copiedToClipboard && !isIOSDevice()) {
+        setShowClipboardNotice(true);
       }
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        console.error("Gagal share gambar:", err);
-        // Fallback ke share teks WA jika native share gagal
-        handleShareWAText();
+        console.error("Gagal mengirim ke WA:", err);
+        alert("Gagal membagikan struk ke WhatsApp: " + (err?.message || "Kesalahan peramban"));
       }
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleShareWAText = () => {
-    const lines = [
-      `🧾 *STRUK TRANSAKSI*`,
-      `🏪 *${storeName || "TOKO"}*`,
-      storeAddress ? `📍 ${storeAddress}` : "",
-      `No: *${receiptNumber}*`,
-      `Tanggal: ${date}`,
-      `--------------------------------`,
-      ...items.map((it) => {
-        const q = it.quantity || 1;
-        const p = it.price || 0;
-        const d = it.discount || 0;
-        const normalSub = (p - d) * q;
-        return `• *${it.item_name || "Barang"}*\n  ${q} x Rp${p.toLocaleString("id-ID")}${d > 0 ? ` (Disc: -Rp${d.toLocaleString("id-ID")})` : ""} = *Rp${normalSub.toLocaleString("id-ID")}*`;
-      }),
-      `--------------------------------`,
-      `*TOTAL: Rp ${total.toLocaleString("id-ID")}*`,
-      qrisName ? `\nPembayaran: QRIS a/n ${qrisName}` : "",
-      `\n★ *Terima Kasih Atas Kunjungan Anda* ★`,
-    ].filter(Boolean).join("\n");
-
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines)}`;
-    window.open(waUrl, "_blank");
   };
 
   if (isLoading) {
@@ -531,18 +586,23 @@ export default function DetailStrukPage() {
             {isProcessing ? "⏳ Memproses..." : "📥 Unduh PNG"}
           </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-          <button className="btn-primary"
-            style={{ padding: "12px", fontSize: "13px", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", color: "#fff" }}
-            onClick={handleShareImage} disabled={isProcessing}>
-            {isProcessing ? "⏳ Memproses..." : "🖼️ Bagikan Gambar"}
-          </button>
-          <button className="btn-primary"
-            style={{ padding: "12px", fontSize: "13px", background: "#25D366", color: "#fff" }}
-            onClick={handleShareWAText} disabled={isProcessing}>
-            💬 Kirim ke WA
-          </button>
-        </div>
+        <button className="btn-primary"
+          style={{
+            padding: "13px",
+            fontSize: "14px",
+            background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            boxShadow: "0 4px 14px rgba(37, 211, 102, 0.35)",
+            fontWeight: 750,
+          }}
+          onClick={handleShareWA} disabled={isProcessing}>
+          <span>💬</span>
+          <span>{isProcessing ? "Menyiapkan Gambar Struk..." : "Kirim Gambar Struk ke WhatsApp"}</span>
+        </button>
 
         <div style={{ borderTop: "1px dashed var(--border)", margin: "8px 0" }} />
 
@@ -896,6 +956,45 @@ export default function DetailStrukPage() {
                 Buka Layar Penuh
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Petunjuk Clipboard untuk Desktop / WhatsApp Web */}
+      {showClipboardNotice && (
+        <Modal isOpen={showClipboardNotice} onClose={() => setShowClipboardNotice(false)}>
+          <div style={{ textAlign: "center", padding: "8px 4px" }}>
+            <div style={{ fontSize: "36px", marginBottom: "8px" }}>📋✨</div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "16px", color: "var(--navy)", fontWeight: 800 }}>
+              Gambar Struk Berhasil Disalin!
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 16px 0", lineHeight: "1.5" }}>
+              Di obrolan <strong>WhatsApp Web</strong> atau aplikasi desktop, cukup tekan shortcut:
+              <br />
+              <kbd style={{
+                display: "inline-block",
+                margin: "8px 0",
+                padding: "4px 10px",
+                background: "var(--s2)",
+                border: "1.5px solid var(--border)",
+                borderRadius: "6px",
+                fontWeight: 800,
+                color: "var(--teal)",
+                fontSize: "14px",
+              }}>
+                Ctrl + V
+              </kbd> (atau <kbd style={{ padding: "2px 6px", background: "var(--s2)", borderRadius: "4px" }}>⌘ + V</kbd> di Mac)
+              <br />
+              Gambar struk akan langsung tertempel dan siap dikirim sebagai foto ke pelanggan.
+            </p>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ width: "100%", padding: "11px", background: "var(--teal)", color: "#fff", fontWeight: 750 }}
+              onClick={() => setShowClipboardNotice(false)}
+            >
+              Mengerti, Terima Kasih! 👍
+            </button>
           </div>
         </Modal>
       )}
