@@ -347,19 +347,57 @@ export async function GET(request: Request) {
 
     // 3. Merge Notion cards with local Supabase feedback details
     if (notionResult.success) {
+      const normalizeTitle = (t: string) =>
+        (t || "")
+          .replace(/^\[(BUG|SARAN|PERTANYAAN)\]\s*/i, "")
+          .replace(/^(bug|saran|feat|enhance)\s*:\s*/i, "")
+          .trim()
+          .toLowerCase();
+
       const localByPageId = new Map<string, any>();
+      const localByTitle = new Map<string, any>();
+
       for (const fb of localFeedbacks) {
         if (fb.notion_page_id) {
           const cleanPageId = fb.notion_page_id.replace(/-/g, "");
           localByPageId.set(cleanPageId, fb);
           localByPageId.set(fb.notion_page_id, fb);
         }
+        if (fb.title) {
+          localByTitle.set(normalizeTitle(fb.title), fb);
+        }
       }
 
       const matchedLocalIds = new Set<string>();
       const enrichedCards = (notionResult.cards || []).map((card) => {
         const cleanCardId = card.id.replace(/-/g, "");
-        const localMatch = localByPageId.get(cleanCardId) || localByPageId.get(card.id);
+        let localMatch = localByPageId.get(cleanCardId) || localByPageId.get(card.id);
+
+        // Fallback: match by title normalization (reconcile pending local feedbacks)
+        if (!localMatch && card.title) {
+          const normCardTitle = normalizeTitle(card.title);
+          localMatch = localByTitle.get(normCardTitle);
+
+          // One-time auto reconcile to database if status was pending or unlinked
+          if (localMatch && (!localMatch.notion_page_id || localMatch.notion_sync_status !== "synced")) {
+            const dbClient = authClient || supabase;
+            const isDone = card.notion_status_name?.toLowerCase() === "done" || card.status === "selesai";
+            dbClient
+              .from("user_feedbacks")
+              .update({
+                notion_page_id: card.id,
+                notion_page_url: card.url || `https://notion.so/${cleanCardId}`,
+                notion_sync_status: "synced",
+                notion_sync_error: null,
+                status: isDone ? "selesai" : "proses",
+                notion_synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", localMatch.id)
+              .then(() => {});
+          }
+        }
+
         if (localMatch) {
           matchedLocalIds.add(localMatch.id);
           return {

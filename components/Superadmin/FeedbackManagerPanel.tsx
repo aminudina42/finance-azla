@@ -25,6 +25,7 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
 
   // Notion test state
   const [isTestingNotion, setIsTestingNotion] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   const [notionStatus, setNotionStatus] = useState<{
     tested: boolean;
     connected: boolean;
@@ -191,6 +192,44 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
       onShowAlert?.("Gagal Sinkronisasi", err.message || "Terjadi gangguan jaringan.");
     } finally {
       setSyncingId(null);
+    }
+  };
+
+  // 3b. One-Time Reconcile of pending feedbacks with Notion
+  const handleReconcileNotion = async () => {
+    setIsReconciling(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/feedback/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: "reconcile" }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowAlert?.(
+          "Rekonsiliasi Selesai! 🎉",
+          data.reconciledCount > 0
+            ? `Berhasil menghubungkan & menyinkronkan ${data.reconciledCount} laporan dengan kartu Notion.`
+            : "Semua laporan sudah tersinkronisasi rapi dengan kartu Notion."
+        );
+        await loadFeedbacks();
+      } else {
+        onShowAlert?.("Rekonsiliasi Gagal", data.error || "Gagal merekonsiliasi.");
+      }
+    } catch (err: any) {
+      onShowAlert?.("Gangguan Jaringan", err.message || "Gagal menghubungi server.");
+    } finally {
+      setIsReconciling(false);
     }
   };
 
@@ -709,63 +748,129 @@ export default function FeedbackManagerPanel({ onShowAlert }: FeedbackManagerPan
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleTestNotion}
-          disabled={isTestingNotion}
-          style={{
-            minHeight: "38px",
-            padding: "8px 16px",
-            borderRadius: "10px",
-            background: "#ffffff",
-            border: "1.5px solid #cbd5e1",
-            color: "var(--navy)",
-            fontWeight: 750,
-            fontSize: "12px",
-            cursor: isTestingNotion ? "not-allowed" : "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "6px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-            flexShrink: 0,
-            touchAction: "manipulation",
-          }}
-        >
-          {isTestingNotion ? (
-            <>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "12px",
-                  height: "12px",
-                  border: "2px solid #287ff0",
-                  borderTopColor: "transparent",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
-                }}
-              />
-              <span>Menguji...</span>
-            </>
-          ) : (
-            <>
-              <svg
-                viewBox="0 0 24 24"
-                width="13"
-                height="13"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>Test Koneksi Notion</span>
-            </>
-          )}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          {/* Reconcile Button */}
+          <button
+            type="button"
+            onClick={handleReconcileNotion}
+            disabled={isReconciling}
+            title="Cocokkan & sinkronkan laporan lokal yang pending dengan kartu Notion"
+            style={{
+              minHeight: "38px",
+              padding: "8px 14px",
+              borderRadius: "10px",
+              background: "#ffffff",
+              border: "1.5px solid #cbd5e1",
+              color: "var(--navy)",
+              fontWeight: 750,
+              fontSize: "12px",
+              cursor: isReconciling ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+              flexShrink: 0,
+              touchAction: "manipulation",
+            }}
+          >
+            {isReconciling ? (
+              <>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "12px",
+                    height: "12px",
+                    border: "2px solid #287ff0",
+                    borderTopColor: "transparent",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                <span>Mencocokkan...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 2v6h-6" />
+                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                  <path d="M3 22v-6h6" />
+                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                </svg>
+                <span>Sinkronkan ke Notion</span>
+              </>
+            )}
+          </button>
+
+          {/* Test Notion Connection */}
+          <button
+            type="button"
+            onClick={handleTestNotion}
+            disabled={isTestingNotion}
+            style={{
+              minHeight: "38px",
+              padding: "8px 16px",
+              borderRadius: "10px",
+              background: "#ffffff",
+              border: "1.5px solid #cbd5e1",
+              color: "var(--navy)",
+              fontWeight: 750,
+              fontSize: "12px",
+              cursor: isTestingNotion ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+              flexShrink: 0,
+              touchAction: "manipulation",
+            }}
+          >
+            {isTestingNotion ? (
+              <>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: "12px",
+                    height: "12px",
+                    border: "2px solid #287ff0",
+                    borderTopColor: "transparent",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                <span>Menguji...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                <span>Test Koneksi Notion</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Metrics Counter Cards (Mobile-first responsive 2-column grid) */}

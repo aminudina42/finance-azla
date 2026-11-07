@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { createNotionTicket, testNotionConnection, updateNotionCardStatus } from "@/lib/notion-service";
+import {
+  createNotionTicket,
+  testNotionConnection,
+  updateNotionCardStatus,
+  getNotionKanbanCards,
+} from "@/lib/notion-service";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +136,88 @@ export async function POST(request: Request) {
     const dbClient = getAdminSupabaseClient(authClient);
 
     const body = await request.json().catch(() => ({}));
-    const { feedbackId } = body;
+    const { feedbackId, action } = body;
+
+    // Handle full one-time reconciliation of pending feedbacks with existing Notion cards
+    if (action === "reconcile" || (!feedbackId && body.reconcile === true)) {
+      const notionRes = await getNotionKanbanCards();
+      if (!notionRes.success) {
+        return NextResponse.json(
+          { error: notionRes.error || "Gagal mengambil data tiket dari Notion." },
+          { status: 500 }
+        );
+      }
+
+      // Query all pending / unlinked feedbacks from DB
+      const { data: localList, error: listErr } = await dbClient
+        .from("user_feedbacks")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (listErr) {
+        return NextResponse.json(
+          { error: `Gagal membaca database feedback: ${listErr.message}` },
+          { status: 500 }
+        );
+      }
+
+      const normalizeTitle = (t: string) =>
+        (t || "")
+          .replace(/^\[(BUG|SARAN|PERTANYAAN)\]\s*/i, "")
+          .replace(/^(bug|saran|feat|enhance)\s*:\s*/i, "")
+          .trim()
+          .toLowerCase();
+
+      const cardsByCleanTitle = new Map<string, any>();
+      for (const card of notionRes.cards || []) {
+        if (card.title) {
+          cardsByCleanTitle.set(normalizeTitle(card.title), card);
+        }
+      }
+
+      let reconciledCount = 0;
+      const reconciledItems: string[] = [];
+
+      for (const fb of localList || []) {
+        // Only reconcile if not synced yet or notion_page_id is missing
+        if (fb.notion_sync_status !== "synced" || !fb.notion_page_id) {
+          const match = cardsByCleanTitle.get(normalizeTitle(fb.title));
+          if (match) {
+            const cleanPageId = match.id.replace(/-/g, "");
+            const isDone =
+              match.notion_status_name?.toLowerCase() === "done" || match.status === "selesai";
+
+            const { error: updErr } = await dbClient
+              .from("user_feedbacks")
+              .update({
+                notion_page_id: match.id,
+                notion_page_url: match.url || `https://notion.so/${cleanPageId}`,
+                notion_sync_status: "synced",
+                notion_sync_error: null,
+                status: isDone ? "selesai" : "proses",
+                notion_synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", fb.id);
+
+            if (!updErr) {
+              reconciledCount++;
+              reconciledItems.push(fb.title);
+            }
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        reconciledCount,
+        reconciledItems,
+        message:
+          reconciledCount > 0
+            ? `Berhasil merekonsiliasi ${reconciledCount} laporan dengan kartu Notion yang sudah ada.`
+            : "Semua laporan sudah tersinkronisasi dengan kartu Notion.",
+      });
+    }
 
     if (!feedbackId) {
       return NextResponse.json({ error: "Parameter feedbackId wajib disertakan." }, { status: 400 });
