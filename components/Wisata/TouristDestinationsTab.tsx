@@ -2,16 +2,18 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Skeleton from "@/components/Skeleton";
+import Modal from "@/components/Modal";
 import DestinationCard from "@/components/Wisata/DestinationCard";
 import AddDestinationModal from "@/components/Wisata/AddDestinationModal";
 import {
   getTouristDestinations,
   getTouristCities,
   deleteTouristDestination,
+  createTripItem,
 } from "@/lib/wisata-service";
-import type { TouristDestination, TouristDestinationCategory } from "@/lib/types";
-import { DESTINATION_CATEGORY_META } from "@/lib/wisata-utils";
-import { Search, Plus, MapPin, X, RotateCcw, Palmtree, WifiOff, Sparkles } from "lucide-react";
+import type { TouristDestination, TouristDestinationCategory, Trip, TripCategory } from "@/lib/types";
+import { DESTINATION_CATEGORY_META, calculateTripDays, formatRp } from "@/lib/wisata-utils";
+import { Search, Plus, MapPin, X, RotateCcw, Palmtree, WifiOff, Sparkles, CheckCircle2, Calendar } from "lucide-react";
 
 interface TouristDestinationsTabProps {
   currentMemberId?: string | null;
@@ -20,6 +22,7 @@ interface TouristDestinationsTabProps {
   onOpenAddModal?: () => void;
   isAddModalOpenExternal?: boolean;
   onCloseAddModalExternal?: () => void;
+  trips?: Trip[];
 }
 
 export default function TouristDestinationsTab({
@@ -28,6 +31,7 @@ export default function TouristDestinationsTab({
   isSuperAdmin = false,
   isAddModalOpenExternal,
   onCloseAddModalExternal,
+  trips = [],
 }: TouristDestinationsTabProps) {
   const [destinations, setDestinations] = useState<TouristDestination[]>([]);
   const [cities, setCities] = useState<string[]>([]);
@@ -42,6 +46,73 @@ export default function TouristDestinationsTab({
   // Modals
   const [isAddModalOpenLocal, setIsAddModalOpenLocal] = useState(false);
   const [destinationToEdit, setDestinationToEdit] = useState<TouristDestination | null>(null);
+
+  // Quick Add to Trip Modal State
+  const [destForTrip, setDestForTrip] = useState<TouristDestination | null>(null);
+  const [targetTripId, setTargetTripId] = useState<string>("");
+  const [targetTripDay, setTargetTripDay] = useState<number>(1);
+  const [addingToTrip, setAddingToTrip] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const activeTrips = useMemo(() => {
+    return trips.filter((t) => t.status === "planning" || t.status === "ongoing");
+  }, [trips]);
+
+  const targetTrip = useMemo(() => {
+    if (!activeTrips.length) return null;
+    return activeTrips.find((t) => t.id === targetTripId) || activeTrips[0];
+  }, [activeTrips, targetTripId]);
+
+  const targetTripTotalDays = useMemo(() => {
+    if (!targetTrip) return 1;
+    return calculateTripDays(targetTrip.start_date, targetTrip.end_date);
+  }, [targetTrip]);
+
+  const handleOpenAddToTrip = (dest: TouristDestination) => {
+    if (activeTrips.length === 0) {
+      alert("Belum ada rencana liburan yang aktif. Silakan buat trip baru terlebih dahulu di tab Rencana Trip.");
+      return;
+    }
+    setDestForTrip(dest);
+    setTargetTripId(activeTrips[0].id);
+    setTargetTripDay(1);
+  };
+
+  const handleConfirmAddToTrip = async () => {
+    if (!destForTrip || !targetTrip) return;
+    setAddingToTrip(true);
+    try {
+      let cat: TripCategory = "ticket";
+      if (destForTrip.category === "kuliner") cat = "food";
+      else if (destForTrip.category === "penginapan") cat = "lodging";
+      else if (destForTrip.category === "belanja") cat = "shopping";
+
+      const { error } = await createTripItem(
+        {
+          trip_id: targetTrip.id,
+          day_number: targetTripDay,
+          start_time: "09:00",
+          category: cat,
+          title: destForTrip.name,
+          location: destForTrip.maps_url || destForTrip.city,
+          estimated_cost: destForTrip.estimated_ticket_price || 0,
+          notes: destForTrip.notes || null,
+          destination_id: destForTrip.id,
+        },
+        targetTrip.keluarga_id
+      );
+
+      if (error) throw new Error(error.message);
+
+      setToastMessage(`"${destForTrip.name}" berhasil ditambahkan ke ${targetTrip.title} (Hari ke-${targetTripDay})!`);
+      setTimeout(() => setToastMessage(null), 3500);
+      setDestForTrip(null);
+    } catch (err: any) {
+      alert("Gagal menambahkan ke jadwal: " + err.message);
+    } finally {
+      setAddingToTrip(false);
+    }
+  };
 
   const isModalOpen = isAddModalOpenExternal !== undefined ? isAddModalOpenExternal : isAddModalOpenLocal;
 
@@ -131,6 +202,27 @@ export default function TouristDestinationsTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%" }}>
+      {/* Toast Notifikasi Berhasil Ditambahkan ke Trip */}
+      {toastMessage && (
+        <div
+          style={{
+            padding: "10px 14px",
+            borderRadius: "12px",
+            backgroundColor: "rgba(22, 168, 154, 0.12)",
+            color: "#0d9488",
+            fontSize: "12.5px",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            animation: "fadeIn 0.2s ease",
+          }}
+        >
+          <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Search Bar & Tombol Tambah */}
       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
         <div
@@ -477,6 +569,7 @@ export default function TouristDestinationsTab({
                 canManage={canManage}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onSelectForTrip={handleOpenAddToTrip}
               />
             );
           })}
@@ -492,6 +585,156 @@ export default function TouristDestinationsTab({
         currentMemberId={currentMemberId}
         currentFamilyName={currentFamilyName}
       />
+
+      {/* Modal Gunakan Destinasi di Rencana Trip */}
+      {destForTrip && (
+        <Modal isOpen={Boolean(destForTrip)} onClose={() => setDestForTrip(null)}>
+          <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Calendar size={18} style={{ color: "var(--brand-primary, #287ff0)" }} />
+                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                  Tambahkan ke Rencana Liburan
+                </h3>
+              </div>
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--text-muted, #64748b)" }}>
+                Masukkan <strong>{destForTrip.name} ({destForTrip.city})</strong> ke dalam jadwal liburan keluarga.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {/* Pilihan Rencana Trip */}
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                  Pilih Liburan Aktif
+                </label>
+                <select
+                  value={targetTripId}
+                  onChange={(e) => {
+                    setTargetTripId(e.target.value);
+                    setTargetTripDay(1);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border, #cbd5e1)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                    backgroundColor: "var(--input-bg, #ffffff)",
+                  }}
+                >
+                  {activeTrips.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title} ({t.destination})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pilihan Hari Liburan */}
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #64748b)", marginBottom: "4px" }}>
+                  Pilih Hari Kunjungan
+                </label>
+                <select
+                  value={targetTripDay}
+                  onChange={(e) => setTargetTripDay(Number(e.target.value))}
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border, #cbd5e1)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                    backgroundColor: "var(--input-bg, #ffffff)",
+                  }}
+                >
+                  {Array.from({ length: targetTripTotalDays }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      Hari ke-{d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Rincian Singkat Spot */}
+              <div
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  backgroundColor: "rgba(40, 127, 240, 0.05)",
+                  border: "1px solid rgba(40, 127, 240, 0.15)",
+                  fontSize: "12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted, #64748b)" }}>Estimasi Tiket:</span>
+                  <strong style={{ color: "var(--text, #1e293b)" }}>
+                    {destForTrip.estimated_ticket_price > 0
+                      ? formatRp(destForTrip.estimated_ticket_price)
+                      : "Gratis"}
+                  </strong>
+                </div>
+                {destForTrip.notes && (
+                  <div style={{ color: "var(--text-muted, #64748b)", fontSize: "11px", marginTop: "2px" }}>
+                    💡 {destForTrip.notes}
+                  </div>
+                )}
+              </div>
+
+              {/* Tombol Aksi */}
+              <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => setDestForTrip(null)}
+                  disabled={addingToTrip}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border, #cbd5e1)",
+                    backgroundColor: "transparent",
+                    color: "var(--text-muted, #64748b)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAddToTrip}
+                  disabled={addingToTrip}
+                  style={{
+                    flex: 2,
+                    padding: "10px",
+                    borderRadius: "10px",
+                    border: "none",
+                    backgroundColor: "var(--brand-primary, #287ff0)",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: addingToTrip ? "not-allowed" : "pointer",
+                    boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Plus size={15} />
+                  <span>{addingToTrip ? "Menyimpan..." : "Masukkan ke Jadwal"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

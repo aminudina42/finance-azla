@@ -940,6 +940,7 @@ export default function DetailWisataPage() {
         tripId={trip.id}
         totalDays={totalDays}
         currentDay={selectedDay}
+        tripDestination={trip.destination}
         itemToEdit={itemToEdit}
         onSuccess={() => {
           loadData();

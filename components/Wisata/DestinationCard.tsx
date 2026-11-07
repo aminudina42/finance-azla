@@ -3,7 +3,7 @@
 import React from "react";
 import type { TouristDestination } from "@/lib/types";
 import { DESTINATION_CATEGORY_META, formatRp } from "@/lib/wisata-utils";
-import { MapPin, ExternalLink, Ticket, Edit2, Trash2 } from "lucide-react";
+import { MapPin, ExternalLink, Ticket, Edit2, Trash2, Plus } from "lucide-react";
 
 const InstagramIcon = () => (
   <svg
@@ -260,6 +260,41 @@ export default function DestinationCard({
           )}
         </div>
       </div>
+
+      {/* Aksi Cepat: Gunakan di Rencana Liburan */}
+      {onSelectForTrip && (
+        <button
+          type="button"
+          onClick={() => onSelectForTrip(destination)}
+          style={{
+            width: "100%",
+            padding: "8px 12px",
+            borderRadius: "10px",
+            border: "1px solid rgba(40, 127, 240, 0.2)",
+            backgroundColor: "rgba(40, 127, 240, 0.05)",
+            color: "var(--brand-primary, #287ff0)",
+            fontSize: "12px",
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "5px",
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "var(--brand-primary, #287ff0)";
+            e.currentTarget.style.color = "#ffffff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(40, 127, 240, 0.05)";
+            e.currentTarget.style.color = "var(--brand-primary, #287ff0)";
+          }}
+        >
+          <Plus size={13} />
+          <span>Gunakan di Rencana Liburan</span>
+        </button>
+      )}
 
       {/* Footer Kartu: Atribusi Pembuat */}
       {destination.created_by_family_name && (

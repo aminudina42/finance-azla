@@ -20,6 +20,7 @@ interface AddTripItemModalProps {
   tripId: string;
   totalDays: number;
   currentDay: number;
+  tripDestination?: string;
   itemToEdit?: TripItem | null;
   onSuccess: () => void;
 }
@@ -30,6 +31,7 @@ export default function AddTripItemModal({
   tripId,
   totalDays,
   currentDay,
+  tripDestination,
   itemToEdit,
   onSuccess,
 }: AddTripItemModalProps) {
@@ -92,14 +94,28 @@ export default function AddTripItemModal({
     }
   }, [isOpen, itemToEdit, currentDay]);
 
-  // Filter destinasi untuk live autocomplete
+  // Filter destinasi untuk live autocomplete (memprioritaskan kota tujuan trip jika ada)
   const suggestedDestinations = useMemo(() => {
-    if (!title.trim()) return destinations.slice(0, 6);
-    const q = title.toLowerCase().trim();
-    return destinations
-      .filter((d) => d.name.toLowerCase().includes(q) || d.city.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [destinations, title]);
+    let list = [...destinations];
+    const cityHint = tripDestination ? tripDestination.toLowerCase().trim() : "";
+
+    if (title.trim()) {
+      const q = title.toLowerCase().trim();
+      list = list.filter((d) => d.name.toLowerCase().includes(q) || d.city.toLowerCase().includes(q));
+    }
+
+    if (cityHint) {
+      list.sort((a, b) => {
+        const aMatch = cityHint.includes(a.city.toLowerCase()) || a.city.toLowerCase().includes(cityHint);
+        const bMatch = cityHint.includes(b.city.toLowerCase()) || b.city.toLowerCase().includes(cityHint);
+        if (aMatch && !bMatch) return -1;
+        if (!aMatch && bMatch) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+
+    return list.slice(0, 6);
+  }, [destinations, title, tripDestination]);
 
   const handleSelectDestination = (dest: TouristDestination) => {
     setSelectedDestination(dest);

@@ -240,6 +240,7 @@ export default function WisataPage() {
             isSuperAdmin={currentMember?.role === "admin"}
             isAddModalOpenExternal={isAddDestinationOpen}
             onCloseAddModalExternal={() => setIsAddDestinationOpen(false)}
+            trips={trips}
           />
         ) : (
           <>
