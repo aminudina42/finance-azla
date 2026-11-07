@@ -94,6 +94,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_old_log RECORD;
+  v_new_pos RECORD;
   v_vehicle_record RECORD;
   v_my_keluarga_id UUID;
   v_cost_diff BIGINT;
@@ -133,6 +134,11 @@ BEGIN
         WHERE id = v_old_log.finance_pos_id;
       END IF;
 
+      -- Ambil info POS baru
+      IF p_finance_pos_id IS NOT NULL THEN
+        SELECT * INTO v_new_pos FROM public.pos WHERE id = p_finance_pos_id;
+      END IF;
+
       -- Potong saldo POS baru
       IF p_finance_pos_id IS NOT NULL AND p_total_cost > 0 THEN
         UPDATE public.pos
@@ -140,12 +146,13 @@ BEGIN
         WHERE id = p_finance_pos_id;
       END IF;
 
-      -- Update data transaksi
+      -- Update data transaksi (kolom date tidak ada di transactions, gunakan created_at atau pertahankan)
       UPDATE public.transactions
       SET pos_id = p_finance_pos_id,
+          pos_name = COALESCE(v_new_pos.name, 'Pos'),
+          pos_icon = COALESCE(v_new_pos.icon, '⛽'),
           amount = p_total_cost,
-          description = v_tx_desc,
-          date = p_log_date
+          description = v_tx_desc
       WHERE id = v_old_log.finance_transaction_id;
 
     -- B. Jika POS sama tetapi nominal/deskripsi berubah
@@ -160,8 +167,7 @@ BEGIN
       -- Update data transaksi
       UPDATE public.transactions
       SET amount = p_total_cost,
-          description = v_tx_desc,
-          date = p_log_date
+          description = v_tx_desc
       WHERE id = v_old_log.finance_transaction_id;
     END IF;
   END IF;

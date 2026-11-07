@@ -25,7 +25,7 @@ type FuelCategory = "Pertalite" | "Pertamax" | "Pertamax Turbo" | "BP 92" | "Lai
 export default function CatatBbmPage({ params }: PageProps) {
   const router = useRouter();
   const { id } = use(params);
-  const { posList, currentMember, setIsMutating } = useApp();
+  const { posList, currentMember, setIsMutating, refreshData } = useApp();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [lastFuelLog, setLastFuelLog] = useState<VehicleFuelLog | null>(null);
@@ -238,7 +238,8 @@ export default function CatatBbmPage({ params }: PageProps) {
         return;
       }
 
-      // Berhasil, kembali ke detail kendaraan & refresh cache
+      // Berhasil, sinkronkan saldo POS & kembali ke detail kendaraan
+      await refreshData();
       router.replace(`/kendaraan/${id}`);
       router.refresh();
     } catch (err: any) {

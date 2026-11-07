@@ -37,7 +37,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { id } = use(params);
-  const { posList, cycles, setIsMutating } = useApp();
+  const { posList, cycles, setIsMutating, refreshData } = useApp();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [taxPayments, setTaxPayments] = useState<VehicleTaxPayment[]>([]);
@@ -114,7 +114,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
     try {
       const { success } = await deleteVehicleFuelTx(targetId, id);
       if (success) {
-        await loadData();
+        await Promise.all([loadData(), refreshData()]);
       }
     } finally {
       setIsMutating(false);
@@ -128,7 +128,7 @@ export default function DetailKendaraanPage({ params }: PageProps) {
       if (error) {
         throw error;
       }
-      await loadData();
+      await Promise.all([loadData(), refreshData()]);
     } finally {
       setIsMutating(false);
     }

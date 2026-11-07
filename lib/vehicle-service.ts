@@ -761,13 +761,15 @@ export async function updateVehicleFuelTx(
           }
         }
         // Potong pos baru
+        let newPosData: { name: string; icon: string } | null = null;
         if (input.finance_pos_id && input.total_cost > 0) {
           const { data: newPos } = await supabase
             .from("pos")
-            .select("current_balance")
+            .select("current_balance, name, icon")
             .eq("id", input.finance_pos_id)
             .single();
           if (newPos) {
+            newPosData = { name: newPos.name, icon: newPos.icon };
             await supabase
               .from("pos")
               .update({ current_balance: newPos.current_balance - input.total_cost })
@@ -779,9 +781,10 @@ export async function updateVehicleFuelTx(
           .from("transactions")
           .update({
             pos_id: input.finance_pos_id,
+            pos_name: newPosData?.name || "Pos",
+            pos_icon: newPosData?.icon || "⛽",
             amount: input.total_cost,
             description: newDesc,
-            date: input.log_date,
           })
           .eq("id", oldLog.finance_transaction_id);
       } else {
@@ -806,7 +809,6 @@ export async function updateVehicleFuelTx(
           .update({
             amount: input.total_cost,
             description: newDesc,
-            date: input.log_date,
           })
           .eq("id", oldLog.finance_transaction_id);
       }

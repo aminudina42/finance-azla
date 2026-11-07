@@ -515,6 +515,10 @@ export default function DompetPage() {
         onClose={() => setAlertConfig((prev) => ({ ...prev, isOpen: false }))}
         title={alertConfig.title}
         message={alertConfig.message}
+        onConfirm={alertConfig.onConfirm}
+        confirmText="Hapus"
+        cancelText="Batal"
+        confirmColor="var(--danger)"
       />
     </main>
   );

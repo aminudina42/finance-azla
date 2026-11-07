@@ -780,12 +780,19 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     setIsMutating(true);
     try {
       setPosList((prev) => prev.filter((p) => p.id !== id));
-      await supabase.from("pos").delete().eq("id", id);
+      const { error } = await supabase.from("pos").delete().eq("id", id);
+      if (error) {
+        console.error("Gagal menghapus pos di database:", error);
+        await loadData();
+      }
+    } catch (err) {
+      console.error("Error deleting pos:", err);
+      await loadData();
     } finally {
       isMutatingCycleRef.current = false;
       setIsMutating(false);
     }
-  }, []);
+  }, [loadData]);
 
   // ── Transaction actions (supports income & expense) ──
   const addTransaction = useCallback(

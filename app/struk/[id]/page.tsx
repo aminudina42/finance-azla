@@ -3,11 +3,12 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { toPng } from "html-to-image";
+import { toBlob, toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
 import { useApp } from "@/lib/store";
 import ThermalReceipt from "@/components/ThermalReceipt";
 import PageHeader from "@/components/PageHeader";
+import Modal from "@/components/Modal";
 import type { ReceiptItem } from "@/lib/types";
 
 function formatRp(n: number): string {
@@ -38,6 +39,7 @@ export default function DetailStrukPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -258,51 +260,154 @@ export default function DetailStrukPage() {
     }
   };
 
+  const isIOSDevice = () => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  };
+
+  const generateReceiptBlob = async (): Promise<Blob | null> => {
+    if (!receiptRef.current) return null;
+    try {
+      const blob = await toBlob(receiptRef.current, {
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        skipFonts: true,
+        cacheBust: true,
+      });
+      return blob;
+    } catch {
+      // Fallback jika toBlob gagal, coba toPng
+      const dataUrl = await toPng(receiptRef.current, {
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        skipFonts: true,
+        cacheBust: true,
+      });
+      const res = await fetch(dataUrl);
+      return await res.blob();
+    }
+  };
+
   const handleDownloadPNG = async () => {
     if (!receiptRef.current) return;
     setIsProcessing(true);
     try {
-      const dataUrl = await toPng(receiptRef.current, { pixelRatio: 2, backgroundColor: "#ffffff" });
+      const blob = await generateReceiptBlob();
+      if (!blob) throw new Error("Gagal membuat gambar PNG");
+
+      const fileName = `Struk_${receiptNumber}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      // Jika di iOS Safari dan mendukung Web Share files, share sheet adalah cara native terbaik
+      // agar pengguna bisa memilih 'Simpan Gambar' (Save Image) langsung ke Galeri Foto
+      if (isIOSDevice() && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: fileName,
+            files: [file],
+          });
+          setIsProcessing(false);
+          return;
+        } catch (shareErr: any) {
+          if (shareErr?.name === "AbortError") {
+            setIsProcessing(false);
+            return;
+          }
+          // Jika share dibatalkan atau ditolak, lanjutkan ke download/preview fallback
+        }
+      }
+
+      // Browser download standar via Blob Object URL
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `Struk_${receiptNumber}.png`;
-      link.href = dataUrl;
+      link.download = fileName;
+      link.href = blobUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
       link.click();
-    } catch (err) {
-      console.error(err);
-      alert("Gagal membuat gambar PNG");
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 2000);
+
+      // Jika iOS Safari di mana link.click sering kali tidak otomatis mendownload file,
+      // buka modal preview gambar agar user bisa tekan lama (long-press) untuk 'Simpan ke Foto'
+      if (isIOSDevice()) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewImageUrl(reader.result as string);
+        };
+        reader.readAsDataURL(blob);
+      }
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        console.error(err);
+        alert("Gagal membuat gambar PNG: " + (err?.message || "Kesalahan peramban"));
+      }
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
-  const handleShareWA = async () => {
+  const handleShareImage = async () => {
     if (!receiptRef.current) return;
     setIsProcessing(true);
     try {
-      const blob = await toPng(receiptRef.current, { pixelRatio: 2, backgroundColor: "#ffffff" })
-        .then(res => fetch(res).then(r => r.blob()));
-      const file = new File([blob], "struk.png", { type: "image/png" });
+      const blob = await generateReceiptBlob();
+      if (!blob) throw new Error("Gagal membuat gambar");
+
+      const fileName = `Struk_${receiptNumber}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: "Struk Transaksi", files: [file] });
+        await navigator.share({
+          title: `Struk Transaksi - ${storeName || "Toko"}`,
+          text: `Struk ${receiptNumber} • Total: ${formatRp(total)}`,
+          files: [file],
+        });
       } else {
-        const fileName = `${id}.png`;
-        const { error } = await supabase.storage
-          .from("receipt-images")
-          .upload(`receipts/${fileName}`, file, { contentType: "image/png", upsert: true });
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("receipt-images")
-          .getPublicUrl(`receipts/${fileName}`);
-
-        const waUrl = `https://wa.me/?text=${encodeURIComponent("Berikut struk transaksi: " + publicUrl)}`;
-        window.open(waUrl, "_blank");
+        // Jika browser tidak mendukung share file, alihkan ke share teks WhatsApp
+        handleShareWAText();
       }
-    } catch (err) {
-      console.error(err);
-      alert("Gagal membagikan ke WA");
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        console.error("Gagal share gambar:", err);
+        // Fallback ke share teks WA jika native share gagal
+        handleShareWAText();
+      }
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
+  };
+
+  const handleShareWAText = () => {
+    const lines = [
+      `🧾 *STRUK TRANSAKSI*`,
+      `🏪 *${storeName || "TOKO"}*`,
+      storeAddress ? `📍 ${storeAddress}` : "",
+      `No: *${receiptNumber}*`,
+      `Tanggal: ${date}`,
+      `--------------------------------`,
+      ...items.map((it) => {
+        const q = it.quantity || 1;
+        const p = it.price || 0;
+        const d = it.discount || 0;
+        const normalSub = (p - d) * q;
+        return `• *${it.item_name || "Barang"}*\n  ${q} x Rp${p.toLocaleString("id-ID")}${d > 0 ? ` (Disc: -Rp${d.toLocaleString("id-ID")})` : ""} = *Rp${normalSub.toLocaleString("id-ID")}*`;
+      }),
+      `--------------------------------`,
+      `*TOTAL: Rp ${total.toLocaleString("id-ID")}*`,
+      qrisName ? `\nPembayaran: QRIS a/n ${qrisName}` : "",
+      `\n★ *Terima Kasih Atas Kunjungan Anda* ★`,
+    ].filter(Boolean).join("\n");
+
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines)}`;
+    window.open(waUrl, "_blank");
   };
 
   if (isLoading) {
@@ -418,19 +523,26 @@ export default function DetailStrukPage() {
           <button className="btn-primary"
             style={{ padding: "12px", fontSize: "14px", background: "var(--s2)", color: "var(--text)", border: "1px solid var(--border)" }}
             onClick={() => { setIsNavigating(true); router.push(`/struk/${id}/print`); }}>
-            Cetak
+            🖨️ Cetak
           </button>
           <button className="btn-primary"
             style={{ padding: "12px", fontSize: "14px", background: "var(--s2)", color: "var(--text)", border: "1px solid var(--border)" }}
             onClick={handleDownloadPNG} disabled={isProcessing}>
-            Unduh PNG
+            {isProcessing ? "⏳ Memproses..." : "📥 Unduh PNG"}
           </button>
         </div>
-        <button className="btn-primary"
-          style={{ padding: "12px", fontSize: "14px", background: "#25D366", color: "#fff" }}
-          onClick={handleShareWA} disabled={isProcessing}>
-          Bagikan ke WhatsApp
-        </button>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <button className="btn-primary"
+            style={{ padding: "12px", fontSize: "13px", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", color: "#fff" }}
+            onClick={handleShareImage} disabled={isProcessing}>
+            {isProcessing ? "⏳ Memproses..." : "🖼️ Bagikan Gambar"}
+          </button>
+          <button className="btn-primary"
+            style={{ padding: "12px", fontSize: "13px", background: "#25D366", color: "#fff" }}
+            onClick={handleShareWAText} disabled={isProcessing}>
+            💬 Kirim ke WA
+          </button>
+        </div>
 
         <div style={{ borderTop: "1px dashed var(--border)", margin: "8px 0" }} />
 
@@ -737,6 +849,56 @@ export default function DetailStrukPage() {
           {isSaving ? "Menyimpan..." : "Simpan Perubahan Transaksi Kasir"}
         </button>
       </div>
+
+      {/* Modal Preview Gambar (Khususnya untuk iOS / PWA jika download langsung dibatasi oleh sistem) */}
+      {previewImageUrl && (
+        <Modal isOpen={Boolean(previewImageUrl)} onClose={() => setPreviewImageUrl("")}>
+          <div style={{ textAlign: "center", padding: "6px 2px" }}>
+            <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", color: "var(--navy)" }}>
+              📸 Gambar Struk Siap
+            </h3>
+            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "0 0 12px 0", lineHeight: "1.4" }}>
+              Tekan dan tahan (tahan jari) pada gambar di bawah, lalu pilih <strong>&quot;Simpan ke Foto&quot; (Save Image)</strong> untuk menyimpan ke galeri.
+            </p>
+            <div style={{
+              maxHeight: "55vh",
+              overflowY: "auto",
+              background: "#f3f4f6",
+              padding: "10px",
+              borderRadius: "10px",
+              marginBottom: "14px",
+              border: "1px solid var(--border)",
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewImageUrl}
+                alt="Preview Struk"
+                style={{ width: "100%", maxWidth: "280px", display: "inline-block", borderRadius: "6px", boxShadow: "0 4px 12px rgba(0,0,0,0.12)" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ flex: 1, padding: "10px", background: "var(--s2)", color: "var(--text)", border: "1px solid var(--border)" }}
+                onClick={() => setPreviewImageUrl("")}
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ flex: 1, padding: "10px", background: "var(--teal)", color: "#fff" }}
+                onClick={() => {
+                  window.open(previewImageUrl, "_blank");
+                }}
+              >
+                Buka Layar Penuh
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }
