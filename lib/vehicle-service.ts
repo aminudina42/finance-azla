@@ -742,8 +742,25 @@ export async function updateVehicleFuelTx(
 
     const newDesc = `BBM ${input.fuel_type} — ${veh?.brand || ""} ${veh?.model || ""} (${veh?.plate_number || ""}) @ ${input.odometer_km.toLocaleString("id-ID")} km`;
 
-    // Penyesuaian POS Keuangan & Transaksi
-    if (oldLog.finance_transaction_id) {
+    // Penyesuaian POS Keuangan & Transaksi (Resilient Lookup jika finance_transaction_id kosong)
+    let activeTxId = oldLog.finance_transaction_id;
+
+    if (!activeTxId && oldLog.finance_pos_id) {
+      const { data: matchedTxs } = await supabase
+        .from("transactions")
+        .select("id, pos_id, amount, description")
+        .eq("pos_id", oldLog.finance_pos_id)
+        .eq("amount", oldLog.total_cost)
+        .ilike("description", "%BBM%")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (matchedTxs && matchedTxs.length > 0) {
+        activeTxId = matchedTxs[0].id;
+      }
+    }
+
+    if (activeTxId) {
       // Jika POS Berubah
       if (oldLog.finance_pos_id !== input.finance_pos_id) {
         // Refund pos lama
@@ -776,7 +793,7 @@ export async function updateVehicleFuelTx(
               .eq("id", input.finance_pos_id);
           }
         }
-        // Update transaksi
+        // Update transaksi ke pos baru
         await supabase
           .from("transactions")
           .update({
@@ -786,7 +803,7 @@ export async function updateVehicleFuelTx(
             amount: input.total_cost,
             description: newDesc,
           })
-          .eq("id", oldLog.finance_transaction_id);
+          .eq("id", activeTxId);
       } else {
         // POS sama, cek perbedaan nominal
         const diff = input.total_cost - oldLog.total_cost;
@@ -810,7 +827,42 @@ export async function updateVehicleFuelTx(
             amount: input.total_cost,
             description: newDesc,
           })
-          .eq("id", oldLog.finance_transaction_id);
+          .eq("id", activeTxId);
+      }
+    } else if (input.finance_pos_id && input.total_cost > 0) {
+      // Jika belum ada transaksi sama sekali, buat transaksi baru di pos baru
+      const { data: newPos } = await supabase
+        .from("pos")
+        .select("current_balance, name, icon, keluarga_id")
+        .eq("id", input.finance_pos_id)
+        .single();
+
+      if (newPos) {
+        await supabase
+          .from("pos")
+          .update({ current_balance: newPos.current_balance - input.total_cost })
+          .eq("id", input.finance_pos_id);
+
+        const { data: createdTx } = await supabase
+          .from("transactions")
+          .insert({
+            amount: input.total_cost,
+            type: "expense",
+            pos_id: input.finance_pos_id,
+            pos_name: newPos.name,
+            pos_icon: newPos.icon,
+            user_id: "00000000-0000-0000-0000-000000000000",
+            user_name: "User",
+            user_role: "suami",
+            description: newDesc,
+            ...(newPos.keluarga_id ? { keluarga_id: newPos.keluarga_id } : {}),
+          })
+          .select("id")
+          .single();
+
+        if (createdTx?.id) {
+          activeTxId = createdTx.id;
+        }
       }
     }
 
@@ -825,6 +877,7 @@ export async function updateVehicleFuelTx(
         fuel_liters: input.fuel_liters,
         total_cost: input.total_cost,
         finance_pos_id: input.finance_pos_id,
+        finance_transaction_id: activeTxId || oldLog.finance_transaction_id || null,
         notes: input.notes || null,
       })
       .eq("id", input.fuel_log_id);

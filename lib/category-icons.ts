@@ -60,49 +60,49 @@ export interface IconStyleClasses {
 
 export const ICON_COLOR_STYLES: Record<IconColorTheme, IconStyleClasses> = {
   amber: {
-    bg: "bg-amber-500/10 dark:bg-amber-500/15",
-    border: "border-amber-500/20 dark:border-amber-500/30",
-    text: "text-amber-600 dark:text-amber-400",
+    bg: "bg-[#fff0d6]",
+    border: "border-[#fed7aa]",
+    text: "text-[#d97706]",
   },
   blue: {
-    bg: "bg-blue-500/10 dark:bg-blue-500/15",
-    border: "border-blue-500/20 dark:border-blue-500/30",
-    text: "text-blue-600 dark:text-blue-400",
+    bg: "bg-[#e5edff]",
+    border: "border-[#bfdbfe]",
+    text: "text-[#2563eb]",
   },
   emerald: {
-    bg: "bg-emerald-500/10 dark:bg-emerald-500/15",
-    border: "border-emerald-500/20 dark:border-emerald-500/30",
-    text: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-[#e2f9f3]",
+    border: "border-[#a7f3d0]",
+    text: "text-[#059669]",
   },
   rose: {
-    bg: "bg-rose-500/10 dark:bg-rose-500/15",
-    border: "border-rose-500/20 dark:border-rose-500/30",
-    text: "text-rose-600 dark:text-rose-400",
+    bg: "bg-[#ffe0e7]",
+    border: "border-[#fecdd3]",
+    text: "text-[#e11d48]",
   },
   purple: {
-    bg: "bg-purple-500/10 dark:bg-purple-500/15",
-    border: "border-purple-500/20 dark:border-purple-500/30",
-    text: "text-purple-600 dark:text-purple-400",
+    bg: "bg-[#f1ebff]",
+    border: "border-[#ddd6fe]",
+    text: "text-[#7c3aed]",
   },
   cyan: {
-    bg: "bg-cyan-500/10 dark:bg-cyan-500/15",
-    border: "border-cyan-500/20 dark:border-cyan-500/30",
-    text: "text-cyan-600 dark:text-cyan-400",
+    bg: "bg-[#e1f8fd]",
+    border: "border-[#bae6fd]",
+    text: "text-[#0284c7]",
   },
   orange: {
-    bg: "bg-orange-500/10 dark:bg-orange-500/15",
-    border: "border-orange-500/20 dark:border-orange-500/30",
-    text: "text-orange-600 dark:text-orange-400",
+    bg: "bg-[#fff3e0]",
+    border: "border-[#fed7aa]",
+    text: "text-[#ea580c]",
   },
   slate: {
-    bg: "bg-slate-500/10 dark:bg-slate-500/15",
-    border: "border-slate-500/20 dark:border-slate-500/30",
-    text: "text-slate-600 dark:text-slate-400",
+    bg: "bg-[#f1f8fd]",
+    border: "border-[#d8eaf8]",
+    text: "text-[#17375f]",
   },
   teal: {
-    bg: "bg-teal-500/10 dark:bg-teal-500/15",
-    border: "border-teal-500/20 dark:border-teal-500/30",
-    text: "text-teal-600 dark:text-teal-400",
+    bg: "bg-[#d9f7f2]",
+    border: "border-[#99f6e4]",
+    text: "text-[#0d9488]",
   },
 };
 
@@ -236,7 +236,28 @@ export interface ResolvedCategoryIcon {
   label: string;
   theme: IconColorTheme;
   classes: IconStyleClasses;
+  isEmoji?: boolean;
+  rawEmoji?: string;
 }
+
+/**
+ * Checks if a string contains unicode emoji characters.
+ */
+export function isEmoji(str?: string | null): boolean {
+  if (!str) return false;
+  return /\p{Extended_Pictographic}/u.test(str.trim());
+}
+
+/**
+ * Curated list of popular emojis for Indonesian family budgeting pos & pockets.
+ */
+export const POPULAR_CATEGORY_EMOJIS: string[] = [
+  "🍚", "🍔", "☕", "🛒", "🛍️", "🏪", "⚡", "💡",
+  "🏠", "🚗", "🏍️", "⛽", "🔧", "🏥", "💊", "📱",
+  "📶", "🧾", "🎓", "📚", "👶", "👨‍💼", "👩", "🧒",
+  "👗", "✨", "🎮", "🎬", "✈️", "🎁", "🤲", "💪",
+  "🐕", "🏦", "💰", "💳", "🪙", "🎯", "📦", "🎨",
+];
 
 /**
  * Safely resolves an icon identifier (slug, legacy emoji, or pos name)
@@ -259,23 +280,45 @@ export function resolveCategoryIcon(
       label: preset.label,
       theme,
       classes: ICON_COLOR_STYLES[theme],
+      isEmoji: false,
     };
   }
 
-  // 2. Legacy emoji match
-  if (cleanId && EMOJI_TO_SLUG_MAP[cleanId]) {
-    const slug = EMOJI_TO_SLUG_MAP[cleanId];
-    const preset = PRESETS_BY_SLUG.get(slug);
-    if (preset) {
-      const theme = overrideTheme || preset.defaultTheme;
-      return {
-        slug: preset.slug,
-        icon: preset.icon,
-        label: preset.label,
-        theme,
-        classes: ICON_COLOR_STYLES[theme],
-      };
+  // 2. Hybrid Mode: If identifier is an emoji, preserve and render emoji directly!
+  if (cleanId && isEmoji(cleanId)) {
+    let matchedTheme: IconColorTheme = overrideTheme || "slate";
+    let matchedLabel = fallbackName || "Kategori";
+    let fallbackIcon = WalletCards;
+
+    if (EMOJI_TO_SLUG_MAP[cleanId]) {
+      const slug = EMOJI_TO_SLUG_MAP[cleanId];
+      const preset = PRESETS_BY_SLUG.get(slug);
+      if (preset) {
+        matchedTheme = overrideTheme || preset.defaultTheme;
+        matchedLabel = preset.label;
+        fallbackIcon = preset.icon;
+      }
+    } else if (fallbackName) {
+      for (const rule of KEYWORD_MAP) {
+        if (rule.regex.test(fallbackName)) {
+          const preset = PRESETS_BY_SLUG.get(rule.slug);
+          if (preset) {
+            matchedTheme = overrideTheme || preset.defaultTheme;
+            break;
+          }
+        }
+      }
     }
+
+    return {
+      slug: cleanId,
+      icon: fallbackIcon,
+      label: matchedLabel,
+      theme: matchedTheme,
+      classes: ICON_COLOR_STYLES[matchedTheme],
+      isEmoji: true,
+      rawEmoji: cleanId,
+    };
   }
 
   // 3. Fallback based on category / pos name keyword

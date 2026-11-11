@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import type { Vehicle, VehicleFuelLog, Pos } from "@/lib/types";
 import type { UpdateFuelInput } from "@/lib/vehicle-service";
@@ -11,7 +11,7 @@ interface EditFuelLogModalProps {
   onClose: () => void;
   fuelLog: VehicleFuelLog | null;
   vehicle: Vehicle | null;
-  posList: Pos[];
+  posList?: Pos[];
   onSave: (input: UpdateFuelInput) => Promise<void>;
 }
 
@@ -22,7 +22,7 @@ export default function EditFuelLogModal({
   onClose,
   fuelLog,
   vehicle,
-  posList,
+  posList = [],
   onSave,
 }: EditFuelLogModalProps) {
   const initialCategory = (() => {
@@ -48,6 +48,31 @@ export default function EditFuelLogModal({
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Sinkronisasi state form setiap kali modal dibuka atau fuelLog berganti
+  useEffect(() => {
+    if (!isOpen || !fuelLog) return;
+
+    const rawType = fuelLog.fuel_type || "Pertalite";
+    if (["Pertalite", "Pertamax", "Pertamax Turbo", "BP 92"].includes(rawType)) {
+      setFuelCategory(rawType as FuelCategory);
+      setCustomFuelName("");
+    } else {
+      setFuelCategory("Lainnya");
+      setCustomFuelName(rawType);
+    }
+
+    setLogDate(fuelLog.log_date || new Date().toISOString().split("T")[0]);
+    setOdometerKm(fuelLog.odometer_km ? fuelLog.odometer_km.toLocaleString("id-ID") : "");
+    const costPerL = fuelLog.cost_per_liter || 0;
+    setCostPerLiterStr(costPerL > 0 ? costPerL.toLocaleString("id-ID") : "10.000");
+    setNominalStr(fuelLog.total_cost ? fuelLog.total_cost.toLocaleString("id-ID") : "");
+    setLitersStr(fuelLog.fuel_liters ? fuelLog.fuel_liters.toString() : "");
+    setSelectedPosId(fuelLog.finance_pos_id || vehicle?.finance_pos_id || "");
+    setNotes(fuelLog.notes || "");
+    setErrorMsg("");
+    setSubmitting(false);
+  }, [isOpen, fuelLog, vehicle]);
 
   // Handler pergantian kategori bahan bakar
   const handleCategorySelect = (category: FuelCategory) => {
@@ -156,43 +181,23 @@ export default function EditFuelLogModal({
     }
   };
 
-  const selectedPos = posList.find((p) => p.id === selectedPosId);
+  const safePosList = posList || [];
+  const selectedPos = safePosList.find((p) => p.id === selectedPosId);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} isLocked={submitting}>
-      <div style={{ padding: "4px 4px 16px" }}>
+      <div style={{ padding: "4px 4px 16px", maxHeight: "80vh", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
         {/* Header Modal */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 750, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              Koreksi Catatan
-            </div>
-            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)", margin: "2px 0 0" }}>
-              Edit Riwayat BBM
-            </h2>
-            <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
-              {vehicle?.brand} {vehicle?.model} ({vehicle?.plate_number})
-            </div>
+        <div style={{ marginBottom: "16px", paddingRight: "40px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 750, color: "#d97706", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Koreksi Catatan
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            style={{
-              background: "var(--s1)",
-              border: "1px solid var(--border)",
-              borderRadius: "50%",
-              width: "32px",
-              height: "32px",
-              display: "grid",
-              placeItems: "center",
-              fontSize: "14px",
-              color: "var(--muted)",
-              cursor: submitting ? "not-allowed" : "pointer",
-            }}
-          >
-            ✕
-          </button>
+          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)", margin: "2px 0 0" }}>
+            Edit Riwayat BBM
+          </h2>
+          <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
+            {vehicle?.brand} {vehicle?.model} ({vehicle?.plate_number})
+          </div>
         </div>
 
         {errorMsg && (
@@ -407,7 +412,7 @@ export default function EditFuelLogModal({
               }}
             >
               <option value="" disabled>-- Pilih Pos Pengeluaran --</option>
-              {posList.map((pos) => (
+              {safePosList.map((pos) => (
                 <option key={pos.id} value={pos.id}>
                   {pos.icon} {pos.name} (Saldo: {formatRp(pos.current_balance || 0)})
                 </option>

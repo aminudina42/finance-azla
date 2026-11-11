@@ -269,8 +269,45 @@ export default function DetailStrukPage() {
     );
   };
 
+  const ensureReceiptImagesLoaded = async (element: HTMLElement) => {
+    const images = Array.from(element.querySelectorAll("img"));
+    if (images.length === 0) return;
+
+    await Promise.all(
+      images.map(async (img) => {
+        // Jika src belum base64 dan dia remote url, fetch dan jadikan base64 agar aman dari tainted canvas di iOS Safari
+        if (img.src && !img.src.startsWith("data:") && !img.src.startsWith("blob:")) {
+          try {
+            const res = await fetch(img.src);
+            const blob = await res.blob();
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            img.src = base64;
+          } catch (e) {
+            console.warn("Gagal men-convert gambar struk ke Base64 sebelum capture:", e);
+          }
+        }
+
+        // Tunggu decode browser agar canvas merender gambar secara utuh (tidak blank)
+        if (img.complete && img.naturalWidth > 0) return;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+          setTimeout(resolve, 2500);
+        });
+      })
+    );
+
+    // Jeda singkat untuk rendering frame di iOS Safari
+    await new Promise((r) => setTimeout(r, 80));
+  };
+
   const generateReceiptBlob = async (): Promise<Blob | null> => {
     if (!receiptRef.current) return null;
+    await ensureReceiptImagesLoaded(receiptRef.current);
     try {
       const blob = await toBlob(receiptRef.current, {
         pixelRatio: 2,

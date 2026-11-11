@@ -827,20 +827,25 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <button
                             type="button"
-                            onClick={() => setEditFuelLogTarget(log)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditFuelLogTarget(log);
+                            }}
                             style={{
                               background: "#fffbeb",
                               border: "1px solid #fde68a",
                               color: "#b45309",
-                              fontSize: "11px",
+                              fontSize: "12px",
                               fontWeight: 700,
                               cursor: "pointer",
-                              padding: "2px 8px",
-                              borderRadius: "6px",
+                              padding: "4px 10px",
+                              minHeight: "32px",
+                              borderRadius: "8px",
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: "3px",
+                              gap: "4px",
                               transition: "all 0.15s ease",
+                              touchAction: "manipulation",
                             }}
                           >
                             <span>✏️</span>
@@ -848,15 +853,20 @@ export default function DetailKendaraanPage({ params }: PageProps) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeleteFuelLogTarget(log)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteFuelLogTarget(log);
+                            }}
                             style={{
                               background: "transparent",
                               border: "none",
                               color: "var(--muted)",
-                              fontSize: "11px",
+                              fontSize: "12px",
                               fontWeight: 600,
                               cursor: "pointer",
-                              padding: "2px 6px",
+                              padding: "4px 8px",
+                              minHeight: "32px",
+                              touchAction: "manipulation",
                             }}
                           >
                             Hapus
@@ -1209,17 +1219,14 @@ export default function DetailKendaraanPage({ params }: PageProps) {
       </div>
 
       {/* Modal Edit Riwayat BBM */}
-      {editFuelLogTarget && (
-        <EditFuelLogModal
-          key={editFuelLogTarget.id}
-          isOpen={true}
-          onClose={() => setEditFuelLogTarget(null)}
-          fuelLog={editFuelLogTarget}
-          vehicle={vehicle}
-          posList={posList}
-          onSave={handleSaveFuelLog}
-        />
-      )}
+      <EditFuelLogModal
+        isOpen={Boolean(editFuelLogTarget)}
+        onClose={() => setEditFuelLogTarget(null)}
+        fuelLog={editFuelLogTarget}
+        vehicle={vehicle}
+        posList={posList}
+        onSave={handleSaveFuelLog}
+      />
 
       {/* Modal Konfirmasi Hapus Catatan BBM */}
       <ConfirmModal

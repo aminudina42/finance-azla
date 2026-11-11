@@ -12,6 +12,7 @@ import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
 import { Search, Inbox, Car } from "lucide-react";
 import CategoryIcon from "@/components/ui/category-icon";
+import { isEmoji } from "@/lib/category-icons";
 import MemberAvatar from "@/components/ui/member-avatar";
 import StatusBadge from "@/components/ui/status-badge";
 
@@ -348,7 +349,25 @@ function PosDetailContent() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-            <CategoryIcon icon={pos.icon} name={pos.name} size="md" />
+            <div
+              style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "14px",
+                background: "#f1f8fd",
+                border: "1px solid var(--border)",
+                display: "grid",
+                placeItems: "center",
+                fontSize: "22px",
+                flexShrink: 0,
+              }}
+            >
+              {isEmoji(pos.icon) || !pos.icon ? (
+                pos.icon || "💰"
+              ) : (
+                <CategoryIcon icon={pos.icon} name={pos.name} size="md" shape="flat" />
+              )}
+            </div>
             <div>
               <div style={{ fontSize: "11px", fontWeight: 750, color: "var(--text-secondary)", letterSpacing: "0.6px", textTransform: "uppercase" }}>
                 Saldo Amplop Tersedia

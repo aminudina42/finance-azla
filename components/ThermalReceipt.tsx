@@ -34,6 +34,10 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
     useEffect(() => {
       if (logoSettings?.type === "image" && logoSettings.image) {
+        if (logoSettings.image.startsWith("data:")) {
+          setLogoBase64(logoSettings.image);
+          return;
+        }
         // Convert to Base64 to bypass iOS Safari CORS / SVG foreignObject limitations
         // when rendering canvas/PNG from DOM elements
         fetch(logoSettings.image)
@@ -57,6 +61,10 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
 
     useEffect(() => {
       if (qrisActive && qrisData) {
+        if (qrisData.startsWith("data:")) {
+          setQrisBase64(qrisData);
+          return;
+        }
         // Fetch the uploaded QRIS image directly and convert to Base64 to prevent Safari CORS issues
         fetch(qrisData)
           .then((res) => res.blob())

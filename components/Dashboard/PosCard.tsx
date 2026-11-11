@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import type { Pos } from "@/lib/types";
 import CategoryIcon from "@/components/ui/category-icon";
+import { isEmoji } from "@/lib/category-icons";
 
 interface PosCardProps {
   pos: Pos;
@@ -86,7 +87,13 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId
       >
         {/* Header row: Icon on left, Menu ⋮ on right */}
         <div className="pos-card-head">
-          <CategoryIcon icon={pos.icon} name={pos.name} size="sm" />
+          <span className={`pos-icon ${iconClass}`} aria-hidden="true">
+            {isEmoji(pos.icon) || !pos.icon ? (
+              pos.icon || "💰"
+            ) : (
+              <CategoryIcon icon={pos.icon} name={pos.name} size="sm" shape="flat" />
+            )}
+          </span>
 
           <button
             type="button"
