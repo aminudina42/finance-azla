@@ -8,6 +8,9 @@ import AlertModal from "@/components/Modals/AlertModal";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
 import type { Pos } from "@/lib/types";
+import { Pencil, Trash2 } from "lucide-react";
+import CategoryIcon from "@/components/ui/category-icon";
+import StatusBadge from "@/components/ui/status-badge";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -21,7 +24,7 @@ export default function DompetPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editSub, setEditSub] = useState("");
-  const [editIcon, setEditIcon] = useState("🍚");
+  const [editIcon, setEditIcon] = useState("wallet");
   const [editAmount, setEditAmount] = useState(0);
   const [editIsGoal, setEditIsGoal] = useState(false);
   const [editGoalTarget, setEditGoalTarget] = useState(0);
@@ -63,7 +66,7 @@ export default function DompetPage() {
     setEditingId(null);
     setEditName("");
     setEditSub("");
-    setEditIcon("🍚");
+    setEditIcon("wallet");
     setEditAmount(0);
     setEditIsGoal(false);
     setEditGoalTarget(0);
@@ -404,30 +407,17 @@ export default function DompetPage() {
               transition: "transform 0.15s ease, box-shadow 0.15s ease",
             }}
           >
-            <div className="pos-em" style={{ background: "var(--s1)", borderRadius: "10px" }}>{pos.icon}</div>
+            <CategoryIcon icon={pos.icon} name={pos.name} size="sm" />
             <div>
-              <div className="pos-name" style={{ color: "var(--navy)", fontWeight: 700 }}>
-                {pos.name}
+              <div className="pos-name" style={{ color: "var(--navy)", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>{pos.name}</span>
                 {pos.is_goal && (
-                  <span
-                    style={{
-                      fontSize: "9px",
-                      marginLeft: "6px",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      background: "rgba(22, 168, 154, 0.12)",
-                      color: "var(--teal)",
-                      fontWeight: 700,
-                      letterSpacing: ".5px",
-                    }}
-                  >
-                    🎯 GOAL
-                  </span>
+                  <StatusBadge variant="info" size="sm" label="GOAL" />
                 )}
               </div>
               <div className="pos-sub" style={{ color: "var(--muted)" }}>{pos.sub || "Amplop Keuangan"}</div>
             </div>
-            <div className="pos-amt" style={{ color: "var(--navy)", fontWeight: 700 }}>{formatRp(pos.monthly_target)}</div>
+            <div className="pos-amt font-mono tabular-nums" style={{ color: "var(--navy)", fontWeight: 700 }}>{formatRp(pos.monthly_target)}</div>
             <div className="row-acts">
               <div
                 className="ib e"
@@ -439,9 +429,11 @@ export default function DompetPage() {
                   background: "var(--s1)",
                   border: "1px solid var(--border)",
                   borderRadius: "8px",
+                  display: "grid",
+                  placeItems: "center",
                 }}
               >
-                ✏️
+                <Pencil size={13} className="text-muted-foreground" />
               </div>
               <div
                 className="ib d"
@@ -453,9 +445,11 @@ export default function DompetPage() {
                   background: "rgba(240, 68, 103, 0.08)",
                   border: "1px solid rgba(240, 68, 103, 0.2)",
                   borderRadius: "8px",
+                  display: "grid",
+                  placeItems: "center",
                 }}
               >
-                🗑
+                <Trash2 size={13} className="text-rose-500" />
               </div>
             </div>
           </div>
@@ -506,7 +500,7 @@ export default function DompetPage() {
         posIsGoal={editIsGoal}
         posGoalTarget={editGoalTarget}
         onSave={handleSave}
-        title={isAddMode ? "＋ Tambah Pos Baru" : "✏️ Edit Pos Keuangan"}
+        title={isAddMode ? "Tambah Pos Baru" : "Edit Pos Keuangan"}
       />
 
       {/* Alert / Konfirmasi Modal */}

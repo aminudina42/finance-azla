@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
+import { Check, Copy } from "lucide-react";
+import CategoryIcon from "@/components/ui/category-icon";
 
 interface PayDebtModalProps {
   isOpen: boolean;
@@ -97,7 +99,9 @@ export default function PayDebtModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} isLocked={submitting}>
       <div style={{ textAlign: "center", marginBottom: "16px" }}>
-        <div style={{ fontSize: "36px", marginBottom: "6px" }}>{debtIcon}</div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
+          <CategoryIcon icon={debtIcon} name={debtName} size="lg" />
+        </div>
         <div style={{ fontSize: "16.5px", fontWeight: 800, color: "var(--navy)" }}>{debtName}</div>
         {creditorName && (
           <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600, marginTop: "2px" }}>
@@ -105,7 +109,7 @@ export default function PayDebtModal({
           </div>
         )}
         <div style={{ fontSize: "13px", color: "var(--primary)", fontWeight: 750, marginTop: "4px" }}>
-          💸 Bayar Cicilan Ke-{nextCicilan}
+          Bayar Cicilan Ke-{nextCicilan}
           {tenorMonths > 0 && <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}> dari {tenorMonths} bulan</span>}
         </div>
       </div>
@@ -145,10 +149,14 @@ export default function PayDebtModal({
               fontWeight: 700,
               cursor: "pointer",
               flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
               transition: "all 0.15s ease",
             }}
           >
-            {copied ? "✓ Disalin" : "📋 Salin"}
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+            <span>{copied ? "Disalin" : "Salin"}</span>
           </button>
         </div>
       )}

@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
+import { Cake, Sparkles, Heart } from "lucide-react";
 import type { HealthFamilyMember } from "@/lib/types";
+import MemberAvatar from "@/components/ui/member-avatar";
 
 interface BirthdayCelebrationModalProps {
   isOpen: boolean;
@@ -69,7 +71,7 @@ export default function BirthdayCelebrationModal({
 
   const handleBalloon = () => {
     onSendBalloon(member.id);
-    const chars = ["🎈", "💖", "✨", "🎉", "🌟"];
+    const chars = ["✦", "★", "♥", "•", "✧"];
     const randomChar = chars[Math.floor(Math.random() * chars.length)];
     const newItem = {
       id: Date.now() + Math.random(),
@@ -191,46 +193,27 @@ export default function BirthdayCelebrationModal({
           </span>
         </div>
 
-        {/* Avatar with Crown */}
+        {/* Avatar with Celebration Sparkle */}
         <div style={{ position: "relative", width: "76px", height: "76px", margin: "0 auto 14px" }}>
           <div
             style={{
               position: "absolute",
-              top: "-16px",
+              top: "-12px",
               right: "-6px",
-              fontSize: "26px",
               zIndex: 3,
               animation: "crownWiggle 2.5s ease-in-out infinite",
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
+              filter: "drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4))",
             }}
           >
-            👑
+            <Sparkles size={22} className="text-amber-500 fill-amber-400" />
           </div>
-          <div
-            style={{
-              width: "76px",
-              height: "76px",
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)",
-              border: "3px solid #ffffff",
-              boxShadow: "0 6px 16px rgba(249, 115, 22, 0.28)",
-              display: "grid",
-              placeItems: "center",
-              fontSize: "36px",
-              overflow: "hidden",
-            }}
-          >
-            {member.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={member.avatar_url}
-                alt={member.name}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              <span>{avatarIcon}</span>
-            )}
-          </div>
+          <MemberAvatar
+            name={member.name}
+            role={member.relation_role}
+            avatarUrl={member.avatar_url}
+            size="lg"
+            className="w-full h-full flex items-center justify-center"
+          />
         </div>
 
         {/* Title & Age */}
@@ -295,8 +278,8 @@ export default function BirthdayCelebrationModal({
               transition: "transform 0.15s ease",
             }}
           >
-            <span>{isBlown ? "✨ Lilin Tertiup!" : "🎂 Tiup Lilin"}</span>
-            <span style={{ fontSize: "15px" }}>{isBlown ? "💨" : "🕯️"}</span>
+            {isBlown ? <Sparkles size={16} /> : <Cake size={16} />}
+            <span>{isBlown ? "Lilin Tertiup" : "Tiup Lilin"}</span>
           </button>
 
           {/* Send Balloon */}
@@ -319,7 +302,8 @@ export default function BirthdayCelebrationModal({
               boxShadow: "0 2px 8px rgba(249, 115, 22, 0.12)",
             }}
           >
-            <span>🎈 Beri Balon</span>
+            <Heart size={16} className="text-orange-500 fill-orange-500/20" />
+            <span>Kirim Apresiasi</span>
             <span
               style={{
                 background: "#ffedd5",

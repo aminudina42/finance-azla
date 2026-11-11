@@ -4,16 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/lib/store";
 import Modal from "@/components/Modal";
 import type { PosConfigItem } from "@/lib/types";
+import { Sparkles, Trash2, Lock, AlertCircle } from "lucide-react";
+import CategoryIcon from "@/components/ui/category-icon";
+import VectorIconPicker from "@/components/ui/vector-icon-picker";
+import StatusBadge from "@/components/ui/status-badge";
 
 function formatRp(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
-
-const EMOJI_OPTIONS = [
-  "🍚", "🏦", "👨‍💼", "👩", "⚡", "🛒", "🧴", "📱",
-  "🏥", "🚗", "🎓", "🍔", "✈️", "🎮", "💊", "👗",
-  "🏠", "🐕", "💪", "🎁", "⛽", "🎨", "📚", "🧸", "🏷️"
-];
 
 interface NewCycleModalProps {
   isOpen: boolean;
@@ -163,12 +161,11 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                 background: "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)",
                 display: "grid",
                 placeItems: "center",
-                fontSize: "26px",
                 margin: "0 auto 10px auto",
                 border: "1px solid #bae6fd",
               }}
             >
-              🎉
+              <Sparkles size={24} className="text-sky-600" />
             </div>
             <h2
               style={{
@@ -197,9 +194,13 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                 fontSize: "12px",
                 marginBottom: "12px",
                 fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
             >
-              ⚠️ {errorMsg}
+              <AlertCircle size={14} />
+              <span>{errorMsg}</span>
             </div>
           )}
 
@@ -232,26 +233,22 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    {/* Emoji Button */}
+                    {/* Pos Icon Button */}
                     <button
                       type="button"
                       onClick={() => setPickingEmojiIndex(pickingEmojiIndex === idx ? null : idx)}
                       style={{
-                        fontSize: "20px",
-                        width: "40px",
-                        height: "40px",
-                        borderRadius: "10px",
-                        border: "1px solid var(--border)",
-                        background: "var(--s2, #f1f5f9)",
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
                         cursor: "pointer",
                         display: "grid",
                         placeItems: "center",
                         flexShrink: 0,
-                        transition: "all 0.15s ease",
                       }}
                       title="Ubah Icon"
                     >
-                      {item.icon || "📦"}
+                      <CategoryIcon icon={item.icon} name={item.name} size="sm" />
                     </button>
 
                     {/* Pos Name Input */}
@@ -285,7 +282,6 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                           border: "none",
                           background: "#fee2e2",
                           color: "#ef4444",
-                          fontSize: "14px",
                           cursor: "pointer",
                           display: "grid",
                           placeItems: "center",
@@ -293,58 +289,39 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                         }}
                         title="Hapus Pos Ini"
                       >
-                        🗑️
+                        <Trash2 size={16} />
                       </button>
                     ) : (
                       <span
                         style={{
-                          fontSize: "10px",
+                          fontSize: "11px",
                           fontWeight: 700,
                           color: "var(--muted)",
                           background: "var(--s2)",
                           padding: "4px 8px",
                           borderRadius: "6px",
                           whiteSpace: "nowrap",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
                         }}
                       >
-                        🔒 Tabungan
+                        <Lock size={12} /> Tabungan
                       </span>
                     )}
                   </div>
 
-                  {/* Inline Emoji Selector Popup */}
+                  {/* Inline Icon Selector Popup */}
                   {pickingEmojiIndex === idx && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "6px",
-                        padding: "8px",
-                        background: "var(--s2, #f1f5f9)",
-                        borderRadius: "10px",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      {EMOJI_OPTIONS.map((em) => (
-                        <button
-                          key={em}
-                          type="button"
-                          onClick={() => {
-                            handleUpdateEmoji(idx, em);
-                            setPickingEmojiIndex(null);
-                          }}
-                          style={{
-                            fontSize: "18px",
-                            padding: "4px 6px",
-                            border: item.icon === em ? "1.5px solid var(--teal)" : "1px solid transparent",
-                            borderRadius: "6px",
-                            background: item.icon === em ? "#e0f7f1" : "transparent",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {em}
-                        </button>
-                      ))}
+                    <div className="p-2 bg-secondary/30 rounded-xl border border-border/60">
+                      <VectorIconPicker
+                        value={item.icon || ""}
+                        onChange={(slug) => {
+                          handleUpdateEmoji(idx, slug);
+                          setPickingEmojiIndex(null);
+                        }}
+                        label="Pilih Ikon Pos"
+                      />
                     </div>
                   )}
 
@@ -426,7 +403,7 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
               </span>
             </div>
             <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>
-              💡 Sisa saldo pos dari bulan lalu otomatis dipindahkan ke pos Tabungan.
+              Sisa saldo pos dari bulan lalu otomatis dipindahkan ke pos Tabungan.
             </div>
           </div>
 
@@ -481,11 +458,12 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text)" }}>
-                        {saku.icon} {saku.name}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "var(--text)" }}>
+                        <CategoryIcon icon={saku.icon} name={saku.name} size="xs" />
+                        <span>{saku.name}</span>
                       </div>
                       <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>
-                        via 🔗 {linkedPos.icon} {linkedPos.name}
+                        Terhubung ke pos {linkedPos.name}
                       </div>
                     </div>
                     <div
@@ -499,12 +477,20 @@ export default function NewCycleModal({ isOpen, onClose, onConfirm }: NewCycleMo
                       {isNeutral ? "±0" : `${isPositive ? "+" : ""}${formatRp(delta)}`}
                     </div>
                   </div>
-                  <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "6px" }}>
-                    {isPositive
-                      ? `🟢 Surplus — sisa saldo pos akan masuk ke Saku`
-                      : isNeutral
-                        ? `Saldo pos nol — tidak ada perubahan`
-                        : `🔴 Defisit — saldo Saku akan berkurang`}
+                  <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {isPositive ? (
+                      <>
+                        <StatusBadge variant="success" size="sm" label="Surplus" />
+                        <span>Sisa saldo pos akan masuk ke Saku</span>
+                      </>
+                    ) : isNeutral ? (
+                      <span>Saldo pos nol — tidak ada perubahan</span>
+                    ) : (
+                      <>
+                        <StatusBadge variant="danger" size="sm" label="Defisit" />
+                        <span>Saldo Saku akan berkurang</span>
+                      </>
+                    )}
                   </div>
                 </div>
               );

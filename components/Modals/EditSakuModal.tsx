@@ -4,11 +4,7 @@ import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import { useApp } from "@/lib/store";
 import type { Child } from "@/lib/types";
-
-const SAKU_EMOJIS = [
-  "💰", "🏦", "🚗", "⚡", "💊", "✈️", "🎓", "🏠", "🎮", "👦", "👧", "🧒",
-  "🛒", "📱", "🎁", "💳", "🔧", "🌴", "🐾", "💄",
-];
+import VectorIconPicker from "@/components/ui/vector-icon-picker";
 
 interface EditSakuModalProps {
   isOpen: boolean;
@@ -56,7 +52,7 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="mt">✏️ Edit Saku</div>
+      <div className="mt">Edit Saku</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         {/* Name */}
         <div className="fg">
@@ -72,19 +68,11 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
 
         {/* Icon */}
         <div className="fg">
-          <div className="fl">Icon</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px" }}>
-            {SAKU_EMOJIS.map((em) => (
-              <div
-                key={em}
-                className={`eo ${em === icon ? "sel" : ""}`}
-                onClick={() => setIcon(em)}
-                style={{ fontSize: "20px", textAlign: "center" }}
-              >
-                {em}
-              </div>
-            ))}
-          </div>
+          <VectorIconPicker
+            value={icon}
+            onChange={(slug) => setIcon(slug)}
+            label="Ikon Saku"
+          />
         </div>
 
         {/* Tipe Saku */}

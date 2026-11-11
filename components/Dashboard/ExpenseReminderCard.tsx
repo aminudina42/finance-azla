@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { getHealthFamilyMembers } from "@/lib/health-service";
 import type { HealthFamilyMember } from "@/lib/types";
+import MemberAvatar from "@/components/ui/member-avatar";
 
 interface ExpenseReminderCardProps {
   // Optional prop for manual time override in dev/testing mode
@@ -282,21 +283,13 @@ export default function ExpenseReminderCard({ forcedHour }: ExpenseReminderCardP
       {/* Bagian Konten Utama */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
         {/* Avatar Icon */}
-        <div
-          style={{
-            width: "48px",
-            height: "48px",
-            borderRadius: "16px",
-            background: "#ffffff",
-            display: "grid",
-            placeItems: "center",
-            fontSize: "26px",
-            flexShrink: 0,
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-            border: "2px solid #ffffff",
-          }}
-        >
-          {greetingConfig.emoji}
+        {/* Avatar Profil Anggota */}
+        <div style={{ flexShrink: 0 }}>
+          <MemberAvatar
+            name={currentMember?.display_name || "Kamu"}
+            role={currentMember?.role}
+            size="lg"
+          />
         </div>
 
         {/* Teks Pesan */}

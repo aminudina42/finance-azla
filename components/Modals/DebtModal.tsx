@@ -3,11 +3,8 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
 import { evaluateDebtRatio } from "@/lib/debt-utils";
-
-const DEBT_ICONS = [
-  "💳", "🏦", "🏠", "🚗", "📱", "💊", "🎓", "🛒",
-  "🏥", "✈️", "👗", "🔧", "📺", "💻", "🪑", "🧊",
-];
+import VectorIconPicker from "@/components/ui/vector-icon-picker";
+import StatusBadge from "@/components/ui/status-badge";
 
 interface DebtModalProps {
   isOpen: boolean;
@@ -49,7 +46,7 @@ function DebtModalContent({
   onClose,
   mode,
   debtName = "",
-  debtIcon = "💳",
+  debtIcon = "wallet",
   debtTotal = 0,
   debtRemaining = 0,
   debtMonthly = 0,
@@ -139,7 +136,7 @@ function DebtModalContent({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="mt">{mode === "add" ? "💳 Tambah Hutang Baru" : "✏️ Edit Hutang"}</div>
+      <div className="mt">{mode === "add" ? "Tambah Hutang Baru" : "Edit Hutang"}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         
         <div className="fg" style={{ flexDirection: "row", alignItems: "center", gap: "8px", background: "var(--bg)", padding: "10px", borderRadius: "8px" }}>
@@ -190,18 +187,11 @@ function DebtModalContent({
         </div>
         
         <div className="fg">
-          <div className="fl">Icon</div>
-          <div className="epick">
-            {DEBT_ICONS.map((em) => (
-              <div
-                key={em}
-                className={`eo ${em === icon ? "sel" : ""}`}
-                onClick={() => setIcon(em)}
-              >
-                {em}
-              </div>
-            ))}
-          </div>
+          <VectorIconPicker
+            value={icon}
+            onChange={(slug) => setIcon(slug)}
+            label="Ikon Hutang / Cicilan"
+          />
         </div>
 
         {isKredit ? (
@@ -351,9 +341,11 @@ function DebtModalContent({
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "14px" }}>
-                    {evaluation.tier === "safe" ? "🟢" : evaluation.tier === "caution" ? "🟡" : "🔴"}
-                  </span>
+                  <StatusBadge
+                    variant={evaluation.tier === "safe" ? "success" : evaluation.tier === "caution" ? "warning" : "danger"}
+                    size="sm"
+                    label={evaluation.tier.toUpperCase()}
+                  />
                   <span style={{ fontSize: "12px", fontWeight: 800, color: evaluation.badgeColor }}>
                     {evaluation.title}
                   </span>

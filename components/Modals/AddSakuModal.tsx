@@ -3,11 +3,7 @@
 import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import { useApp } from "@/lib/store";
-
-const SAKU_EMOJIS = [
-  "💰", "🏦", "🚗", "⚡", "💊", "✈️", "🎓", "🏠", "🎮", "👦", "👧", "🧒",
-  "🛒", "📱", "🎁", "💳", "🔧", "🌴", "🐾", "💄",
-];
+import VectorIconPicker from "@/components/ui/vector-icon-picker";
 
 interface AddSakuModalProps {
   isOpen: boolean;
@@ -18,7 +14,7 @@ interface AddSakuModalProps {
 export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalProps) {
   const { posList } = useApp();
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState("💰");
+  const [icon, setIcon] = useState("wallet");
   const [balanceStr, setBalanceStr] = useState("");
   const [sakuType, setSakuType] = useState<"standalone" | "linked">("standalone");
   const [linkedPosId, setLinkedPosId] = useState<string>("");
@@ -26,7 +22,7 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
   useEffect(() => {
     if (isOpen) {
       setName("");
-      setIcon("💰");
+      setIcon("wallet");
       setBalanceStr("");
       setSakuType("standalone");
       setLinkedPosId("");
@@ -51,7 +47,7 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="mt">💰 Tambah Saku Baru</div>
+      <div className="mt">Tambah Saku Baru</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
         {/* Name */}
         <div className="fg">
@@ -67,23 +63,11 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
 
         {/* Icon */}
         <div className="fg">
-          <div className="fl">Icon</div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
-            gap: "8px",
-          }}>
-            {SAKU_EMOJIS.map((em) => (
-              <div
-                key={em}
-                className={`eo ${em === icon ? "sel" : ""}`}
-                onClick={() => setIcon(em)}
-                style={{ fontSize: "20px", textAlign: "center" }}
-              >
-                {em}
-              </div>
-            ))}
-          </div>
+          <VectorIconPicker
+            value={icon}
+            onChange={(slug) => setIcon(slug)}
+            label="Ikon Saku"
+          />
         </div>
 
         {/* Saldo awal */}

@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import type { Pos } from "@/lib/types";
+import CategoryIcon from "@/components/ui/category-icon";
 
 interface PosCardProps {
   pos: Pos;
@@ -53,7 +54,7 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId
   if (isGoal && pos.goal_target > 0) {
     const goalPct = Math.round((pos.current_balance / pos.goal_target) * 100);
     fillWidth = Math.min(100, Math.max(0, goalPct));
-    statusText = `🎯 ${goalPct}% dari target`;
+    statusText = `${goalPct}% dari target`;
     percentLabel = `${goalPct}%`;
   } else if (pos.name === "Tabungan") {
     const diff = pos.current_balance - pos.monthly_target;
@@ -85,9 +86,7 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId
       >
         {/* Header row: Icon on left, Menu ⋮ on right */}
         <div className="pos-card-head">
-          <span className={`pos-icon ${iconClass}`} aria-hidden="true">
-            {pos.icon || "💰"}
-          </span>
+          <CategoryIcon icon={pos.icon} name={pos.name} size="sm" />
 
           <button
             type="button"
@@ -109,7 +108,7 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId
             <span>{pos.name}</span>
             {isGoal && <span className="pos-goal-badge">GOAL</span>}
           </div>
-          <div className={`pos-amount ${amountClass}`}>
+          <div className={`pos-amount ${amountClass} font-mono tabular-nums font-semibold`}>
             {isHideNominal ? "Rp ••••••" : formatRp(pos.current_balance)}
           </div>
         </div>
@@ -120,7 +119,7 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId
         </div>
 
         {/* Footer info */}
-        <div className="pos-foot">
+        <div className="pos-foot font-mono text-xs">
           {isOverbudget ? (
             <span className="warning">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -132,7 +131,7 @@ export default function PosCard({ pos, onOpenMenu, isHideNominal = true, cycleId
           ) : (
             <span>{statusText}</span>
           )}
-          <span>{percentLabel}</span>
+          <span className="tabular-nums">{percentLabel}</span>
         </div>
       </Link>
     </article>

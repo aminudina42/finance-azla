@@ -21,7 +21,7 @@ export default function CyclePickerModal({
 }: CyclePickerModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="mt">📅 Pilih Siklus</div>
+      <div className="mt">Pilih Siklus</div>
       {cycles.map((cycle, i) => (
         <div
           key={i}

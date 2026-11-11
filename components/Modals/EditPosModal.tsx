@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
-
-const EMOJI_OPTIONS = [
-  "🍚", "🏦", "👨‍💼", "👩", "⚡", "🛒", "🧴", "📱",
-  "🏥", "🚗", "🎓", "🍔", "✈️", "🎮", "💊", "👗",
-  "🏠", "🐕", "💪", "🎁", "⛽", "🎨", "📚", "🧸",
-];
+import VectorIconPicker from "@/components/ui/vector-icon-picker";
 
 interface EditPosModalProps {
   isOpen: boolean;
@@ -32,7 +27,7 @@ export default function EditPosModal({
   posIsGoal = false,
   posGoalTarget = 0,
   onSave,
-  title = "✏️ Edit Pos Keuangan",
+  title = "Edit Pos Keuangan",
 }: EditPosModalProps) {
   const [name, setName] = useState(posName);
   const [emoji, setEmoji] = useState(posEmoji);
@@ -109,18 +104,11 @@ export default function EditPosModal({
           />
         </div>
         <div className="fg">
-          <div className="fl">Icon / Emoji</div>
-          <div className="epick">
-            {EMOJI_OPTIONS.map((em) => (
-              <div
-                key={em}
-                className={`eo ${em === emoji ? "sel" : ""}`}
-                onClick={() => setEmoji(em)}
-              >
-                {em}
-              </div>
-            ))}
-          </div>
+          <VectorIconPicker
+            value={emoji}
+            onChange={(slug) => setEmoji(slug)}
+            label="Ikon Kategori"
+          />
         </div>
         <div className="fg">
           <div className="fl">Jatah per Bulan</div>
@@ -146,7 +134,7 @@ export default function EditPosModal({
 
         {/* Goal toggle */}
         <div className="fg">
-          <div className="fl">🎯 Savings Goal</div>
+          <div className="fl">Target Tabungan (Savings Goal)</div>
           <div
             className="goal-toggle"
             onClick={() => setIsGoal(!isGoal)}
@@ -200,7 +188,7 @@ export default function EditPosModal({
         {/* Goal target — only visible when isGoal is true */}
         {isGoal && (
           <div className="fg">
-            <div className="fl">🎯 Target Akhir Goal</div>
+            <div className="fl">Target Akhir Goal</div>
             <div className="amt-wrap">
               <span className="amt-pre" style={{ fontSize: "14px" }}>
                 Rp

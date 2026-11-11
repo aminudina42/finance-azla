@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import confetti from "canvas-confetti";
+import { Cake, Sparkles, Heart } from "lucide-react";
 import { getHealthFamilyMembers } from "@/lib/health-service";
 import type { HealthFamilyMember, Member } from "@/lib/types";
+import MemberAvatar from "@/components/ui/member-avatar";
 
 interface BirthdayCardProps {
   keluargaId?: string | null;
@@ -14,54 +16,54 @@ interface BirthdayCardProps {
 function getAppreciationWishes(role: string, name: string, age: number, isSelf: boolean) {
   if (isSelf) {
     return {
-      title: `Selamat Ulang Tahun untuk Dirimu, ${name}! 👑🎂`,
+      title: `Selamat Ulang Tahun untuk Dirimu, ${name}!`,
       subtitle: `Hari ini kamu genap berusia ${age} tahun!`,
       quote:
-        "Hari ini adalah hari istimewamu! Terima kasih sudah selalu berusaha memberikan yang terbaik untuk keluarga. Luangkan waktu untuk tersenyum, nikmati harimu, dan jangan lupa bahagia! ✨🥰",
-      tag: "👑 RAJA / RATU HARI INI",
+        "Hari ini adalah hari istimewamu! Terima kasih sudah selalu berusaha memberikan yang terbaik untuk keluarga. Luangkan waktu untuk tersenyum, nikmati harimu, dan jangan lupa bahagia!",
+      tag: "HARI SPESIALMU",
     };
   }
 
   switch (role) {
     case "suami":
       return {
-        title: `Selamat Ulang Tahun, Ayah ${name}! 🏆🎉`,
+        title: `Selamat Ulang Tahun, Ayah ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
         quote:
-          "Terima kasih sudah menjadi nahkoda tangguh pelindung keluarga. Setiap peluh, kerja keras, dan canda tawamu adalah berkah terindah untuk kami. Semoga selalu sehat, lapang rezeki, dan bahagia selamanya! 💙",
-        tag: "🏆 KEPALA KELUARGA HEBAT",
+          "Terima kasih sudah menjadi nahkoda tangguh pelindung keluarga. Setiap peluh, kerja keras, dan canda tawamu adalah berkah terindah untuk kami. Semoga selalu sehat, lapang rezeki, dan bahagia selamanya!",
+        tag: "KEPALA KELUARGA HEBAT",
       };
     case "istri":
       return {
-        title: `Selamat Ulang Tahun, Bunda ${name}! 🌸💖`,
+        title: `Selamat Ulang Tahun, Bunda ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
         quote:
-          "Terima kasih sudah menjadi pelita dan kehangatan rumah kita tercinta. Ketulusan, kebaikan hati, dan senyumanmu selalu jadi sumber semangat keluarga. Sehat, awet muda, dan selalu dalam lindungan-Nya! ✨",
-        tag: "🌸 BIDADARI KELUARGA",
+          "Terima kasih sudah menjadi pelita dan kehangatan rumah kita tercinta. Ketulusan, kebaikan hati, dan senyumanmu selalu jadi sumber semangat keluarga. Sehat, awet muda, dan selalu dalam lindungan-Nya!",
+        tag: "BIDADARI KELUARGA",
       };
     case "anak":
       return {
-        title: `Selamat Ulang Tahun, Sayang ${name}! 🚀🎂`,
+        title: `Selamat Ulang Tahun, Sayang ${name}!`,
         subtitle: `Tumbuh makin pintar di usia ${age} tahun!`,
         quote:
-          "Selamat ulang tahun jagoan & kesayangan keluarga! Tumbuhlah jadi anak yang sehat, sholeh/sholehah, berbakti, dan selalu ceria. Ayah dan Bunda selalu bangga dan sayang padamu seluas samudra! 🌟🎈",
-        tag: "🌟 KESAYANGAN KELUARGA",
+          "Selamat ulang tahun jagoan & kesayangan keluarga! Tumbuhlah jadi anak yang sehat, sholeh/sholehah, berbakti, dan selalu ceria. Ayah dan Bunda selalu bangga dan sayang padamu seluas samudra!",
+        tag: "KESAYANGAN KELUARGA",
       };
     case "orang_tua":
       return {
-        title: `Selamat Ulang Tahun, Orang Tua Terkasih ${name}! 🤲❤️`,
+        title: `Selamat Ulang Tahun, Orang Tua Terkasih ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
         quote:
-          "Terima kasih atas doa tulus, kasih sayang tanpa pamrih, dan bimbingan yang tak terhingga sepanjang waktu. Semoga senantiasa diberikan nikmat sehat walafiat, ketenangan, dan umur yang penuh berkah. 🌼",
-        tag: "🤲 SOSOK TERCINTA",
+          "Terima kasih atas doa tulus, kasih sayang tanpa pamrih, dan bimbingan yang tak terhingga sepanjang waktu. Semoga senantiasa diberikan nikmat sehat walafiat, ketenangan, dan umur yang penuh berkah.",
+        tag: "SOSOK TERCINTA",
       };
     default:
       return {
-        title: `Selamat Ulang Tahun, ${name}! 🥳🎉`,
+        title: `Selamat Ulang Tahun, ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
         quote:
-          "Selamat hari lahir! Semoga panjang umur, sehat selalu, bertambah bahagia, dan senantiasa dikelilingi cinta hangat bersama keluarga tercinta! 🎂🎁",
-        tag: "🎉 HARI SPESIAL",
+          "Selamat hari lahir! Semoga panjang umur, sehat selalu, bertambah bahagia, dan senantiasa dikelilingi cinta hangat bersama keluarga tercinta!",
+        tag: "HARI SPESIAL",
       };
   }
 }
@@ -221,7 +223,7 @@ export default function BirthdayCard({ keluargaId, currentMember }: BirthdayCard
     });
 
     // Munculkan animasi partikel mengambang
-    const emojis = ["🎈", "❤️", "✨", "🎁", "💖", "🎂"];
+    const emojis = ["✦", "★", "♥", "•", "✧"];
     const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
     const randomLeft = Math.floor(Math.random() * 80) + 10;
     const newId = Date.now() + Math.random();
@@ -416,51 +418,28 @@ export default function BirthdayCard({ keluargaId, currentMember }: BirthdayCard
             marginBottom: "14px",
           }}
         >
-          {/* Avatar Container with Crown */}
+          {/* Avatar Container with Celebration Sparkle */}
           <div style={{ position: "relative", flexShrink: 0 }}>
-            {/* Animated Crown / Topi Pesta */}
             <div
               style={{
                 position: "absolute",
-                top: "-14px",
+                top: "-10px",
                 right: "-6px",
-                fontSize: "22px",
                 zIndex: 3,
                 animation: "crownWiggle 2.5s ease-in-out infinite",
-                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
+                filter: "drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4))",
               }}
-              title="Raja/Ratu Hari Ini!"
+              title="Hari Spesial!"
             >
-              👑
+              <Sparkles size={18} className="text-amber-500 fill-amber-400" />
             </div>
 
-            {/* Avatar Circle */}
-            <div
-              style={{
-                width: "58px",
-                height: "58px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)",
-                border: "2.5px solid #ffffff",
-                boxShadow: "0 4px 12px rgba(249, 115, 22, 0.22)",
-                display: "grid",
-                placeItems: "center",
-                fontSize: "28px",
-                overflow: "hidden",
-                position: "relative",
-              }}
-            >
-              {currentPerson.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={currentPerson.avatar_url}
-                  alt={currentPerson.name}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <span>{getDefaultRoleAvatar(currentPerson.relation_role)}</span>
-              )}
-            </div>
+            <MemberAvatar
+              name={currentPerson.name}
+              role={currentPerson.relation_role}
+              avatarUrl={currentPerson.avatar_url}
+              size="lg"
+            />
           </div>
 
           {/* Texts & Warm Wishes */}
@@ -546,11 +525,11 @@ export default function BirthdayCard({ keluargaId, currentMember }: BirthdayCard
               transition: "all 0.2s ease",
             }}
           >
-            <span>{isBlown ? "✨ Lilin Tertiup!" : "🎂 Tiup Lilin"}</span>
-            <span style={{ fontSize: "14px" }}>{isBlown ? "💨" : "🕯️"}</span>
+            {isBlown ? <Sparkles size={14} /> : <Cake size={14} />}
+            <span>{isBlown ? "Lilin Tertiup" : "Tiup Lilin"}</span>
           </button>
 
-          {/* Tombol Kirim Balon / Pelukan Kasih Sayang */}
+          {/* Tombol Kirim Apresiasi Kasih Sayang */}
           <button
             type="button"
             onClick={() => handleSendBalloon(currentPerson.id)}
@@ -571,7 +550,8 @@ export default function BirthdayCard({ keluargaId, currentMember }: BirthdayCard
               transition: "transform 0.1s active",
             }}
           >
-            <span>🎈 Kasih Balon</span>
+            <Heart size={14} className="text-orange-500 fill-orange-500/20" />
+            <span>Kirim Apresiasi</span>
             <span
               style={{
                 background: "#ffedd5",

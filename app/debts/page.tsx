@@ -9,6 +9,9 @@ import PayDebtModal from "@/components/Modals/PayDebtModal";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
 import type { Debt, DebtPayment } from "@/lib/types";
+import { Settings, AlertTriangle, WalletCards, MessageSquare, Check, History, Clock } from "lucide-react";
+import CategoryIcon from "@/components/ui/category-icon";
+import StatusBadge from "@/components/ui/status-badge";
 import {
   formatRp,
   formatDateIndo,
@@ -155,7 +158,7 @@ export default function DebtsPage() {
   const copyToClipboard = (text: string, label = "Nomor") => {
     if (!text) return;
     navigator.clipboard.writeText(text);
-    showToast(`${label} berhasil disalin! 📋`);
+    showToast(`${label} berhasil disalin!`);
   };
 
   const openAdd = () => {
@@ -199,7 +202,7 @@ export default function DebtsPage() {
         accountNumber,
         notes
       );
-      showToast("Hutang baru berhasil dicatat! 💳");
+      showToast("Hutang baru berhasil dicatat!");
     } else if (editingDebt) {
       updateDebt(
         editingDebt.id,
@@ -216,14 +219,14 @@ export default function DebtsPage() {
         accountNumber,
         notes
       );
-      showToast("Perubahan hutang berhasil disimpan! ✓");
+      showToast("Perubahan hutang berhasil disimpan!");
     }
   };
 
   const handlePay = (posId: string, amount: number, notes?: string, paymentDate?: string) => {
     if (payingDebt) {
       payDebt(payingDebt.id, amount, posId, notes, paymentDate);
-      showToast(`Cicilan ${payingDebt.name} berhasil dibayarkan! 🎉`);
+      showToast(`Cicilan ${payingDebt.name} berhasil dibayarkan!`);
       setPayingDebt(null);
     }
   };
@@ -443,9 +446,11 @@ export default function DebtsPage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
-              <span style={{ fontSize: "18px" }}>
-                {currentDebtEvaluation.tier === "safe" ? "🟢" : currentDebtEvaluation.tier === "caution" ? "🟡" : "🔴"}
-              </span>
+              <StatusBadge
+                variant={currentDebtEvaluation.tier === "safe" ? "success" : currentDebtEvaluation.tier === "caution" ? "warning" : "danger"}
+                size="sm"
+                label={currentDebtEvaluation.tier.toUpperCase()}
+              />
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                   <span style={{ fontSize: "11px", fontWeight: 750, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -485,12 +490,13 @@ export default function DebtsPage() {
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
+                gap: "6px",
                 flexShrink: 0,
                 boxShadow: "0 1px 4px rgba(16,45,85,0.04)",
               }}
             >
-              <span>⚙️</span> Atur Batas
+              <Settings size={13} />
+              <span>Atur Batas</span>
             </button>
           </div>
 
@@ -516,46 +522,25 @@ export default function DebtsPage() {
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
                 {monthlyStats.overdueCount > 0 && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 750,
-                      padding: "2px 7px",
-                      borderRadius: "6px",
-                      background: "rgba(240, 68, 103, 0.12)",
-                      color: "var(--danger)",
-                    }}
-                  >
-                    ⚠️ {monthlyStats.overdueCount} Lewat Tempo
-                  </span>
+                  <StatusBadge
+                    variant="danger"
+                    size="sm"
+                    label={`${monthlyStats.overdueCount} Lewat Tempo`}
+                  />
                 )}
                 {monthlyStats.dueSoonCount > 0 && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 750,
-                      padding: "2px 7px",
-                      borderRadius: "6px",
-                      background: "rgba(234, 154, 28, 0.12)",
-                      color: "#d97706",
-                    }}
-                  >
-                    ⏳ {monthlyStats.dueSoonCount} Segera Tempo
-                  </span>
+                  <StatusBadge
+                    variant="warning"
+                    size="sm"
+                    label={`${monthlyStats.dueSoonCount} Segera Tempo`}
+                  />
                 )}
                 {monthlyStats.paidCount === monthlyStats.totalActive && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 750,
-                      padding: "2px 7px",
-                      borderRadius: "6px",
-                      background: "rgba(22, 168, 154, 0.12)",
-                      color: "var(--teal)",
-                    }}
-                  >
-                    ✓ Semua Cicilan Beres
-                  </span>
+                  <StatusBadge
+                    variant="success"
+                    size="sm"
+                    label="Semua Cicilan Beres"
+                  />
                 )}
               </div>
             </div>
@@ -577,9 +562,7 @@ export default function DebtsPage() {
               gap: "10px",
             }}
           >
-            <span style={{ fontSize: "18px", marginTop: "1px" }}>
-              {currentDebtEvaluation.tier === "caution" ? "⚠️" : "🚨"}
-            </span>
+            <AlertTriangle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
             <div style={{ flex: 1, fontSize: "12px", lineHeight: "1.45", color: "var(--navy)" }}>
               <div style={{ fontWeight: 800, color: currentDebtEvaluation.badgeColor, marginBottom: "2px" }}>
                 {currentDebtEvaluation.tier === "caution"
@@ -606,7 +589,7 @@ export default function DebtsPage() {
               marginTop: "8px",
             }}
           >
-            <div style={{ fontSize: "40px", marginBottom: "10px" }}>💳</div>
+            <WalletCards size={36} className="mx-auto mb-2 text-muted-foreground opacity-50" />
             <div style={{ fontSize: "15px", fontWeight: 750, color: "var(--navy)", marginBottom: "4px" }}>
               Belum Ada Hutang
             </div>
@@ -653,20 +636,7 @@ export default function DebtsPage() {
               {/* 1. Header Kartu: Icon, Nama, Badges, Action Buttons */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      width: "44px",
-                      height: "44px",
-                      borderRadius: "12px",
-                      background: isLunas ? "rgba(22, 168, 154, 0.1)" : "#f1f8fd",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: "22px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {debt.icon}
-                  </div>
+                  <CategoryIcon icon={debt.icon} name={debt.name} size="md" />
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "15.5px", fontWeight: 800, color: "var(--navy)", wordBreak: "break-word" }}>
@@ -803,9 +773,9 @@ export default function DebtsPage() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 750 }}>
-                  {monthlyStatus.status === "paid" && <span>✓</span>}
-                  {monthlyStatus.status === "overdue" && <span>⚠️</span>}
-                  {monthlyStatus.status === "due_soon" && <span>⏳</span>}
+                  {monthlyStatus.status === "paid" && <Check size={13} />}
+                  {monthlyStatus.status === "overdue" && <AlertTriangle size={13} />}
+                  {monthlyStatus.status === "due_soon" && <Clock size={13} />}
                   <span>{monthlyStatus.label}</span>
                 </div>
                 {monthlyStatus.detail && (
@@ -922,9 +892,13 @@ export default function DebtsPage() {
                     background: "#f8fafc",
                     padding: "6px 10px",
                     borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
-                  💬 &ldquo;{debt.notes}&rdquo;
+                  <MessageSquare size={13} className="text-muted-foreground flex-shrink-0" />
+                  <span>&ldquo;{debt.notes}&rdquo;</span>
                 </div>
               )}
 
@@ -956,9 +930,11 @@ export default function DebtsPage() {
                   onClick={() => setPayingDebt(debt)}
                 >
                   {monthlyStatus.status === "paid" ? (
-                    <span>✓ Cicilan Bulan Ini Sudah Dibayar (Bayar Lagi?)</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <Check size={14} /> Cicilan Bulan Ini Sudah Dibayar (Bayar Lagi?)
+                    </span>
                   ) : (
-                    <span>💸 Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}</span>
+                    <span>Bayar Cicilan {(debt.paid_months || 0) > 0 || isKredit ? `Ke-${(debt.paid_months || 0) + 1}` : ""}</span>
                   )}
                 </button>
               )}
@@ -983,7 +959,8 @@ export default function DebtsPage() {
                   }}
                 >
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span>📋 Riwayat Angsuran</span>
+                    <History size={13} />
+                    <span>Riwayat Angsuran</span>
                     <span
                       style={{
                         fontSize: "10px",
@@ -1162,7 +1139,7 @@ export default function DebtsPage() {
         isOpen={!!payingDebt}
         onClose={() => setPayingDebt(null)}
         debtName={payingDebt?.name || ""}
-        debtIcon={payingDebt?.icon || "💳"}
+        debtIcon={payingDebt?.icon || "wallet"}
         monthlyPayment={payingDebt?.monthly_payment || 0}
         paidMonths={payingDebt?.paid_months || 0}
         tenorMonths={payingDebt?.tenor_months || 0}

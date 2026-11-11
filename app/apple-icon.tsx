@@ -12,8 +12,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholde
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default async function AppleIcon() {
-  let type = 'image'
-  let emoji = ''
   let bg = '#ffffff'
   let image = CATAT_KELUARGA_LOGO_DATA_URI
 
@@ -26,12 +24,7 @@ export default async function AppleIcon() {
     if (data && data.length > 0) {
       const settings = new Map(data.map(item => [item.key, item.value]))
       const fetchedType = settings.get("website_logo_type")
-      if (fetchedType === 'emoji' && settings.get("website_logo_emoji")) {
-        type = 'emoji'
-        emoji = settings.get("website_logo_emoji") || '💳'
-        bg = settings.get("website_logo_bg") || 'linear-gradient(135deg, #4392f9 0%, #1769d2 100%)'
-      } else if (fetchedType === 'image' && settings.get("website_logo_image")) {
-        type = 'image'
+      if (fetchedType === 'image' && settings.get("website_logo_image")) {
         image = settings.get("website_logo_image") || CATAT_KELUARGA_LOGO_DATA_URI
         bg = settings.get("website_logo_bg") || '#ffffff'
       }
@@ -40,51 +33,29 @@ export default async function AppleIcon() {
     console.error("Error fetching apple-icon settings:", e)
   }
 
-  if (type === 'image' && image) {
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: bg || '#ffffff',
-            borderRadius: '120px',
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image}
-            alt="Catat Keluarga Logo"
-            style={{
-              width: '90%',
-              height: '90%',
-              objectFit: 'contain',
-            }}
-          />
-        </div>
-      ),
-      { ...size }
-    )
-  }
-
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 260,
-          background: bg,
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'white',
+          background: bg || '#ffffff',
+          borderRadius: '120px',
         }}
       >
-        {emoji || '💳'}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt="Catat Keluarga Logo"
+          style={{
+            width: '90%',
+            height: '90%',
+            objectFit: 'contain',
+          }}
+        />
       </div>
     ),
     { ...size }

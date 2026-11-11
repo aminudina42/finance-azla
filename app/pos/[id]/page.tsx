@@ -10,6 +10,10 @@ import ConfirmModal from "@/components/Modals/ConfirmModal";
 import VehicleTypeIcon from "@/components/Kendaraan/VehicleTypeIcon";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
+import { Search, Inbox, Car } from "lucide-react";
+import CategoryIcon from "@/components/ui/category-icon";
+import MemberAvatar from "@/components/ui/member-avatar";
+import StatusBadge from "@/components/ui/status-badge";
 
 function formatRp(n: number): string {
   const prefix = n < 0 ? "-" : "";
@@ -52,7 +56,7 @@ function PosDetailContent() {
       return {
         id: posId,
         name: pastTx?.pos_name || "Pos (Arsip)",
-        icon: pastTx?.pos_icon || "📦",
+        icon: pastTx?.pos_icon || "wallet",
         sub: "Pos siklus lampau",
         monthly_target: hist?.monthly_target ?? 0,
         goal_target: hist?.goal_target ?? 0,
@@ -263,7 +267,7 @@ function PosDetailContent() {
     return (
       <main id="pg-pos-detail" className="page active" style={{ justifyContent: "center", alignItems: "center" }}>
         <div style={{ textAlign: "center", color: "var(--muted)" }}>
-          <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
+          <Search size={44} className="mx-auto mb-3 text-muted-foreground opacity-60" />
           <div style={{ fontFamily: "var(--font-fraunces), serif", fontSize: "18px", fontWeight: 800 }}>Pos tidak ditemukan</div>
           <Link href="/" className="pos-detail-back" style={{ marginTop: "16px", display: "inline-flex" }}>
             ‹ Kembali ke Dashboard
@@ -325,19 +329,7 @@ function PosDetailContent() {
         backHref="/"
         badge={
           pos.is_goal ? (
-            <span
-              style={{
-                fontSize: "10px",
-                fontWeight: 750,
-                padding: "2px 8px",
-                borderRadius: "6px",
-                background: "rgba(22, 168, 154, 0.12)",
-                color: "var(--teal)",
-                letterSpacing: "0.5px",
-              }}
-            >
-              🎯 GOAL
-            </span>
+            <StatusBadge variant="info" size="sm" label="GOAL" />
           ) : undefined
         }
       />
@@ -356,21 +348,7 @@ function PosDetailContent() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-            <div
-              style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "14px",
-                background: "#f1f8fd",
-                border: "1px solid var(--border)",
-                display: "grid",
-                placeItems: "center",
-                fontSize: "22px",
-                flexShrink: 0,
-              }}
-            >
-              {pos.icon}
-            </div>
+            <CategoryIcon icon={pos.icon} name={pos.name} size="md" />
             <div>
               <div style={{ fontSize: "11px", fontWeight: 750, color: "var(--text-secondary)", letterSpacing: "0.6px", textTransform: "uppercase" }}>
                 Saldo Amplop Tersedia
@@ -435,7 +413,7 @@ function PosDetailContent() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--navy)", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>🚗</span>
+                <Car size={16} />
                 <span>Kendaraan Terhubung ({connectedVehicles.length})</span>
               </div>
               <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
@@ -548,33 +526,33 @@ function PosDetailContent() {
         {/* Summary Bar */}
         <div className="gh-summary">
           <div className="gh-summary-card income">
-            <div className="gh-summary-label">📥 Pemasukan</div>
-            <div className="gh-summary-amount">{formatRp(totalIncome)}</div>
+            <div className="gh-summary-label">Pemasukan</div>
+            <div className="gh-summary-amount font-mono tabular-nums">{formatRp(totalIncome)}</div>
           </div>
           <div className="gh-summary-card expense">
-            <div className="gh-summary-label">📤 Pengeluaran</div>
-            <div className="gh-summary-amount">{formatRp(totalExpense)}</div>
+            <div className="gh-summary-label">Pengeluaran</div>
+            <div className="gh-summary-amount font-mono tabular-nums">{formatRp(totalExpense)}</div>
           </div>
         </div>
         {/* Nett calculation info */}
         <div style={{ padding: "8px 14px", margin: "0 0 6px", borderRadius: "10px", background: "var(--s2)", border: "1px solid var(--border)", fontSize: "11px", color: "var(--muted)", lineHeight: 1.7 }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>💼 Budget</span>
-            <span style={{ fontWeight: 700, color: "var(--text)" }}>{formatRp(displayTarget)}</span>
+            <span>Budget</span>
+            <span style={{ fontWeight: 700, color: "var(--text)" }} className="font-mono tabular-nums">{formatRp(displayTarget)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>📤 Pengeluaran</span>
-            <span style={{ fontWeight: 700, color: "var(--red)" }}>-{formatRp(totalExpense)}</span>
+            <span>Pengeluaran</span>
+            <span style={{ fontWeight: 700, color: "var(--red)" }} className="font-mono tabular-nums">-{formatRp(totalExpense)}</span>
           </div>
           {totalIncome > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>📥 Pemasukan</span>
-              <span style={{ fontWeight: 700, color: "var(--teal)" }}>+{formatRp(totalIncome)}</span>
+              <span>Pemasukan</span>
+              <span style={{ fontWeight: 700, color: "var(--teal)" }} className="font-mono tabular-nums">+{formatRp(totalIncome)}</span>
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border)", paddingTop: "4px", marginTop: "4px" }}>
-            <span style={{ fontWeight: 700 }}>📊 Sisa Saldo</span>
-            <span style={{ fontWeight: 900, fontFamily: "var(--font-fraunces), serif", color: (displayTarget + totalIncome - totalExpense) < 0 ? "var(--red)" : "var(--teal)" }}>
+            <span style={{ fontWeight: 700 }}>Sisa Saldo</span>
+            <span style={{ fontWeight: 900, fontFamily: "var(--font-fraunces), serif", color: (displayTarget + totalIncome - totalExpense) < 0 ? "var(--red)" : "var(--teal)" }} className="font-mono tabular-nums">
               {formatRp(displayTarget + totalIncome - totalExpense)}
             </span>
           </div>
@@ -583,7 +561,7 @@ function PosDetailContent() {
         {/* Transaction List */}
         {Object.keys(grouped).length === 0 ? (
           <div className="gh-empty">
-            <div className="gh-empty-icon">📭</div>
+            <Inbox size={40} className="mx-auto mb-2 text-muted-foreground opacity-50" />
             <div className="gh-empty-title">Belum ada transaksi</div>
             <div className="gh-empty-sub">
               Belum ada transaksi untuk {pos.name} di siklus ini.
@@ -612,17 +590,12 @@ function PosDetailContent() {
                       }
                     }}
                   >
-                    <div
-                      className="hi-ic"
-                      style={
-                        isIncome
-                          ? { background: "rgba(0,201,167,.12)" }
-                          : vehicleForTx
-                          ? { background: "rgba(245, 158, 11, 0.12)", color: "#b45309" }
-                          : {}
-                      }
-                    >
-                      {vehicleForTx ? "⛽" : tx.pos_icon}
+                    <div className="hi-ic" style={{ padding: 0, background: "transparent" }}>
+                      <CategoryIcon
+                        icon={vehicleForTx ? "fuel" : tx.pos_icon}
+                        name={tx.pos_name}
+                        size="sm"
+                      />
                     </div>
                     <div className="hi-info">
                       <div className="hi-desc">
@@ -650,15 +623,16 @@ function PosDetailContent() {
                           </div>
                         )}
                       </div>
-                      <div className="hi-meta">
-                        {tx.user_role === "suami" ? "👨‍💼" : tx.user_role === "istri" ? "👩" : "🧒"} {tx.user_name}
+                      <div className="hi-meta" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <MemberAvatar name={tx.user_name} role={tx.user_role} size="xs" />
+                        <span>{tx.user_name}</span>
                         {isIncome && (
-                          <span style={{ color: "var(--teal)", marginLeft: "6px", fontWeight: 700 }}>
+                          <span style={{ color: "var(--teal)", fontWeight: 700 }}>
                             MASUK
                           </span>
                         )}
                         {vehicleForTx && (
-                          <span style={{ color: "#b45309", marginLeft: "6px", fontWeight: 700 }}>
+                          <span style={{ color: "#b45309", fontWeight: 700 }}>
                             · Riwayat BBM Kendaraan
                           </span>
                         )}

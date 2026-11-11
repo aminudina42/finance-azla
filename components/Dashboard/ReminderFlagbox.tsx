@@ -7,6 +7,8 @@ import { getHealthFamilyMembers } from "@/lib/health-service";
 import { formatRp } from "@/lib/debt-utils";
 import type { HealthFamilyMember, Member, Debt } from "@/lib/types";
 import BirthdayCelebrationModal from "./BirthdayCelebrationModal";
+import MemberAvatar from "@/components/ui/member-avatar";
+import CategoryIcon from "@/components/ui/category-icon";
 
 interface ReminderFlagboxProps {
   keluargaId?: string | null;
@@ -22,49 +24,49 @@ const emptySubscribe = () => () => {};
 function getAppreciationWishes(role: string, name: string, age: number, isSelf: boolean) {
   if (isSelf) {
     return {
-      title: `Selamat Ulang Tahun untuk Dirimu, ${name}! 👑🎂`,
+      title: `Selamat Ulang Tahun untuk Dirimu, ${name}!`,
       subtitle: `Genap berusia ${age} tahun hari ini`,
       quote:
-        "Terima kasih sudah selalu memberikan yang terbaik untuk keluarga. Luangkan waktu untuk tersenyum dan nikmati harimu! ✨🥰",
-      tag: "👑 HARI SPESIALMU",
+        "Terima kasih sudah selalu memberikan yang terbaik untuk keluarga. Luangkan waktu untuk tersenyum dan nikmati harimu!",
+      tag: "HARI SPESIALMU",
     };
   }
 
   switch (role) {
     case "suami":
       return {
-        title: `Selamat Ulang Tahun, Ayah ${name}! 🏆🎉`,
+        title: `Selamat Ulang Tahun, Ayah ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
-        quote: "Terima kasih sudah menjadi nahkoda pelindung keluarga. Semoga selalu sehat dan berkah! 💙",
-        tag: "🏆 KEPALA KELUARGA",
+        quote: "Terima kasih sudah menjadi nahkoda pelindung keluarga. Semoga selalu sehat dan berkah!",
+        tag: "KEPALA KELUARGA",
       };
     case "istri":
       return {
-        title: `Selamat Ulang Tahun, Bunda ${name}! 🌸💖`,
+        title: `Selamat Ulang Tahun, Bunda ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
-        quote: "Terima kasih atas kehangatan dan ketulusanmu merawat rumah kita. Sehat dan bahagia selalu! ✨",
-        tag: "🌸 BIDADARI KELUARGA",
+        quote: "Terima kasih atas kehangatan dan ketulusanmu merawat rumah kita. Sehat dan bahagia selalu!",
+        tag: "BIDADARI KELUARGA",
       };
     case "anak":
       return {
-        title: `Selamat Ulang Tahun, Sayang ${name}! 🚀🎂`,
+        title: `Selamat Ulang Tahun, Sayang ${name}!`,
         subtitle: `Tumbuh pintar di usia ${age} tahun!`,
-        quote: "Tumbuhlah jadi anak yang sehat, berbakti, dan selalu ceria. Kami bangga dan sayang padamu! 🎈",
-        tag: "🌟 KESAYANGAN",
+        quote: "Tumbuhlah jadi anak yang sehat, berbakti, dan selalu ceria. Kami bangga dan sayang padamu!",
+        tag: "KESAYANGAN",
       };
     case "orang_tua":
       return {
-        title: `Selamat Ulang Tahun, ${name}! 🤲❤️`,
+        title: `Selamat Ulang Tahun, ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
-        quote: "Terima kasih atas doa tulus dan bimbingan sepanjang masa. Semoga senantiasa sehat dan berkah. 🌼",
-        tag: "🤲 SOSOK TERCINTA",
+        quote: "Terima kasih atas doa tulus dan bimbingan sepanjang masa. Semoga senantiasa sehat dan berkah.",
+        tag: "SOSOK TERCINTA",
       };
     default:
       return {
-        title: `Selamat Ulang Tahun, ${name}! 🥳🎉`,
+        title: `Selamat Ulang Tahun, ${name}!`,
         subtitle: `Genap berusia ${age} tahun hari ini`,
-        quote: "Semoga panjang umur, sehat selalu, dan dikelilingi cinta hangat bersama keluarga tercinta! 🎂",
-        tag: "🎉 HARI SPESIAL",
+        quote: "Semoga panjang umur, sehat selalu, dan dikelilingi cinta hangat bersama keluarga tercinta!",
+        tag: "HARI SPESIAL",
       };
   }
 }
@@ -384,20 +386,18 @@ export default function ReminderFlagbox({
         id: "birthday-slide",
         type: "birthday",
         badge: {
-          text: `🎉 ${wishes.tag}`,
+          text: wishes.tag,
           bg: "#ea580c",
           color: "#ffffff",
           border: "rgba(255,255,255,0.4)",
         },
-        emoji: person.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={person.avatar_url}
-            alt={person.name}
-            style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+        emoji: (
+          <MemberAvatar
+            name={person.name}
+            role={person.relation_role}
+            avatarUrl={person.avatar_url}
+            size="md"
           />
-        ) : (
-          getDefaultRoleAvatar(person.relation_role)
         ),
         title: wishes.title,
         subtitle: wishes.quote,
@@ -405,14 +405,14 @@ export default function ReminderFlagbox({
         bgGradient: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 45%, #fff1f2 100%)",
         borderColor: "#fed7aa",
         primaryCta: {
-          label: "Rayakan & Tiup Lilin 🎂",
+          label: "Rayakan Bersama",
           action: () => setIsModalOpen(true),
           bg: "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)",
         },
         secondaryCta:
           birthdayMembers.length > 1
             ? {
-                label: `Lainnya (${birthdayIdx + 1}/${birthdayMembers.length}) ➔`,
+                label: `Lainnya (${birthdayIdx + 1}/${birthdayMembers.length})`,
                 action: () => setBirthdayIdx((prev) => (prev + 1) % birthdayMembers.length),
               }
             : undefined,
@@ -438,19 +438,19 @@ export default function ReminderFlagbox({
         id: "debt-slide",
         type: "debt",
         badge: {
-          text: "⚠️ JATUH TEMPO TERDEKAT",
+          text: "JATUH TEMPO TERDEKAT",
           bg: "#dc2626",
           color: "#ffffff",
           border: "rgba(255,255,255,0.3)",
         },
-        emoji: topDebt.icon || "💳",
+        emoji: <CategoryIcon icon={topDebt.icon} name={topDebt.name} size="md" />,
         title: `Hutang Jatuh Tempo (${dueLabel})`,
         subtitle: subtitleText,
         highlight: `Segera bayar sebelum jatuh tempo`,
         bgGradient: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 50%, #fff7ed 100%)",
         borderColor: "#fecaca",
         primaryCta: {
-          label: "Rincian Hutang 💳",
+          label: "Rincian Hutang",
           action: () => router.push("/debts"),
           bg: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
         },
@@ -468,18 +468,24 @@ export default function ReminderFlagbox({
         id: "expense-slide",
         type: "expense",
         badge: {
-          text: `⏰ 18:00 • ${expenseGreeting.roleTag}`,
+          text: `18:00 • ${expenseGreeting.roleTag}`,
           bg: "#4f46e5",
           color: "#ffffff",
           border: "rgba(255,255,255,0.3)",
         },
-        emoji: expenseGreeting.emoji,
+        emoji: (
+          <MemberAvatar
+            name={currentMember?.display_name}
+            role={currentMember?.role}
+            size="md"
+          />
+        ),
         title: expenseGreeting.greeting,
         subtitle: expenseGreeting.subtitle,
         bgGradient: "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 50%, #f5f3ff 100%)",
         borderColor: "#c7d2fe",
         primaryCta: {
-          label: "Catat Sekarang ✍️",
+          label: "Catat Sekarang",
           action: () => router.push("/input"),
           bg: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)",
         },
