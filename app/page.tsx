@@ -18,6 +18,7 @@ import PosCard from "@/components/Dashboard/PosCard";
 import FirstCycleSetupModal from "@/components/Modals/FirstCycleSetupModal";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import Skeleton from "@/components/Skeleton";
+import BenchoDynamicIsland from "@/components/Bencho/DynamicIsland";
 import { isDebtPaidThisMonth } from "@/lib/debt-utils";
 
 const subscribeHideNominal = (callback: () => void) => {
@@ -162,6 +163,8 @@ export default function Home() {
     .filter((p) => !p.is_goal)
     .reduce((sum, p) => sum + p.current_balance, 0);
 
+  const totalSpent = Math.max(0, totalBudget - sisaBudget);
+
   // Calculate day in cycle
   const startDate = new Date(selectedCycle?.start_date || new Date());
   const endDate = new Date(selectedCycle?.end_date || new Date());
@@ -177,6 +180,13 @@ export default function Home() {
     const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
     dayInCycleStr = `Selesai (${totalDays} hari)`;
   }
+
+  const remainingDaysToPayday = useMemo(() => {
+    if (!selectedCycle || cycleIndex !== 0) return null;
+    const end = new Date(selectedCycle.end_date + "T23:59:59");
+    const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  }, [selectedCycle, cycleIndex, today]);
 
   // Upcoming debt due dates (within 7 days) yang BELUM dibayar periode ini
   const todayDate = today.getDate();
@@ -455,6 +465,16 @@ export default function Home() {
           {toastMessage}
         </div>
       )}
+
+      {/* Bencho Dynamic Island Floating Status & Action Hub */}
+      <BenchoDynamicIsland
+        totalTarget={totalBudget}
+        totalSpent={totalSpent}
+        remainingDaysToPayday={remainingDaysToPayday}
+        cycleLabel={isWaitingForPayday ? `Menunggu (${gajianDate})` : (selectedCycle?.label || "")}
+        isHideNominal={isHideNominal}
+        onToggleHideNominal={handleToggleHideNominal}
+      />
 
       {/* Modals */}
       <CyclePickerModal
