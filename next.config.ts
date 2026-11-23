@@ -14,6 +14,9 @@ const cspHeader = `
 `.replace(/\s{2,}/g, " ").trim();
 
 const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: "security",
+  } as any,
   async headers() {
     return [
       {
