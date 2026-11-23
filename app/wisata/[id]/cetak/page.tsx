@@ -6,9 +6,9 @@ import Link from "next/link";
 import { toPng } from "html-to-image";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
-import { getTripById, getTripItems } from "@/lib/wisata-service";
+import { getTripById, getTripItems, getTripExpenses } from "@/lib/wisata-service";
 import { formatTripDates, formatRp, CATEGORY_META } from "@/lib/wisata-utils";
-import type { Trip, TripItem, TripCategory } from "@/lib/types";
+import type { Trip, TripItem, TripExpense, TripCategory } from "@/lib/types";
 import { Download, ArrowLeft, Palmtree, MapPin, Calendar, CheckCircle2 } from "lucide-react";
 
 export default function CetakWisataPage() {
@@ -19,6 +19,7 @@ export default function CetakWisataPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [items, setItems] = useState<TripItem[]>([]);
+  const [expenses, setExpenses] = useState<TripExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -27,12 +28,14 @@ export default function CetakWisataPage() {
     if (!tripId) return;
     setLoading(true);
     try {
-      const [tData, iData] = await Promise.all([
+      const [tData, iData, eData] = await Promise.all([
         getTripById(tripId),
         getTripItems(tripId),
+        getTripExpenses(tripId),
       ]);
       setTrip(tData);
       setItems(iData);
+      setExpenses(eData);
     } catch (err) {
       console.error(err);
     } finally {
@@ -54,15 +57,30 @@ export default function CetakWisataPage() {
 
     items.forEach((it) => {
       totalEstimated += Number(it.estimated_cost) || 0;
-      if (it.is_completed) {
-        completedCount++;
-        totalActual += Number(it.actual_cost) || 0;
-      }
       const cat = it.category || "other";
       if (!catMap[cat]) catMap[cat] = { actual: 0, estimated: 0 };
       catMap[cat]!.estimated += Number(it.estimated_cost) || 0;
-      if (it.is_completed) {
-        catMap[cat]!.actual += Number(it.actual_cost) || 0;
+    });
+
+    expenses.forEach((exp) => {
+      const cat = exp.category || "other";
+      if (!catMap[cat]) catMap[cat] = { actual: 0, estimated: 0 };
+      catMap[cat]!.actual += Number(exp.amount) || 0;
+      totalActual += Number(exp.amount) || 0;
+      completedCount++;
+    });
+
+    // Fallback untuk legacy items jika belum ada di expenses
+    items.forEach((it) => {
+      if (it.is_completed && typeof it.actual_cost === "number" && it.actual_cost > 0) {
+        const alreadyInExpenses = expenses.some((e) => e.trip_item_id === it.id);
+        if (!alreadyInExpenses) {
+          completedCount++;
+          totalActual += Number(it.actual_cost);
+          const cat = it.category || "other";
+          if (!catMap[cat]) catMap[cat] = { actual: 0, estimated: 0 };
+          catMap[cat]!.actual += Number(it.actual_cost);
+        }
       }
     });
 
@@ -70,10 +88,10 @@ export default function CetakWisataPage() {
       totalEstimated,
       totalActual,
       completedCount,
-      totalCount: items.length,
+      totalCount: items.length + expenses.length,
       catMap,
     };
-  }, [items]);
+  }, [items, expenses]);
 
   const handleDownloadPng = async () => {
     if (!cardRef.current || isExporting) return;

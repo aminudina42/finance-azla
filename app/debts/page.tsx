@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
-import DebtModal from "@/components/Modals/DebtModal";
-import DebtLimitModal from "@/components/Modals/DebtLimitModal";
 import ConfirmModal from "@/components/Modals/ConfirmModal";
 import PayDebtModal from "@/components/Modals/PayDebtModal";
 import PageHeader from "@/components/PageHeader";
@@ -21,6 +20,7 @@ import {
 } from "@/lib/debt-utils";
 
 export default function DebtsPage() {
+  const router = useRouter();
   const {
     debts,
     debtPayments,
@@ -40,10 +40,6 @@ export default function DebtsPage() {
     isLoading,
   } = useApp();
 
-  const [showModal, setShowModal] = useState(false);
-  const [showLimitModal, setShowLimitModal] = useState(false);
-  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
   const [payingDebt, setPayingDebt] = useState<Debt | null>(null);
   const [paymentToRollback, setPaymentToRollback] = useState<DebtPayment | null>(null);
@@ -162,65 +158,11 @@ export default function DebtsPage() {
   };
 
   const openAdd = () => {
-    setEditingDebt(null);
-    setModalMode("add");
-    setShowModal(true);
+    router.push("/debts/tambah");
   };
 
   const openEdit = (d: Debt) => {
-    setEditingDebt(d);
-    setModalMode("edit");
-    setShowModal(true);
-  };
-
-  const handleSave = (
-    name: string,
-    icon: string,
-    totalAmount: number,
-    remainingAmount: number,
-    monthlyPayment: number,
-    dueDate: number,
-    principalAmount?: number,
-    tenorMonths?: number,
-    paidMonths?: number,
-    creditorName?: string,
-    accountNumber?: string,
-    notes?: string
-  ) => {
-    if (modalMode === "add") {
-      addDebt(
-        name,
-        icon,
-        totalAmount,
-        remainingAmount,
-        monthlyPayment,
-        dueDate,
-        principalAmount,
-        tenorMonths,
-        paidMonths,
-        creditorName,
-        accountNumber,
-        notes
-      );
-      showToast("Hutang baru berhasil dicatat!");
-    } else if (editingDebt) {
-      updateDebt(
-        editingDebt.id,
-        name,
-        icon,
-        totalAmount,
-        remainingAmount,
-        monthlyPayment,
-        dueDate,
-        principalAmount,
-        tenorMonths,
-        paidMonths,
-        creditorName,
-        accountNumber,
-        notes
-      );
-      showToast("Perubahan hutang berhasil disimpan!");
-    }
+    router.push(`/debts/${d.id}/edit`);
   };
 
   const handlePay = (posId: string, amount: number, notes?: string, paymentDate?: string) => {
@@ -478,7 +420,7 @@ export default function DebtsPage() {
 
             <button
               type="button"
-              onClick={() => setShowLimitModal(true)}
+              onClick={() => router.push("/debts/pengaturan")}
               style={{
                 padding: "6px 11px",
                 borderRadius: "8px",
@@ -1075,44 +1017,6 @@ export default function DebtsPage() {
           ＋ Tambah Hutang Baru
         </button>
       </div>
-
-      {/* Modal Input/Edit Hutang */}
-      <DebtModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        mode={modalMode}
-        debtName={editingDebt?.name}
-        debtIcon={editingDebt?.icon}
-        debtTotal={editingDebt?.total_amount}
-        debtRemaining={editingDebt?.remaining_amount}
-        debtMonthly={editingDebt?.monthly_payment}
-        debtDueDate={editingDebt?.due_date}
-        debtPrincipal={editingDebt?.principal_amount}
-        debtTenor={editingDebt?.tenor_months}
-        debtPaidMonths={editingDebt?.paid_months}
-        debtCreditor={editingDebt?.creditor_name}
-        debtAccountNumber={editingDebt?.account_number}
-        debtNotes={editingDebt?.notes}
-        currentTotalMonthlyDebt={totalMonthly}
-        monthlyIncome={effectiveMonthlyIncome}
-        maxSafePercentage={debtMaxSafePercentage}
-        onSave={handleSave}
-      />
-
-      {/* Modal Atur Batas Persentase Hutang */}
-      <DebtLimitModal
-        isOpen={showLimitModal}
-        onClose={() => setShowLimitModal(false)}
-        currentPercentage={debtMaxSafePercentage}
-        currentIncomeMode={debtIncomeMode}
-        currentCustomIncome={debtCustomIncome}
-        autoMonthlyIncome={autoMonthlyIncome}
-        totalMonthlyDebt={totalMonthly}
-        onSave={async (settings) => {
-          await updateDebtLimitSettings(settings);
-          showToast("Pengaturan batas hutang berhasil disimpan! ⚙️");
-        }}
-      />
 
       {/* Modal Konfirmasi Hapus Hutang */}
       <ConfirmModal

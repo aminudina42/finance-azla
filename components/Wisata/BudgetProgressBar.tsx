@@ -2,12 +2,14 @@
 
 import React from "react";
 import { formatRp, getBudgetStatus } from "@/lib/wisata-utils";
+import { Edit2 } from "lucide-react";
 
 interface BudgetProgressBarProps {
   actualCost: number;
   estimatedCost: number;
   budgetLimit: number;
   compact?: boolean;
+  onEditBudget?: () => void;
 }
 
 export default function BudgetProgressBar({
@@ -15,6 +17,7 @@ export default function BudgetProgressBar({
   estimatedCost,
   budgetLimit,
   compact = false,
+  onEditBudget,
 }: BudgetProgressBarProps) {
   const status = getBudgetStatus(actualCost, budgetLimit);
 
@@ -124,8 +127,37 @@ export default function BudgetProgressBar({
           >
             {status.label} {budgetLimit > 0 && `(${status.percentage}%)`}
           </span>
-          <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)", marginTop: "4px" }}>
-            Pagu: <strong>{budgetLimit > 0 ? formatRp(budgetLimit) : "Tanpa Batas"}</strong>
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--text-muted, #64748b)",
+              marginTop: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: "4px",
+            }}
+          >
+            <span>Pagu: <strong>{budgetLimit > 0 ? formatRp(budgetLimit) : "Tanpa Batas"}</strong></span>
+            {onEditBudget && (
+              <button
+                type="button"
+                onClick={onEditBudget}
+                title="Edit Plafon Anggaran"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: "2px",
+                  cursor: "pointer",
+                  color: "var(--brand-primary, #287ff0)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  borderRadius: "4px",
+                }}
+              >
+                <Edit2 size={12} />
+              </button>
+            )}
           </div>
         </div>
       </div>

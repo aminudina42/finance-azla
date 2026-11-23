@@ -11,6 +11,8 @@ import type {
   StatusKeluarga,
   TouristDestination,
   CreateTouristDestinationInput,
+  TripExpense,
+  CreateTripExpenseInput,
 } from "./types";
 
 export interface CreateTripInput {
@@ -591,6 +593,134 @@ export async function deleteTouristDestination(id: string): Promise<{ error: Pos
 
   if (error) {
     console.error(`Error deleting tourist destination ${id}:`, error);
+  }
+  return { error };
+}
+
+// ── Trip Budget Management ──
+
+export async function updateTripBudget(
+  tripId: string,
+  totalBudgetLimit: number
+): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from("trips")
+    .update({
+      total_budget_limit: Math.max(0, Number(totalBudgetLimit) || 0),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tripId);
+
+  if (error) {
+    console.error(`Error updating trip budget for ${tripId}:`, error);
+  }
+  return { error };
+}
+
+// ── Trip Daily Expenses CRUD ──
+
+export async function getTripExpenses(tripId: string): Promise<TripExpense[]> {
+  const { data, error } = await supabase
+    .from("trip_expenses")
+    .select("*")
+    .eq("trip_id", tripId)
+    .order("day_number", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error(`Error fetching trip expenses for ${tripId}:`, error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function createTripExpense(
+  input: CreateTripExpenseInput,
+  userId?: string,
+  userName?: string
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  // Call RPC record_trip_daily_expense_tx for atomic creation with optional fuel log
+  const { data, error } = await supabase.rpc("record_trip_daily_expense_tx", {
+    p_trip_id: input.trip_id,
+    p_day_number: input.day_number,
+    p_category: input.category,
+    p_title: input.title.trim(),
+    p_amount: Math.max(0, Number(input.amount) || 0),
+    p_notes: input.notes?.trim() || null,
+    p_vehicle_id: input.vehicle_id || null,
+    p_odometer_km: input.odometer_km ? Number(input.odometer_km) : null,
+    p_fuel_liters: input.fuel_liters ? Number(input.fuel_liters) : null,
+    p_trip_item_id: input.trip_item_id || null,
+    p_user_id: userId || null,
+    p_user_name: userName || null,
+  });
+
+  if (error) {
+    console.error("Error executing record_trip_daily_expense_tx:", error);
+    // Fallback: direct insert if RPC not yet deployed or error
+    const fallbackPayload = {
+      trip_id: input.trip_id,
+      day_number: input.day_number,
+      category: input.category,
+      title: input.title.trim(),
+      amount: Math.max(0, Number(input.amount) || 0),
+      notes: input.notes?.trim() || null,
+      vehicle_id: input.vehicle_id || null,
+      odometer_km: input.odometer_km ? Number(input.odometer_km) : null,
+      fuel_liters: input.fuel_liters ? Number(input.fuel_liters) : null,
+      trip_item_id: input.trip_item_id || null,
+      created_by: userId || null,
+      user_name: userName || null,
+    };
+
+    const { data: insertData, error: insertError } = await supabase
+      .from("trip_expenses")
+      .insert(fallbackPayload as any)
+      .select()
+      .single();
+
+    if (insertError) {
+      return { success: false, error: insertError.message };
+    }
+    return { success: true, data: insertData };
+  }
+
+  return { success: true, data };
+}
+
+export async function updateTripExpense(
+  id: string,
+  input: Partial<CreateTripExpenseInput>
+): Promise<{ error: PostgrestError | null }> {
+  const payload: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.day_number !== undefined) payload.day_number = input.day_number;
+  if (input.category !== undefined) payload.category = input.category;
+  if (input.title !== undefined) payload.title = input.title.trim();
+  if (input.amount !== undefined) payload.amount = Math.max(0, Number(input.amount) || 0);
+  if (input.notes !== undefined) payload.notes = input.notes ? input.notes.trim() : null;
+
+  const { error } = await supabase
+    .from("trip_expenses")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) {
+    console.error(`Error updating trip expense ${id}:`, error);
+  }
+  return { error };
+}
+
+export async function deleteTripExpense(id: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from("trip_expenses")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error(`Error deleting trip expense ${id}:`, error);
   }
   return { error };
 }

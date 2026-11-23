@@ -10,13 +10,18 @@ import TripStatusBadge from "@/components/Wisata/TripStatusBadge";
 import TimelineItemCard from "@/components/Wisata/TimelineItemCard";
 import OneTapExpenseModal from "@/components/Wisata/OneTapExpenseModal";
 import AddTripItemModal from "@/components/Wisata/AddTripItemModal";
+import EditBudgetModal from "@/components/Wisata/EditBudgetModal";
+import DailyExpenseModal from "@/components/Wisata/DailyExpenseModal";
+import DailyExpenseCard from "@/components/Wisata/DailyExpenseCard";
 import ChecklistSection from "@/components/Wisata/ChecklistSection";
 import Modal from "@/components/Modal";
 import { useApp } from "@/lib/store";
 import {
   getTripById,
   getTripItems,
+  getTripExpenses,
   deleteTripItem,
+  deleteTripExpense,
   rollbackTripExpense,
   updateTrip,
 } from "@/lib/wisata-service";
@@ -28,7 +33,7 @@ import {
   CATEGORY_META,
   isTripItemOngoing,
 } from "@/lib/wisata-utils";
-import type { Trip, TripItem, Vehicle, TripStatus, TripCategory } from "@/lib/types";
+import type { Trip, TripItem, TripExpense, Vehicle, TripStatus, TripCategory } from "@/lib/types";
 import {
   Calendar,
   MapPin,
@@ -68,6 +73,12 @@ export default function DetailWisataPage() {
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
   const [itemForExpense, setItemForExpense] = useState<TripItem | null>(null);
 
+  // Daily Expenses & Budget Edit State
+  const [expenses, setExpenses] = useState<TripExpense[]>([]);
+  const [isEditBudgetOpen, setIsEditBudgetOpen] = useState(false);
+  const [isDailyExpenseOpen, setIsDailyExpenseOpen] = useState(false);
+  const [expenseToEdit, setExpenseToEdit] = useState<TripExpense | null>(null);
+
   // Vehicle Switch Modal State
   const [isChangeVehicleOpen, setIsChangeVehicleOpen] = useState(false);
   const [selectedVehicleForTrip, setSelectedVehicleForTrip] = useState<string>("");
@@ -88,15 +99,17 @@ export default function DetailWisataPage() {
     setLoading(true);
     setConnectionError(false);
     try {
-      const [tripData, itemsData, vehiclesData] = await Promise.all([
+      const [tripData, itemsData, vehiclesData, expensesData] = await Promise.all([
         getTripById(tripId),
         getTripItems(tripId),
         getVehicles(),
+        getTripExpenses(tripId),
       ]);
 
       setTrip(tripData);
       setItems(itemsData);
       setVehicles(vehiclesData);
+      setExpenses(expensesData);
     } catch (err) {
       console.error("Gagal memuat detail trip:", err);
       setConnectionError(true);
@@ -130,15 +143,53 @@ export default function DetailWisataPage() {
   // Hitung total estimasi dan total aktual
   const summaryCost = useMemo(() => {
     let estimated = 0;
-    let actual = 0;
     items.forEach((it) => {
       estimated += Number(it.estimated_cost) || 0;
-      if (it.is_completed && typeof it.actual_cost === "number") {
-        actual += Number(it.actual_cost) || 0;
+    });
+
+    // Realisasi aktual dari trip_expenses (sumber utama)
+    let actual = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+
+    // Sertakan legacy items jika ada yang belum dimigrasi
+    items.forEach((it) => {
+      if (it.is_completed && typeof it.actual_cost === "number" && it.actual_cost > 0) {
+        const alreadyInExpenses = expenses.some((e) => e.trip_item_id === it.id);
+        if (!alreadyInExpenses) {
+          actual += Number(it.actual_cost);
+        }
       }
     });
+
     return { estimated, actual };
-  }, [items]);
+  }, [items, expenses]);
+
+  // Target / Plafon Rata-rata Harian
+  const dailyBudget = useMemo(() => {
+    if (!trip || !totalDays) return 0;
+    return Math.round((trip.total_budget_limit || 0) / totalDays);
+  }, [trip, totalDays]);
+
+  // Pengeluaran untuk Hari Terpilih
+  const expensesForSelectedDay = useMemo(() => {
+    return expenses.filter((e) => e.day_number === selectedDay);
+  }, [expenses, selectedDay]);
+
+  const totalSpentForSelectedDay = useMemo(() => {
+    return expensesForSelectedDay.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  }, [expensesForSelectedDay]);
+
+  // Breakdown Hari untuk Tab Biaya
+  const dayBreakdown = useMemo(() => {
+    return Array.from({ length: totalDays }, (_, i) => i + 1).map((dayNum) => {
+      const dayExps = expenses.filter((e) => e.day_number === dayNum);
+      const total = dayExps.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      return {
+        dayNumber: dayNum,
+        total,
+        count: dayExps.length,
+      };
+    });
+  }, [expenses, totalDays]);
 
   // Breakdown Biaya per Kategori
   const categoryBreakdown = useMemo(() => {
@@ -155,14 +206,29 @@ export default function DetailWisataPage() {
       const cat = it.category || "other";
       if (!map[cat]) map[cat] = { estimated: 0, actual: 0, count: 0 };
       map[cat].estimated += Number(it.estimated_cost) || 0;
-      if (it.is_completed && typeof it.actual_cost === "number") {
-        map[cat].actual += Number(it.actual_cost) || 0;
-      }
+    });
+
+    expenses.forEach((exp) => {
+      const cat = exp.category || "other";
+      if (!map[cat]) map[cat] = { estimated: 0, actual: 0, count: 0 };
+      map[cat].actual += Number(exp.amount) || 0;
       map[cat].count += 1;
     });
 
+    items.forEach((it) => {
+      if (it.is_completed && typeof it.actual_cost === "number" && it.actual_cost > 0) {
+        const alreadyInExpenses = expenses.some((e) => e.trip_item_id === it.id);
+        if (!alreadyInExpenses) {
+          const cat = it.category || "other";
+          if (!map[cat]) map[cat] = { estimated: 0, actual: 0, count: 0 };
+          map[cat].actual += Number(it.actual_cost);
+          map[cat].count += 1;
+        }
+      }
+    });
+
     return map;
-  }, [items]);
+  }, [items, expenses]);
 
   // Items untuk hari terpilih pada Tab Jadwal
   const itemsForSelectedDay = useMemo(() => {
@@ -183,22 +249,56 @@ export default function DetailWisataPage() {
   // Actions
   const handleOpenCatatAktual = (item: TripItem) => {
     if (!canExecuteExpense) {
-      showToast("Peran Anak tidak memiliki hak mencatat pengeluaran pos.", "error");
+      showToast("Peran Anak tidak memiliki hak mencatat pengeluaran.", "error");
       return;
     }
-    setItemForExpense(item);
-    setIsExpenseOpen(true);
+    // Prefill modal catat pengeluaran harian dari agenda
+    setSelectedDay(item.day_number);
+    setExpenseToEdit({
+      id: "",
+      trip_id: tripId,
+      keluarga_id: "",
+      day_number: item.day_number,
+      category: item.category,
+      title: item.title,
+      amount: item.estimated_cost || 0,
+      notes: item.notes || null,
+      trip_item_id: item.id,
+      created_at: "",
+      updated_at: "",
+    });
+    setIsDailyExpenseOpen(true);
+  };
+
+  const handleDeleteExpense = async (expense: TripExpense) => {
+    if (!canExecuteExpense) return;
+    if (!confirm(`Hapus pengeluaran "${expense.title}" (${formatRp(expense.amount)})?`)) return;
+    try {
+      const { error } = await deleteTripExpense(expense.id);
+      if (error) throw new Error(error.message);
+
+      showToast("Pengeluaran berhasil dihapus", "success");
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Gagal menghapus pengeluaran", "error");
+    }
   };
 
   const handleRollbackItem = async (item: TripItem) => {
     if (!canExecuteExpense) return;
-    if (!confirm(`Batalkan pengeluaran "${item.title}"? Saldo pos akan dikembalikan.`)) return;
+    if (!confirm(`Batalkan pengeluaran "${item.title}"?`)) return;
 
     try {
-      const res = await rollbackTripExpense(item.id);
-      if (!res.success) throw new Error(res.error);
+      const linkedExp = expenses.find((e) => e.trip_item_id === item.id);
+      if (linkedExp) {
+        await deleteTripExpense(linkedExp.id);
+      } else {
+        const res = await rollbackTripExpense(item.id);
+        if (!res.success) throw new Error(res.error);
+      }
 
-      showToast("Pengeluaran dibatalkan & saldo dipulihkan", "success");
+      showToast("Pengeluaran dibatalkan", "success");
       loadData();
       if (refreshData) refreshData();
     } catch (err: any) {
@@ -422,6 +522,7 @@ export default function DetailWisataPage() {
           actualCost={summaryCost.actual}
           estimatedCost={summaryCost.estimated}
           budgetLimit={trip.total_budget_limit}
+          onEditBudget={canExecuteExpense ? () => setIsEditBudgetOpen(true) : undefined}
         />
 
         {/* Status Perjalanan & Pos Terhubung */}
@@ -574,92 +675,6 @@ export default function DetailWisataPage() {
           )}
         </div>
 
-        {/* Info Sumber Pos Anggaran & Opsi Ganti Sumber Pos */}
-        <div
-          style={{
-            backgroundColor: "var(--surface, #ffffff)",
-            borderRadius: "14px",
-            border: "1px solid var(--border, rgba(0,0,0,0.08))",
-            padding: "12px 14px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "10px",
-            fontSize: "12px",
-            width: "100%",
-            maxWidth: "100%",
-            minWidth: 0,
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "8px",
-                backgroundColor: linkedPos ? "rgba(16, 185, 129, 0.1)" : "rgba(100, 116, 139, 0.1)",
-                color: linkedPos ? "#10b981" : "#64748b",
-                display: "grid",
-                placeItems: "center",
-                flexShrink: 0,
-                fontSize: "16px",
-              }}
-            >
-              {linkedPos?.icon || <Wallet size={16} />}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  color: "var(--text, #1e293b)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {linkedPos ? `${linkedPos.name} (Pos Bawaan)` : "Tanpa Pos Terkait (Opsional)"}
-              </div>
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: "var(--text-muted, #64748b)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {linkedPos
-                  ? `Sisa Saldo: ${formatRp(linkedPos.current_balance)}`
-                  : "Pilih pos manual saat mencatat belanja agenda"}
-              </div>
-            </div>
-          </div>
-
-          {canExecuteExpense && (
-            <button
-              onClick={() => {
-                setSelectedPosForTrip(trip.finance_pos_id || "");
-                setIsChangePosOpen(true);
-              }}
-              style={{
-                padding: "5px 10px",
-                borderRadius: "8px",
-                border: "1px solid var(--border, #cbd5e1)",
-                backgroundColor: "transparent",
-                color: "var(--brand-primary, #287ff0)",
-                fontSize: "11px",
-                fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
-              {linkedPos ? "Ganti" : "+ Hubungkan"}
-            </button>
-          )}
-        </div>
-
         {/* 3 Tab Navigasi Workspace */}
         <div
           style={{
@@ -705,7 +720,7 @@ export default function DetailWisataPage() {
           })}
         </div>
 
-        {/* TAB 1: JADWAL TIMELINE */}
+        {/* TAB 1: JADWAL & REALISASI HARIAN */}
         {workspaceTab === "jadwal" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
             {/* Horizontal Day Pills */}
@@ -724,7 +739,8 @@ export default function DetailWisataPage() {
             >
               {Array.from({ length: totalDays }, (_, i) => i + 1).map((dayNum) => {
                 const isSelected = selectedDay === dayNum;
-                const countForDay = items.filter((it) => it.day_number === dayNum).length;
+                const countItems = items.filter((it) => it.day_number === dayNum).length;
+                const countExpenses = expenses.filter((e) => e.day_number === dayNum).length;
 
                 return (
                   <button
@@ -743,184 +759,400 @@ export default function DetailWisataPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
+                      transition: "all 0.15s ease",
                     }}
                   >
                     <span>Hari {dayNum}</span>
                     <span
                       style={{
-                        fontSize: "11px",
+                        fontSize: "10.5px",
                         padding: "1px 6px",
                         borderRadius: "999px",
                         backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : "rgba(100,116,139,0.12)",
                       }}
                     >
-                      {countForDay}
+                      {countExpenses > 0 ? `${countExpenses} belanja` : `${countItems} agenda`}
                     </span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Tombol Tambah Acara Hari Ini */}
-            <button
-              onClick={() => {
-                setItemToEdit(null);
-                setIsAddItemOpen(true);
-              }}
+            {/* Banner Pacing / Target Harian Hari Terpilih */}
+            <div
               style={{
-                width: "100%",
-                padding: "10px",
-                borderRadius: "12px",
-                border: "1px dashed var(--brand-primary, #287ff0)",
-                backgroundColor: "rgba(40, 127, 240, 0.04)",
-                color: "var(--brand-primary, #287ff0)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
+                backgroundColor: "var(--surface, #ffffff)",
+                borderRadius: "14px",
+                border: "1px solid var(--border, rgba(0,0,0,0.08))",
+                padding: "12px 14px",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
+                gap: "10px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
               }}
             >
-              <Plus size={16} />
-              <span>Tambah Acara di Hari ke-{selectedDay}</span>
-            </button>
+              <div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)", fontWeight: 500 }}>
+                  Realisasi Hari ke-{selectedDay}
+                </div>
+                <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--text, #1e293b)", marginTop: "2px", fontVariantNumeric: "tabular-nums" }}>
+                  {formatRp(totalSpentForSelectedDay)}
+                </div>
+                {dailyBudget > 0 && (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)", marginTop: "2px" }}>
+                    Target Harian: <strong>{formatRp(dailyBudget)}</strong>
+                  </div>
+                )}
+              </div>
 
-            {/* List Acara Hari Ini */}
-            {itemsForSelectedDay.length === 0 ? (
-              <div
+              <div style={{ textAlign: "right" }}>
+                {dailyBudget > 0 && (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      padding: "3px 8px",
+                      borderRadius: "999px",
+                      backgroundColor:
+                        totalSpentForSelectedDay <= dailyBudget
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "rgba(240, 68, 103, 0.12)",
+                      color:
+                        totalSpentForSelectedDay <= dailyBudget
+                          ? "#059669"
+                          : "#f04467",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {totalSpentForSelectedDay <= dailyBudget
+                      ? `Sisa ${formatRp(dailyBudget - totalSpentForSelectedDay)}`
+                      : `Over +${formatRp(totalSpentForSelectedDay - dailyBudget)}`}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Tombol Aksi Cepat: Catat Belanja & Tambah Agenda */}
+            <div style={{ display: "flex", gap: "8px" }}>
+              {canExecuteExpense && (
+                <button
+                  onClick={() => {
+                    setExpenseToEdit(null);
+                    setIsDailyExpenseOpen(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "10px 12px",
+                    borderRadius: "12px",
+                    border: "none",
+                    backgroundColor: "var(--brand-primary, #287ff0)",
+                    color: "#ffffff",
+                    fontSize: "12.5px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    boxShadow: "0 3px 10px rgba(40, 127, 240, 0.25)",
+                  }}
+                >
+                  <Plus size={15} />
+                  <span>Catat Pengeluaran</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setItemToEdit(null);
+                  setIsAddItemOpen(true);
+                }}
                 style={{
-                  backgroundColor: "var(--surface, #ffffff)",
-                  borderRadius: "16px",
-                  border: "1px solid var(--border, rgba(0,0,0,0.08))",
-                  padding: "36px 16px",
-                  textAlign: "center",
-                  color: "var(--text-muted, #64748b)",
-                  fontSize: "13px",
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: "1px dashed var(--brand-primary, #287ff0)",
+                  backgroundColor: "rgba(40, 127, 240, 0.04)",
+                  color: "var(--brand-primary, #287ff0)",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
                 }}
               >
-                Belum ada agenda di Hari ke-{selectedDay}. Klik tombol di atas untuk menambahkan jadwal kunjungan.
+                <Plus size={15} />
+                <span>Tambah Agenda</span>
+              </button>
+            </div>
+
+            {/* SECTION 1: DAFTAR PENGELUARAN HARI INI */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px" }}>
+                <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                  💸 Pengeluaran Hari ke-{selectedDay} ({expensesForSelectedDay.length})
+                </h4>
+                {expensesForSelectedDay.length > 0 && (
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                    Subtotal: {formatRp(totalSpentForSelectedDay)}
+                  </span>
+                )}
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {itemsForSelectedDay.map((item) => {
-                  const isOngoing = isTripItemOngoing(item, trip.start_date);
-                  return (
-                    <TimelineItemCard
-                      key={item.id}
-                      item={item}
-                      canExecuteExpense={canExecuteExpense}
-                      onCatatAktual={handleOpenCatatAktual}
-                      onRollback={handleRollbackItem}
-                      onDelete={handleDeleteItem}
-                      onEdit={(it) => {
-                        setItemToEdit(it);
-                        setIsAddItemOpen(true);
+
+              {expensesForSelectedDay.length === 0 ? (
+                <div
+                  style={{
+                    backgroundColor: "var(--surface, #ffffff)",
+                    borderRadius: "14px",
+                    border: "1px solid var(--border, rgba(0,0,0,0.06))",
+                    padding: "20px 14px",
+                    textAlign: "center",
+                    color: "var(--text-muted, #64748b)",
+                    fontSize: "12px",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  Belum ada pengeluaran dicatat di Hari ke-{selectedDay}. Klik <strong>Catat Pengeluaran</strong> di atas untuk mencatat biaya makan, bensin, atau jajan.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {expensesForSelectedDay.map((exp) => (
+                    <DailyExpenseCard
+                      key={exp.id}
+                      expense={exp}
+                      canManage={canExecuteExpense}
+                      onEdit={(e) => {
+                        setExpenseToEdit(e);
+                        setIsDailyExpenseOpen(true);
                       }}
-                      isOngoing={isOngoing}
+                      onDelete={handleDeleteExpense}
                     />
-                  );
-                })}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 2: JADWAL & AGENDA KUNJUNGAN */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px" }}>
+                <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                  🗺️ Jadwal Kunjungan Hari ke-{selectedDay} ({itemsForSelectedDay.length})
+                </h4>
               </div>
-            )}
+
+              {itemsForSelectedDay.length === 0 ? (
+                <div
+                  style={{
+                    backgroundColor: "var(--surface, #ffffff)",
+                    borderRadius: "14px",
+                    border: "1px solid var(--border, rgba(0,0,0,0.06))",
+                    padding: "20px 14px",
+                    textAlign: "center",
+                    color: "var(--text-muted, #64748b)",
+                    fontSize: "12px",
+                  }}
+                >
+                  Belum ada agenda di Hari ke-{selectedDay}. Klik <strong>Tambah Agenda</strong> di atas untuk menjadwalkan spot wisata.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {itemsForSelectedDay.map((item) => {
+                    const isOngoing = isTripItemOngoing(item, trip.start_date);
+                    return (
+                      <TimelineItemCard
+                        key={item.id}
+                        item={item}
+                        canExecuteExpense={canExecuteExpense}
+                        onCatatAktual={handleOpenCatatAktual}
+                        onRollback={handleRollbackItem}
+                        onDelete={handleDeleteItem}
+                        onEdit={(it) => {
+                          setItemToEdit(it);
+                          setIsAddItemOpen(true);
+                        }}
+                        isOngoing={isOngoing}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* TAB 2: BIAYA & REKAPITULASI */}
         {workspaceTab === "biaya" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <h4 style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
-              Rincian Pengeluaran per Kategori
-            </h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Bento Grid: Pengeluaran per Hari */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                Rekapitulasi Pengeluaran per Hari
+              </h4>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: totalDays > 2 ? "repeat(auto-fit, minmax(130px, 1fr))" : "repeat(2, 1fr)",
+                  gap: "8px",
+                }}
+              >
+                {dayBreakdown.map((d) => {
+                  const percentOfTotal =
+                    summaryCost.actual > 0
+                      ? Math.round((d.total / summaryCost.actual) * 100)
+                      : 0;
+                  const isCurrentSelected = selectedDay === d.dayNumber;
 
-            {Object.entries(categoryBreakdown).map(([catKey, data]) => {
-              const meta = CATEGORY_META[catKey as TripCategory] || CATEGORY_META.other;
-              const delta = data.estimated - data.actual;
-
-              return (
-                <div
-                  key={catKey}
-                  style={{
-                    backgroundColor: "var(--surface, #ffffff)",
-                    borderRadius: "14px",
-                    border: "1px solid var(--border, rgba(0,0,0,0.08))",
-                    padding: "12px 14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "10px",
-                    width: "100%",
-                    maxWidth: "100%",
-                    minWidth: 0,
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                  return (
                     <div
+                      key={d.dayNumber}
+                      onClick={() => {
+                        setSelectedDay(d.dayNumber);
+                        setWorkspaceTab("jadwal");
+                      }}
                       style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "10px",
-                        backgroundColor: meta.bgColor,
-                        color: meta.color,
+                        backgroundColor: "var(--surface, #ffffff)",
+                        borderRadius: "14px",
+                        border: isCurrentSelected
+                          ? "2px solid var(--brand-primary, #287ff0)"
+                          : "1px solid var(--border, rgba(0,0,0,0.08))",
+                        padding: "12px",
+                        cursor: "pointer",
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "18px",
-                        flexShrink: 0,
+                        flexDirection: "column",
+                        gap: "4px",
+                        transition: "all 0.15s ease",
                       }}
                     >
-                      {meta.icon}
-                    </div>
-
-                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                          Hari {d.dayNumber}
+                        </span>
+                        <span style={{ fontSize: "10.5px", color: "var(--text-muted, #64748b)" }}>
+                          {d.count} transaksi
+                        </span>
+                      </div>
                       <div
                         style={{
-                          fontSize: "13px",
-                          fontWeight: 700,
+                          fontSize: "14px",
+                          fontWeight: 800,
                           color: "var(--text, #1e293b)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {meta.label}
+                        {formatRp(d.total)}
                       </div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "var(--text-muted, #64748b)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {data.count} Acara • Proyeksi: {formatRp(data.estimated)}
+                      <div style={{ fontSize: "10.5px", color: "var(--brand-primary, #287ff0)", fontWeight: 600 }}>
+                        {percentOfTotal}% dari total
                       </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: "14px", fontWeight: 800, fontFamily: "var(--font-fraunces, serif)", color: "var(--text, #1e293b)", whiteSpace: "nowrap" }}>
-                      {formatRp(data.actual)}
-                    </div>
-                    {data.actual > 0 && (
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: 600,
-                          color: delta >= 0 ? "#0d9488" : "#ea580c",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {delta > 0 ? `Hemat ${formatRp(delta)}` : delta < 0 ? `+${formatRp(Math.abs(delta))}` : "Pas"}
+            {/* Rincian Pengeluaran per Kategori */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
+                Rincian Pengeluaran per Kategori
+              </h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {Object.entries(categoryBreakdown).map(([catKey, data]) => {
+                  const meta = CATEGORY_META[catKey as TripCategory] || CATEGORY_META.other;
+                  const delta = data.estimated - data.actual;
+
+                  return (
+                    <div
+                      key={catKey}
+                      style={{
+                        backgroundColor: "var(--surface, #ffffff)",
+                        borderRadius: "14px",
+                        border: "1px solid var(--border, rgba(0,0,0,0.08))",
+                        padding: "12px 14px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "10px",
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "10px",
+                            backgroundColor: meta.bgColor,
+                            color: meta.color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "16px",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {catKey === "transport" ? "🚗" :
+                           catKey === "food" ? "🍜" :
+                           catKey === "ticket" ? "🎟️" :
+                           catKey === "lodging" ? "🏨" :
+                           catKey === "shopping" ? "🛍️" : "📦"}
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              color: "var(--text, #1e293b)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {meta.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--text-muted, #64748b)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {data.count} transaksi • Estimasi: {formatRp(data.estimated)}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: "14px", fontWeight: 800, fontFamily: "var(--font-fraunces, serif)", color: "var(--text, #1e293b)", whiteSpace: "nowrap" }}>
+                          {formatRp(data.actual)}
+                        </div>
+                        {data.actual > 0 && (
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 600,
+                              color: delta >= 0 ? "#0d9488" : "#ea580c",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {delta > 0 ? `Hemat ${formatRp(delta)}` : delta < 0 ? `+${formatRp(Math.abs(delta))}` : "Pas"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1079,113 +1311,38 @@ export default function DetailWisataPage() {
         </div>
       </Modal>
 
-      {/* Modal Ganti / Hubungkan Sumber Pos Anggaran */}
-      <Modal isOpen={isChangePosOpen} onClose={() => setIsChangePosOpen(false)}>
-        <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: 700, color: "var(--text, #1e293b)" }}>
-              Pilih Sumber Pos Anggaran
-            </h3>
-            <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted, #64748b)" }}>
-              Tentukan pos keuangan yang menjadi pos bawaan saat mencatat pengeluaran agenda trip ini
-            </p>
-          </div>
+      {/* Modal Edit Plafon Anggaran */}
+      <EditBudgetModal
+        isOpen={isEditBudgetOpen}
+        onClose={() => setIsEditBudgetOpen(false)}
+        tripId={trip.id}
+        currentBudget={trip.total_budget_limit || 0}
+        totalDays={totalDays}
+        onSuccess={(newBudget) => {
+          setTrip((prev) => (prev ? { ...prev, total_budget_limit: newBudget } : null));
+          showToast("Plafon anggaran berhasil diperbarui", "success");
+        }}
+      />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "10px 12px",
-                borderRadius: "10px",
-                border: !selectedPosForTrip ? "2px solid var(--brand-primary, #287ff0)" : "1px solid var(--border, #cbd5e1)",
-                backgroundColor: !selectedPosForTrip ? "rgba(40, 127, 240, 0.05)" : "transparent",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="radio"
-                name="posChoice"
-                checked={!selectedPosForTrip}
-                onChange={() => setSelectedPosForTrip("")}
-              />
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text, #1e293b)" }}>
-                Tanpa Pos Terkait (Pilih Pos Saat Belanja)
-              </span>
-            </label>
-
-            {posList.map((p) => (
-              <label
-                key={p.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  border: selectedPosForTrip === p.id ? "2px solid var(--brand-primary, #287ff0)" : "1px solid var(--border, #cbd5e1)",
-                  backgroundColor: selectedPosForTrip === p.id ? "rgba(40, 127, 240, 0.05)" : "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="radio"
-                  name="posChoice"
-                  checked={selectedPosForTrip === p.id}
-                  onChange={() => setSelectedPosForTrip(p.id)}
-                />
-                <div style={{ fontSize: "13px" }}>
-                  <div style={{ fontWeight: 600, color: "var(--text, #1e293b)" }}>
-                    {p.icon || "💰"} {p.name} {p.is_goal ? "(Tabungan Goal)" : ""}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted, #64748b)" }}>
-                    Sisa Saldo: {formatRp(p.current_balance)}
-                  </div>
-                </div>
-              </label>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-            <button
-              type="button"
-              onClick={() => setIsChangePosOpen(false)}
-              style={{
-                flex: 1,
-                padding: "10px",
-                borderRadius: "10px",
-                border: "1px solid var(--border, #cbd5e1)",
-                backgroundColor: "transparent",
-                color: "var(--text-muted, #64748b)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              disabled={savingPos}
-              onClick={() => handleSaveTripPos(selectedPosForTrip || null)}
-              style={{
-                flex: 2,
-                padding: "10px",
-                borderRadius: "10px",
-                border: "none",
-                backgroundColor: "var(--brand-primary, #287ff0)",
-                color: "#ffffff",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: savingPos ? "not-allowed" : "pointer",
-              }}
-            >
-              {savingPos ? "Menyimpan..." : "Simpan Pos"}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* Modal Catat / Edit Pengeluaran Harian */}
+      <DailyExpenseModal
+        isOpen={isDailyExpenseOpen}
+        onClose={() => {
+          setIsDailyExpenseOpen(false);
+          setExpenseToEdit(null);
+        }}
+        tripId={trip.id}
+        totalDays={totalDays}
+        defaultDay={selectedDay}
+        vehicle={linkedVehicle}
+        userId={currentMember?.id}
+        userName={currentMember?.display_name}
+        expenseToEdit={expenseToEdit?.id ? expenseToEdit : null}
+        onSuccess={() => {
+          showToast(expenseToEdit?.id ? "Pengeluaran berhasil diperbarui" : "Pengeluaran berhasil dicatat", "success");
+          loadData();
+        }}
+      />
     </main>
   );
 }

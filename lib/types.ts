@@ -495,6 +495,43 @@ export interface TripItem {
   updated_at: string;
 }
 
+export interface TripExpense {
+  id: string;
+  trip_id: string;
+  keluarga_id: string;
+  day_number: number;
+  category: TripCategory;
+  title: string;
+  amount: number;
+  notes?: string | null;
+  expense_date?: string | null;
+  vehicle_id?: string | null;
+  odometer_km?: number | null;
+  fuel_liters?: number | null;
+  fuel_log_id?: string | null;
+  trip_item_id?: string | null;
+  created_by?: string | null;
+  user_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTripExpenseInput {
+  trip_id: string;
+  day_number: number;
+  category: TripCategory;
+  title: string;
+  amount: number;
+  notes?: string | null;
+  expense_date?: string | null;
+  vehicle_id?: string | null;
+  odometer_km?: number | null;
+  fuel_liters?: number | null;
+  trip_item_id?: string | null;
+}
+
+export type UpdateTripExpenseInput = Partial<CreateTripExpenseInput>;
+
 export type TouristDestinationCategory =
   | "rekreasi"
   | "alam"
@@ -790,6 +827,15 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<TouristDestination>;
+      };
+      trip_expenses: {
+        Row: TripExpense;
+        Insert: Omit<TripExpense, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<TripExpense>;
       };
     };
     Views: {

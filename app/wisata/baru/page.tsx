@@ -484,7 +484,7 @@ export default function BaruWisataPage() {
                 boxSizing: "border-box",
               }}
             >
-              <option value="">-- Tanpa Pos Terkait (Pilih Pos Saat Belanja) --</option>
+              <option value="">-- Tanpa Pos Terkait (Mandiri / Standalone) --</option>
               {posList.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.icon} {p.name} {p.is_goal ? "(Tabungan Goal)" : ""} — Saldo: {formatRp(p.current_balance)}
@@ -492,7 +492,7 @@ export default function BaruWisataPage() {
               ))}
             </select>
             <span style={{ fontSize: "11px", color: "var(--text-muted, #64748b)", display: "block", marginTop: "4px" }}>
-              Opsional. Jika dipilih, pos ini akan menjadi pilihan bawaan saat mencatat pengeluaran agenda di lapangan.
+              Opsional. Pengeluaran wisata dicatat mandiri per hari tanpa memotong saldo POS bulanan keluarga.
             </span>
           </div>
 
