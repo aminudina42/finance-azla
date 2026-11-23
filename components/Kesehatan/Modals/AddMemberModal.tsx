@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import type { HealthFamilyMember, HealthRelationRole, HealthGender, HealthBloodType } from "@/lib/types";
+import { useModalBackHandler } from "@/lib/hooks/useModalBackHandler";
 import { X, UserPlus, UserCheck, Trash2 } from "lucide-react";
 
 interface AddMemberModalProps {
@@ -30,6 +31,8 @@ export default function AddMemberModal({
   onSubmit,
   onDelete,
 }: AddMemberModalProps) {
+  useModalBackHandler({ isOpen, onClose });
+
   const [name, setName] = useState("");
   const [relationRole, setRelationRole] = useState<HealthRelationRole>("anak");
   const [gender, setGender] = useState<HealthGender>("male");

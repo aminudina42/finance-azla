@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { HealthFamilyMember, HealthVitalType, HealthVitalData } from "@/lib/types";
 import { sanitizeDecimalInput } from "@/lib/health-utils";
+import { useModalBackHandler } from "@/lib/hooks/useModalBackHandler";
 import { X, Heart, Droplets, Activity, Zap, AlertTriangle } from "lucide-react";
 
 interface AddVitalModalProps {
@@ -23,6 +24,8 @@ export default function AddVitalModal({
   member,
   onSubmit,
 }: AddVitalModalProps) {
+  useModalBackHandler({ isOpen, onClose });
+
   const [activeTab, setActiveTab] = useState<HealthVitalType>("blood_pressure");
   const [measuredAt, setMeasuredAt] = useState(new Date().toISOString());
 

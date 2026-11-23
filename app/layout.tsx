@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import NativeBackManager from "@/components/NativeBackManager";
 import { AppProvider } from "@/lib/store";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -66,6 +67,7 @@ export default function RootLayout({
           <div className="shell">
             {children}
             <BottomNav />
+            <NativeBackManager />
           </div>
         </AppProvider>
         <Analytics />

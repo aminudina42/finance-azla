@@ -12,6 +12,20 @@ export interface UseModalBackHandlerOptions {
 const modalStack: string[] = [];
 
 /**
+ * Returns true if there is at least one active modal registered in the back stack.
+ */
+export function isAnyModalOpen(): boolean {
+  return modalStack.length > 0;
+}
+
+/**
+ * Returns the current number of active modals in the stack.
+ */
+export function getModalStackCount(): number {
+  return modalStack.length;
+}
+
+/**
  * Safely marks the current history state as non-modal so that
  * when the modal unmounts, useModalBackHandler will NOT trigger window.history.back().
  * Use this when navigating away from the page directly from a modal.

@@ -4239,3 +4239,15 @@
   animation: skeletonShimmer 1.5s ease-in-out infinite;
   display: block;
 }
+
+/* === Native Mobile Back Exit Toast Animation === */
+@keyframes nativeBackToastIn {
+  from {
+    transform: translateY(14px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}

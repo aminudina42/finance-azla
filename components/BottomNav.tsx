@@ -36,6 +36,7 @@ export default function BottomNav() {
       {/* Home — Beranda/Dompet */}
       <Link
         href="/"
+        replace
         className={`bni ${pathname === "/" ? "active" : ""}`}
         onClick={handleHomeClick}
       >
@@ -50,6 +51,7 @@ export default function BottomNav() {
       <div className="bnav-fab-wrap">
         <Link
           href="/input"
+          replace
           className="bnav-fab-btn"
           aria-label="Tambah transaksi"
           onClick={handleNavClick}
@@ -70,6 +72,7 @@ export default function BottomNav() {
       {/* Settings / Manager */}
       <Link
         href="/manager"
+        replace
         className={`bni ${pathname === "/manager" ? "active" : ""}`}
         onClick={handleNavClick}
       >

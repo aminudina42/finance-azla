@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { HealthFamilyMember } from "@/lib/types";
 import { sanitizeDecimalInput } from "@/lib/health-utils";
+import { useModalBackHandler } from "@/lib/hooks/useModalBackHandler";
 import { X, Scale, AlertCircle } from "lucide-react";
 
 interface AddGrowthModalProps {
@@ -25,6 +26,8 @@ export default function AddGrowthModal({
   member,
   onSubmit,
 }: AddGrowthModalProps) {
+  useModalBackHandler({ isOpen, onClose });
+
   const [measuredAt, setMeasuredAt] = useState(new Date().toISOString().split("T")[0]);
   const [weightStr, setWeightStr] = useState("");
   const [heightStr, setHeightStr] = useState("");

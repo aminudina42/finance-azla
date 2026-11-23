@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { HealthFamilyMember, Pos } from "@/lib/types";
 import { sanitizeDecimalInput, checkAllergyRisk } from "@/lib/health-utils";
+import { useModalBackHandler } from "@/lib/hooks/useModalBackHandler";
 import { X, Stethoscope, Plus, Trash2, AlertTriangle, DollarSign, Pill } from "lucide-react";
 
 interface MedicationInputItem {
@@ -50,6 +51,8 @@ export default function AddMedicalRecordModal({
   posList,
   onSubmit,
 }: AddMedicalRecordModalProps) {
+  useModalBackHandler({ isOpen, onClose });
+
   const [illnessName, setIllnessName] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [symptoms, setSymptoms] = useState("");
