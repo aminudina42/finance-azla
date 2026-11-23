@@ -161,7 +161,7 @@ export default function BayarPajakPage({ params }: PageProps) {
       <PageHeader
         title="Bayar Pajak"
         subtitle="Catat pembayaran dan perpanjangan STNK/pajak"
-        onBack={() => router.back()}
+        backHref={`/kendaraan/${id}`}
       />
 
       <div style={{ padding: "0 20px" }}>

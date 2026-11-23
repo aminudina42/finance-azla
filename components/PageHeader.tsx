@@ -3,7 +3,6 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useHierarchicalBack } from "@/lib/hooks/useHierarchicalBack";
 
 interface PageHeaderProps {
   title: React.ReactNode;
@@ -28,20 +27,19 @@ export default function PageHeader({
 }: PageHeaderProps) {
   const router = useRouter();
 
-  // Intercept native mobile hardware back button and swipe gestures
-  useHierarchicalBack({
-    enabled: showBack,
-    onBack,
-    backHref,
-  });
-
-  const handleBack = () => {
+  const handleBack = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (onBack) {
       onBack();
     } else if (backHref) {
-      router.replace(backHref);
-    } else {
+      router.push(backHref);
+    } else if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
+    } else {
+      router.push("/");
     }
   };
 
@@ -73,10 +71,9 @@ export default function PageHeader({
     >
       <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 auto" }}>
         {showBack && (
-          backHref ? (
+          backHref && !onBack ? (
             <Link
               href={backHref}
-              replace
               style={{
                 width: "38px",
                 height: "38px",

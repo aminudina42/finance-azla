@@ -93,7 +93,7 @@ export default function TambahKendaraanPage() {
       <PageHeader
         title="Tambah Kendaraan"
         subtitle="Daftarkan kendaraan motor atau mobil keluarga"
-        onBack={() => router.back()}
+        backHref="/kendaraan"
       />
 
       <div style={{ padding: "0 20px" }}>

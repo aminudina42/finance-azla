@@ -125,7 +125,7 @@ export default function EditKendaraanPage({ params }: PageProps) {
       <PageHeader
         title="Edit Kendaraan"
         subtitle="Perbarui data dan spesifikasi kendaraan"
-        onBack={() => router.back()}
+        backHref={`/kendaraan/${id}`}
       />
 
       <div style={{ padding: "0 20px" }}>

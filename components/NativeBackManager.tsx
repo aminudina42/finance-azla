@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { triggerHaptic } from "@/lib/haptics";
 import { isAnyModalOpen } from "@/lib/hooks/useModalBackHandler";
 
@@ -9,16 +9,14 @@ const EXIT_INTERVAL_MS = 2000;
 
 export default function NativeBackManager() {
   const pathname = usePathname();
-  const router = useRouter();
   const [showExitToast, setShowExitToast] = useState(false);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastBackPressRef = useRef<number>(0);
   const isExitingRef = useRef<boolean>(false);
 
-  // Normalize pathname: "/" or empty string is root
+  // Normalize pathname: only active on Root ("/")
   const normalizedPath = pathname ? (pathname.replace(/\/$/, "") || "/") : "/";
   const isRoot = normalizedPath === "/";
-  const isTopTab = normalizedPath === "/input" || normalizedPath === "/manager";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -30,10 +28,10 @@ export default function NativeBackManager() {
       clearTimeout(toastTimeoutRef.current);
     }
 
-    // Only install root exit guard or top tab handler
-    if (!isRoot && !isTopTab) return;
+    // ONLY manage double-back to exit on Root ("/")
+    if (!isRoot) return;
 
-    // Ensure a sentinel history entry exists
+    // Ensure a sentinel history entry exists only on Root
     if (!window.history.state?.__catatKeluargaRootSentinel) {
       window.history.pushState(
         { ...window.history.state, __catatKeluargaRootSentinel: true },
@@ -53,13 +51,7 @@ export default function NativeBackManager() {
         return;
       }
 
-      // 2. If on top-level tabs (/input or /manager), native back navigates back to Home ("/")
-      if (isTopTab) {
-        router.replace("/");
-        return;
-      }
-
-      // 3. We are on Root ("/"): Double-back to exit logic
+      // 2. We are on Root ("/"): Double-back to exit logic
       const now = Date.now();
       const diff = now - lastBackPressRef.current;
 
@@ -99,7 +91,7 @@ export default function NativeBackManager() {
         clearTimeout(toastTimeoutRef.current);
       }
     };
-  }, [isRoot, isTopTab, router]);
+  }, [isRoot]);
 
   if (!showExitToast) return null;
 
