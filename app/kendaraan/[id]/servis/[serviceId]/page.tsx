@@ -65,13 +65,7 @@ export default function DetailServisPage({ params }: PageProps) {
       <PageHeader
         title="Detail Servis"
         subtitle={`${vehicle.brand} ${vehicle.model} • ${vehicle.plate_number}`}
-        onBack={() => {
-          if (typeof window !== "undefined" && window.history.length > 1) {
-            router.back();
-          } else {
-            router.push(`/kendaraan/${id}?tab=servis`);
-          }
-        }}
+        backHref={`/kendaraan/${id}?tab=servis`}
       />
 
       <div style={{ padding: "0 20px" }}>

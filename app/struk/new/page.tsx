@@ -302,7 +302,7 @@ export default function NewStrukPage() {
       <PageHeader
         title="Kasir - Transaksi Baru"
         subtitle="Input barang penjualan & harga modal, lalu simpan & cetak struk"
-        onBack={() => { setIsNavigating(true); router.back(); }}
+        backHref="/struk"
       />
 
       <div className="struk-body">

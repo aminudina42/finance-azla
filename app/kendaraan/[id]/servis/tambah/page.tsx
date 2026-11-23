@@ -235,8 +235,15 @@ export default function TambahServisWizardPage({ params }: PageProps) {
           title="Tambah Riwayat Servis"
           subtitle={`Langkah ${step} dari 3: ${step === 1 ? "Identitas & Jadwal" : step === 2 ? "Biaya Servis" : "Ringkasan"}`}
           onBack={() => {
-            if (step === 1) router.back();
-            else setStep((s) => (s - 1) as any);
+            if (step === 1) {
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push(`/kendaraan/${id}?tab=servis`);
+              }
+            } else {
+              setStep((s) => (s - 1) as any);
+            }
           }}
         />
       )}
