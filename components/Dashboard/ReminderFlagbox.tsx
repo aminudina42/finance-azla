@@ -423,30 +423,38 @@ export default function ReminderFlagbox({
     // 2. SLIDE JATUH TEMPO HUTANG (Prioritas 2)
     if (upcomingDebts.length > 0 && !isDebtDismissed) {
       const topDebt = upcomingDebts[0];
-      const daysLeft =
-        topDebt.due_date >= todayDate
-          ? topDebt.due_date - todayDate
-          : 30 - todayDate + topDebt.due_date;
+      const isOverdue = topDebt.due_date < todayDate;
+      const daysOverdue = todayDate - topDebt.due_date;
+      const daysLeft = topDebt.due_date - todayDate;
 
-      const dueLabel = daysLeft === 0 ? "HARI INI!" : `${daysLeft} hari lagi`;
+      const dueLabel = isOverdue
+        ? `Lewat ${daysOverdue} hari`
+        : daysLeft === 0
+        ? "HARI INI!"
+        : `${daysLeft} hari lagi`;
+
       const subtitleText =
         upcomingDebts.length > 1
-          ? `${topDebt.name} (${dueLabel} · ${formatRp(topDebt.monthly_payment)}) serta ${upcomingDebts.length - 1} hutang lainnya.`
+          ? isOverdue
+            ? `${topDebt.name} (Lewat ${daysOverdue} hari · ${formatRp(topDebt.monthly_payment)}) serta ${upcomingDebts.length - 1} hutang lainnya.`
+            : `${topDebt.name} (${dueLabel} · ${formatRp(topDebt.monthly_payment)}) serta ${upcomingDebts.length - 1} hutang lainnya.`
+          : isOverdue
+          ? `${topDebt.name} telah melewati jatuh tempo (tgl ${topDebt.due_date}). Angsuran: ${formatRp(topDebt.monthly_payment)}.`
           : `${topDebt.name} jatuh tempo ${dueLabel}. Angsuran: ${formatRp(topDebt.monthly_payment)}.`;
 
       list.push({
         id: "debt-slide",
         type: "debt",
         badge: {
-          text: "JATUH TEMPO TERDEKAT",
+          text: isOverdue ? "LEWAT JATUH TEMPO" : "JATUH TEMPO TERDEKAT",
           bg: "#dc2626",
           color: "#ffffff",
           border: "rgba(255,255,255,0.3)",
         },
         emoji: <CategoryIcon icon={topDebt.icon} name={topDebt.name} size="md" />,
-        title: `Hutang Jatuh Tempo (${dueLabel})`,
+        title: isOverdue ? `Cicilan Lewat Tempo (${daysOverdue} Hari)` : `Hutang Jatuh Tempo (${dueLabel})`,
         subtitle: subtitleText,
-        highlight: `Segera bayar sebelum jatuh tempo`,
+        highlight: isOverdue ? `Segera selesaikan pembayaran angsuran` : `Segera bayar sebelum jatuh tempo`,
         bgGradient: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 50%, #fff7ed 100%)",
         borderColor: "#fecaca",
         primaryCta: {

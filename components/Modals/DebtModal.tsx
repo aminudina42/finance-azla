@@ -37,7 +37,9 @@ interface DebtModalProps {
     paidMonths?: number,
     creditorName?: string,
     accountNumber?: string,
-    notes?: string
+    notes?: string,
+    startDate?: string,
+    firstBillDate?: string
   ) => void;
 }
 

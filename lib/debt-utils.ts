@@ -141,12 +141,137 @@ export function isDebtPaidThisMonth(
 }
 
 export interface MonthlyStatus {
-  status: "settled" | "paid" | "due_soon" | "overdue" | "pending";
+  status: "settled" | "paid" | "due_soon" | "overdue" | "pending" | "not_started";
   label: string;
   badgeBg: string;
   badgeColor: string;
   detail?: string;
   daysDiff?: number;
+}
+
+/**
+ * Parsing tanggal string (YYYY-MM-DD atau ISO) ke komponen angka aman dari pergeseran timezone.
+ */
+export function parseDateParts(dateStr?: string | null): { year: number; month: number; day: number } | null {
+  if (!dateStr) return null;
+  const clean = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+  const parts = clean.split("-");
+  if (parts.length < 3) return null;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // 0-indexed
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  return { year, month, day };
+}
+
+/**
+ * Menghitung tanggal jatuh tempo angsuran pertama berdasarkan tanggal mulai pinjaman,
+ * tanggal tagihan bulanan (1-31), dan pilihan periode awal (bulan berikutnya / bulan ini).
+ */
+export function calculateFirstBillDate(
+  startDateStr: string,
+  dueDate: number,
+  startOption: "next_month" | "this_month" = "next_month"
+): string {
+  const parts = parseDateParts(startDateStr) || {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    day: new Date().getDate(),
+  };
+
+  let targetYear = parts.year;
+  let targetMonth = parts.month;
+
+  if (startOption === "next_month") {
+    targetMonth += 1;
+    if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear += 1;
+    }
+  }
+
+  const maxDayInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const targetDay = Math.min(Math.max(1, dueDate || 1), maxDayInTargetMonth);
+
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}`;
+}
+
+/**
+ * Memeriksa apakah hutang/kredit baru ini belum memasuki periode angsuran pertama
+ * (misal pinjaman baru diajukan di bulan ini dan angsuran baru mulai berjalan di bulan berikutnya).
+ */
+export function isDebtNotStartedYet(
+  debt: Debt,
+  currentDate: Date = new Date()
+): { notStarted: boolean; firstBillDateStr?: string; detail?: string } {
+  if (debt.remaining_amount <= 0) {
+    return { notStarted: false };
+  }
+
+  // Jika sudah ada cicilan yang terbayar (misal input hutang lama yang sudah berjalan),
+  // berarti pinjaman ini sudah aktif berjalan dan bukan pinjaman baru.
+  if ((debt.paid_months || 0) > 0) {
+    return { notStarted: false };
+  }
+
+  const now = currentDate;
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const todayDate = now.getDate();
+  const dueDate = debt.due_date || 1;
+
+  // 1. Cek jika first_bill_date tersimpan secara eksplisit
+  if (debt.first_bill_date) {
+    const fb = parseDateParts(debt.first_bill_date);
+    if (fb) {
+      // Jika bulan kalender berjalan masih sebelum bulan angsuran pertama
+      if (currentYear < fb.year || (currentYear === fb.year && currentMonth < fb.month)) {
+        return {
+          notStarted: true,
+          firstBillDateStr: debt.first_bill_date,
+          detail: `Cicilan ke-1 mulai ${formatDateIndo(debt.first_bill_date)}`,
+        };
+      }
+
+      // Jika di bulan yang sama dengan angsuran pertama, tapi hari ini masih sebelum tanggal jatuh tempo pertama
+      // (statusnya tetap normal pending, bukan not_started untuk seluruh bulan)
+      if (currentYear === fb.year && currentMonth === fb.month && todayDate < fb.day) {
+        return { notStarted: false };
+      }
+    }
+  }
+
+  // 2. Deteksi otomatis cerdas (fallback jika first_bill_date belum diisi):
+  // Cek tanggal mulai / tanggal pendaftaran pinjaman
+  const refParts = parseDateParts(debt.start_date) || parseDateParts(debt.created_at);
+  if (refParts) {
+    // Jika pinjaman diajukan/didaftarkan di bulan kalender berjalan
+    if (refParts.year === currentYear && refParts.month === currentMonth) {
+      // A. Jika tanggal jatuh tempo bulan ini sudah lewat atau sama dengan tanggal pengajuan/pendaftaran
+      // (Contoh: sekarang tgl 19, ajuin tgl 18, daftar tgl 19, tagihan tgl 18 -> tagihan tgl 18 bulan ini sudah lewat)
+      const duePassedAtCreation = dueDate <= refParts.day || dueDate <= todayDate;
+
+      // B. Atau skema kredit berbunga dengan tenor (KPR, leasing) yang baru berjalan di bulan ini
+      const isNewKredit = (debt.tenor_months || 0) > 0;
+
+      if (duePassedAtCreation || isNewKredit) {
+        const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+        const nextYear = nextMonthDate.getFullYear();
+        const nextMonth = nextMonthDate.getMonth();
+        const maxDay = new Date(nextYear, nextMonth + 1, 0).getDate();
+        const targetDay = Math.min(dueDate, maxDay);
+        const calculatedFirstBill = `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}`;
+
+        return {
+          notStarted: true,
+          firstBillDateStr: calculatedFirstBill,
+          detail: `Cicilan ke-1 mulai ${formatDateIndo(calculatedFirstBill)}`,
+        };
+      }
+    }
+  }
+
+  return { notStarted: false };
 }
 
 export function getDebtMonthlyStatus(
@@ -182,6 +307,19 @@ export function getDebtMonthlyStatus(
   }
 
   const now = new Date();
+
+  // Cek apakah pinjaman ini belum mulai angsuran untuk bulan ini (baru mulai bulan depan)
+  const notStartedInfo = isDebtNotStartedYet(debt, now);
+  if (notStartedInfo.notStarted) {
+    return {
+      status: "not_started",
+      label: "Mulai Bulan Depan",
+      badgeBg: "rgba(59, 130, 246, 0.12)",
+      badgeColor: "#2563eb",
+      detail: notStartedInfo.detail || `Jatuh tempo pertama tgl ${debt.due_date || 1}`,
+    };
+  }
+
   const todayDate = now.getDate();
   const dueDate = debt.due_date || 1;
 

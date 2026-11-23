@@ -8,7 +8,7 @@ import PayDebtModal from "@/components/Modals/PayDebtModal";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
 import type { Debt, DebtPayment } from "@/lib/types";
-import { Settings, AlertTriangle, WalletCards, MessageSquare, Check, History, Clock } from "lucide-react";
+import { Settings, AlertTriangle, WalletCards, MessageSquare, Check, History, Clock, Calendar } from "lucide-react";
 import CategoryIcon from "@/components/ui/category-icon";
 import StatusBadge from "@/components/ui/status-badge";
 import {
@@ -81,25 +81,31 @@ export default function DebtsPage() {
     let paidCount = 0;
     let dueSoonCount = 0;
     let overdueCount = 0;
+    let notStartedCount = 0;
 
     activeDebts.forEach((d) => {
       const st = getDebtMonthlyStatus(d, debtPayments, transactions, activeCycle);
       if (st.status === "paid") paidCount++;
       else if (st.status === "overdue") overdueCount++;
       else if (st.status === "due_soon") dueSoonCount++;
+      else if (st.status === "not_started") notStartedCount++;
     });
+
+    const billedCount = Math.max(0, activeDebts.length - notStartedCount);
 
     return {
       paidCount,
       dueSoonCount,
       overdueCount,
+      notStartedCount,
+      billedCount,
       totalActive: activeDebts.length,
     };
   }, [activeDebts, debtPayments, transactions, activeCycle]);
 
   // Hirarki Sorting:
   // 1. Yang belum lunas selalu di atas, yang sudah lunas di paling bawah
-  // 2. Berdasarkan status bulan ini: overdue > due_soon > pending > paid > settled
+  // 2. Berdasarkan status bulan ini: overdue > due_soon > pending > not_started > paid > settled
   // 3. Berdasarkan sisa jumlah bulan pembayaran terkecil
   const sortedDebts = useMemo(() => {
     return [...debts].sort((a, b) => {
@@ -121,8 +127,9 @@ export default function DebtsPage() {
         overdue: 1,
         due_soon: 2,
         pending: 3,
-        paid: 4,
-        settled: 5,
+        not_started: 4,
+        paid: 5,
+        settled: 6,
       };
 
       if (priority[stA] !== priority[stB]) {
@@ -458,8 +465,10 @@ export default function DebtsPage() {
             >
               <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 650 }}>
                 Status Bulan Ini:{" "}
-                <strong style={{ color: monthlyStats.paidCount === monthlyStats.totalActive ? "var(--teal)" : "var(--navy)" }}>
-                  {monthlyStats.paidCount} dari {monthlyStats.totalActive} Sudah Dibayar
+                <strong style={{ color: monthlyStats.billedCount > 0 && monthlyStats.paidCount === monthlyStats.billedCount ? "var(--teal)" : "var(--navy)" }}>
+                  {monthlyStats.billedCount > 0
+                    ? `${monthlyStats.paidCount} dari ${monthlyStats.billedCount} Sudah Dibayar`
+                    : "Belum Ada Tagihan Berjalan (Mulai Bulan Depan)"}
                 </strong>
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
@@ -477,7 +486,14 @@ export default function DebtsPage() {
                     label={`${monthlyStats.dueSoonCount} Segera Tempo`}
                   />
                 )}
-                {monthlyStats.paidCount === monthlyStats.totalActive && (
+                {monthlyStats.notStartedCount > 0 && (
+                  <StatusBadge
+                    variant="neutral"
+                    size="sm"
+                    label={`${monthlyStats.notStartedCount} Mulai Bln Depan`}
+                  />
+                )}
+                {monthlyStats.billedCount > 0 && monthlyStats.paidCount === monthlyStats.billedCount && (
                   <StatusBadge
                     variant="success"
                     size="sm"
@@ -566,6 +582,8 @@ export default function DebtsPage() {
                     ? "rgba(22, 168, 154, 0.25)"
                     : monthlyStatus.status === "overdue"
                     ? "rgba(240, 68, 103, 0.35)"
+                    : monthlyStatus.status === "not_started"
+                    ? "rgba(59, 130, 246, 0.25)"
                     : "var(--border)"
                 }`,
                 borderRadius: "18px",
@@ -718,6 +736,7 @@ export default function DebtsPage() {
                   {monthlyStatus.status === "paid" && <Check size={13} />}
                   {monthlyStatus.status === "overdue" && <AlertTriangle size={13} />}
                   {monthlyStatus.status === "due_soon" && <Clock size={13} />}
+                  {monthlyStatus.status === "not_started" && <Calendar size={13} />}
                   <span>{monthlyStatus.label}</span>
                 </div>
                 {monthlyStatus.detail && (

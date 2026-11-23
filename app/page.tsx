@@ -17,7 +17,7 @@ import PosCard from "@/components/Dashboard/PosCard";
 import FirstCycleSetupModal from "@/components/Modals/FirstCycleSetupModal";
 import NewCycleModal from "@/components/Modals/NewCycleModal";
 import Skeleton from "@/components/Skeleton";
-import { isDebtPaidThisMonth } from "@/lib/debt-utils";
+import { isDebtPaidThisMonth, getDebtMonthlyStatus } from "@/lib/debt-utils";
 
 const subscribeHideNominal = (callback: () => void) => {
   window.addEventListener("storage", callback);
@@ -176,20 +176,12 @@ export default function Home() {
     dayInCycleStr = `Selesai (${totalDays} hari)`;
   }
 
-  // Upcoming debt due dates (within 7 days) yang BELUM dibayar periode ini
+  // Upcoming debt due dates (due soon / overdue) yang aktif dan belum dibayar periode ini
   const todayDate = today.getDate();
   const upcomingDebts = debts.filter((d) => {
     if (d.remaining_amount <= 0) return false;
-
-    // Jika sudah dibayar untuk bulan/periode ini, hilangkan dari peringatan jatuh tempo
-    const paidCheck = isDebtPaidThisMonth(d, debtPayments, transactions, selectedCycle);
-    if (paidCheck.isPaid) return false;
-
-    const daysUntilDue =
-      d.due_date >= todayDate
-        ? d.due_date - todayDate
-        : 30 - todayDate + d.due_date; // wrap to next month
-    return daysUntilDue <= 7;
+    const st = getDebtMonthlyStatus(d, debtPayments, transactions, selectedCycle);
+    return st.status === "due_soon" || st.status === "overdue";
   });
 
   if (isLoading) {

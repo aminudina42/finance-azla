@@ -138,6 +138,8 @@ export interface Debt {
   creditor_name?: string;
   account_number?: string;
   notes?: string;
+  start_date?: string;
+  first_bill_date?: string;
   created_at: string;
 }
 

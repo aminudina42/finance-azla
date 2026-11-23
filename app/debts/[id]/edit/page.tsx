@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, use } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { useApp } from "@/lib/store";
-import { evaluateDebtRatio } from "@/lib/debt-utils";
+import { evaluateDebtRatio, calculateFirstBillDate, formatDateIndo } from "@/lib/debt-utils";
 import VectorIconPicker from "@/components/ui/vector-icon-picker";
 import StatusBadge from "@/components/ui/status-badge";
 import {
@@ -39,6 +39,13 @@ export default function EditHutangPage({ params }: PageProps) {
   const [monthlyStr, setMonthlyStr] = useState("");
   const [dueDateStr, setDueDateStr] = useState("1");
 
+  const getTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const [startDate, setStartDate] = useState(getTodayStr());
+  const [firstBillOption, setFirstBillOption] = useState<"next_month" | "this_month">("next_month");
+
   const [isKredit, setIsKredit] = useState(false);
   const [principalStr, setPrincipalStr] = useState("");
   const [tenor, setTenor] = useState(0);
@@ -65,8 +72,33 @@ export default function EditHutangPage({ params }: PageProps) {
       setCreditor(targetDebt.creditor_name || "");
       setAccountNumber(targetDebt.account_number || "");
       setNotes(targetDebt.notes || "");
+
+      const initStart = targetDebt.start_date || (targetDebt.created_at ? targetDebt.created_at.split("T")[0] : getTodayStr());
+      setStartDate(initStart);
+
+      if (targetDebt.first_bill_date) {
+        // Tentukan apakah first_bill_date berada di bulan yang sama dengan start_date atau bulan berikutnya
+        const sParts = initStart.split("-");
+        const fbParts = targetDebt.first_bill_date.split("-");
+        if (sParts.length >= 2 && fbParts.length >= 2) {
+          const sYear = parseInt(sParts[0], 10);
+          const sMonth = parseInt(sParts[1], 10);
+          const fbYear = parseInt(fbParts[0], 10);
+          const fbMonth = parseInt(fbParts[1], 10);
+          if (fbYear === sYear && fbMonth === sMonth) {
+            setFirstBillOption("this_month");
+          } else {
+            setFirstBillOption("next_month");
+          }
+        }
+      }
     }
   }, [targetDebt]);
+
+  const calculatedFirstBill = useMemo(() => {
+    const dueNum = Math.min(31, Math.max(1, Number(dueDateStr) || 1));
+    return calculateFirstBillDate(startDate, dueNum, firstBillOption);
+  }, [startDate, dueDateStr, firstBillOption]);
 
   // Perhitungan Keuangan Otomatis
   const activeDebts = useMemo(() => debts.filter((d) => d.remaining_amount > 0), [debts]);
@@ -140,7 +172,9 @@ export default function EditHutangPage({ params }: PageProps) {
         paidM,
         creditor.trim(),
         accountNumber.trim(),
-        notes.trim()
+        notes.trim(),
+        startDate,
+        calculatedFirstBill
       );
 
       router.push("/debts");
@@ -382,19 +416,82 @@ export default function EditHutangPage({ params }: PageProps) {
               </div>
             )}
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Tanggal Pengajuan / Pinjaman
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Tanggal Jatuh Tempo Bulanan (1 - 31) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  required
+                  value={dueDateStr}
+                  onChange={(e) => setDueDateStr(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Tanggal Jatuh Tempo Bulanan (1 - 31) *
+                Mulai Pembayaran Angsuran Pertama
               </label>
-              <input
-                type="number"
-                min={1}
-                max={31}
-                required
-                value={dueDateStr}
-                onChange={(e) => setDueDateStr(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setFirstBillOption("next_month")}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
+                    firstBillOption === "next_month"
+                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <span>Bulan Berikutnya</span>
+                  <span className="text-[10px] font-normal opacity-80">(Umum untuk Pinjaman Baru)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFirstBillOption("this_month")}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
+                    firstBillOption === "this_month"
+                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <span>Bulan Berjalan</span>
+                  <span className="text-[10px] font-normal opacity-80">(Langsung Ditagih Bulan Ini)</span>
+                </button>
+              </div>
+
+              <div className="mt-2.5 p-3 rounded-xl bg-blue-50/70 border border-blue-200/80 text-xs text-blue-900 flex items-start gap-2.5">
+                <Calendar size={16} className="text-blue-600 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold">
+                    Jatuh tempo angsuran pertama:{" "}
+                    <span className="text-blue-700 underline underline-offset-2">
+                      {formatDateIndo(calculatedFirstBill)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-blue-800/80 mt-0.5 leading-relaxed">
+                    {firstBillOption === "next_month"
+                      ? "✨ Tidak ada reminder atau peringatan jatuh tempo untuk bulan ini. Pengingat angsuran baru akan aktif di bulan berikutnya."
+                      : "⚠️ Angsuran pertama langsung aktif dan ditagih pada periode bulan ini."}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Evaluasi Rasio Hutang Aman */}

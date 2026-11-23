@@ -74,8 +74,39 @@ interface AppState {
   // Debt management
   debts: Debt[];
   debtPayments: DebtPayment[];
-  addDebt: (name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number, creditorName?: string, accountNumber?: string, notes?: string) => Promise<void>;
-  updateDebt: (id: string, name: string, icon: string, totalAmount: number, remainingAmount: number, monthlyPayment: number, dueDate: number, principalAmount?: number, tenorMonths?: number, paidMonths?: number, creditorName?: string, accountNumber?: string, notes?: string) => Promise<void>;
+  addDebt: (
+    name: string,
+    icon: string,
+    totalAmount: number,
+    remainingAmount: number,
+    monthlyPayment: number,
+    dueDate: number,
+    principalAmount?: number,
+    tenorMonths?: number,
+    paidMonths?: number,
+    creditorName?: string,
+    accountNumber?: string,
+    notes?: string,
+    startDate?: string,
+    firstBillDate?: string
+  ) => Promise<void>;
+  updateDebt: (
+    id: string,
+    name: string,
+    icon: string,
+    totalAmount: number,
+    remainingAmount: number,
+    monthlyPayment: number,
+    dueDate: number,
+    principalAmount?: number,
+    tenorMonths?: number,
+    paidMonths?: number,
+    creditorName?: string,
+    accountNumber?: string,
+    notes?: string,
+    startDate?: string,
+    firstBillDate?: string
+  ) => Promise<void>;
   deleteDebt: (id: string) => Promise<void>;
   payDebt: (debtId: string, amount: number, posId: string, notes?: string, paymentDate?: string) => Promise<void>;
   rollbackDebtPayment: (paymentId: string) => Promise<void>;
@@ -1087,10 +1118,13 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     paidMonths = 0,
     creditorName = "",
     accountNumber = "",
-    notes = ""
+    notes = "",
+    startDate?: string,
+    firstBillDate?: string
   ) => {
     setIsMutating(true);
     try {
+      const nowIso = new Date().toISOString();
       const localDebt: Debt = {
         id: "d" + Date.now(),
         name,
@@ -1105,12 +1139,14 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         creditor_name: creditorName,
         account_number: accountNumber,
         notes,
-        created_at: new Date().toISOString(),
+        start_date: startDate || nowIso.split("T")[0],
+        first_bill_date: firstBillDate,
+        created_at: nowIso,
         keluarga_id: currentKeluarga?.id,
       };
       setDebts((prev) => [...prev, localDebt]);
 
-      const { data } = await supabase.from("debts").insert({
+      const insertPayload: any = {
         name,
         icon,
         total_amount: totalAmount,
@@ -1124,8 +1160,19 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         account_number: accountNumber,
         notes,
         keluarga_id: currentKeluarga?.id,
-      }).select().single();
-      if (data) setDebts((prev) => prev.map((d) => (d.id === localDebt.id ? { ...data } as Debt : d)));
+      };
+      if (startDate) insertPayload.start_date = startDate;
+      if (firstBillDate) insertPayload.first_bill_date = firstBillDate;
+
+      let res = await supabase.from("debts").insert(insertPayload).select().single();
+      if (res.error && (res.error.message?.includes("start_date") || res.error.message?.includes("first_bill_date") || res.error.code === "PGRST204")) {
+        delete insertPayload.start_date;
+        delete insertPayload.first_bill_date;
+        res = await supabase.from("debts").insert(insertPayload).select().single();
+      }
+      if (res.data) {
+        setDebts((prev) => prev.map((d) => (d.id === localDebt.id ? { ...res.data, start_date: startDate || res.data.start_date, first_bill_date: firstBillDate || res.data.first_bill_date } as Debt : d)));
+      }
     } finally {
       isMutatingCycleRef.current = false;
       setIsMutating(false);
@@ -1145,7 +1192,9 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
     paidMonths = 0,
     creditorName = "",
     accountNumber = "",
-    notes = ""
+    notes = "",
+    startDate?: string,
+    firstBillDate?: string
   ) => {
     setIsMutating(true);
     try {
@@ -1163,8 +1212,11 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         creditor_name: creditorName,
         account_number: accountNumber,
         notes,
+        start_date: startDate !== undefined ? startDate : d.start_date,
+        first_bill_date: firstBillDate !== undefined ? firstBillDate : d.first_bill_date,
       } : d)));
-      await supabase.from("debts").update({
+
+      const updatePayload: any = {
         name,
         icon,
         total_amount: totalAmount,
@@ -1177,7 +1229,16 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         creditor_name: creditorName,
         account_number: accountNumber,
         notes,
-      }).eq("id", id);
+      };
+      if (startDate !== undefined) updatePayload.start_date = startDate;
+      if (firstBillDate !== undefined) updatePayload.first_bill_date = firstBillDate;
+
+      const res = await supabase.from("debts").update(updatePayload).eq("id", id);
+      if (res.error && (res.error.message?.includes("start_date") || res.error.message?.includes("first_bill_date") || res.error.code === "PGRST204")) {
+        delete updatePayload.start_date;
+        delete updatePayload.first_bill_date;
+        await supabase.from("debts").update(updatePayload).eq("id", id);
+      }
     } finally {
       isMutatingCycleRef.current = false;
       setIsMutating(false);
