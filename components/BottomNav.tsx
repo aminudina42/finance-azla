@@ -4,10 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { triggerHaptic } from "@/lib/haptics";
 
+const ALLOWED_PATHS = ["/", "/input", "/manager"];
+
 export default function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/login" || pathname === "/onboarding") return null;
+  // Bottom navbar hanya tampil di:
+  // 1. Home ("/")
+  // 2. Catat Pengeluaran ("/input")
+  // 3. Setting ("/manager")
+  // Sisanya di tiap modul tidak menampilkan bottom navbar
+  const normalizedPathname = pathname ? (pathname.replace(/\/$/, "") || "/") : "";
+  if (!ALLOWED_PATHS.includes(normalizedPathname)) return null;
 
   const handleHomeClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     triggerHaptic("light");
@@ -51,7 +59,12 @@ export default function BottomNav() {
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </Link>
-        <span className="bnav-fab-label">Tambah</span>
+        <span
+          className="bnav-fab-label"
+          style={normalizedPathname === "/input" ? { color: "var(--primary)", fontWeight: 700 } : undefined}
+        >
+          Tambah
+        </span>
       </div>
 
       {/* Settings / Manager */}
