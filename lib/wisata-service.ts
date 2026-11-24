@@ -492,6 +492,47 @@ export async function getTouristDestinations(
   }
 }
 
+export async function getTouristDestinationById(
+  id: string
+): Promise<TouristDestination | null> {
+  if (!id) return null;
+
+  if (id.startsWith("seed-") || id.startsWith("local-")) {
+    return FALLBACK_SEED_DESTINATIONS.find((d) => d.id === id) || null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("tourist_destinations")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      if (
+        error.code === "PGRST205" ||
+        error.message?.includes("schema cache") ||
+        error.message?.includes("does not exist")
+      ) {
+        return FALLBACK_SEED_DESTINATIONS.find((d) => d.id === id) || null;
+      }
+      console.error(`Error fetching tourist destination ${id}:`, error);
+      throw error;
+    }
+
+    return data || null;
+  } catch (err: any) {
+    if (
+      err?.code === "PGRST205" ||
+      err?.message?.includes("schema cache") ||
+      err?.message?.includes("does not exist")
+    ) {
+      return FALLBACK_SEED_DESTINATIONS.find((d) => d.id === id) || null;
+    }
+    throw err;
+  }
+}
+
 export async function getTouristCities(): Promise<string[]> {
   try {
     const { data, error } = await supabase
@@ -574,12 +615,37 @@ export async function updateTouristDestination(
   }
   if (input.notes !== undefined) payload.notes = input.notes ? input.notes.trim() : null;
 
+  if (id.startsWith("seed-") || id.startsWith("local-")) {
+    const idx = FALLBACK_SEED_DESTINATIONS.findIndex((d) => d.id === id);
+    if (idx >= 0) {
+      FALLBACK_SEED_DESTINATIONS[idx] = {
+        ...FALLBACK_SEED_DESTINATIONS[idx],
+        ...payload,
+      };
+    }
+    return { error: null };
+  }
+
   const { error } = await supabase
     .from("tourist_destinations")
     .update(payload)
     .eq("id", id);
 
   if (error) {
+    if (
+      error.code === "PGRST205" ||
+      error.message?.includes("schema cache") ||
+      error.message?.includes("does not exist")
+    ) {
+      const idx = FALLBACK_SEED_DESTINATIONS.findIndex((d) => d.id === id);
+      if (idx >= 0) {
+        FALLBACK_SEED_DESTINATIONS[idx] = {
+          ...FALLBACK_SEED_DESTINATIONS[idx],
+          ...payload,
+        };
+      }
+      return { error: null };
+    }
     console.error(`Error updating tourist destination ${id}:`, error);
   }
   return { error };

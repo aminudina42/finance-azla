@@ -1,38 +1,35 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Skeleton from "@/components/Skeleton";
 import Modal from "@/components/Modal";
 import DestinationCard from "@/components/Wisata/DestinationCard";
-import AddDestinationModal from "@/components/Wisata/AddDestinationModal";
 import {
   getTouristDestinations,
   getTouristCities,
   deleteTouristDestination,
   createTripItem,
 } from "@/lib/wisata-service";
-import type { TouristDestination, TouristDestinationCategory, Trip, TripCategory } from "@/lib/types";
+import type { TouristDestination, Trip, TripCategory } from "@/lib/types";
 import { DESTINATION_CATEGORY_META, calculateTripDays, formatRp } from "@/lib/wisata-utils";
-import { Search, Plus, MapPin, X, RotateCcw, Palmtree, WifiOff, Sparkles, CheckCircle2, Calendar } from "lucide-react";
+import { Search, Plus, X, RotateCcw, Palmtree, WifiOff, CheckCircle2, Calendar } from "lucide-react";
 
 interface TouristDestinationsTabProps {
   currentMemberId?: string | null;
-  currentFamilyName?: string | null;
   isSuperAdmin?: boolean;
-  onOpenAddModal?: () => void;
-  isAddModalOpenExternal?: boolean;
-  onCloseAddModalExternal?: () => void;
   trips?: Trip[];
+  savedStatus?: string | null;
 }
 
 export default function TouristDestinationsTab({
   currentMemberId,
-  currentFamilyName,
   isSuperAdmin = false,
-  isAddModalOpenExternal,
-  onCloseAddModalExternal,
   trips = [],
+  savedStatus = null,
 }: TouristDestinationsTabProps) {
+  const router = useRouter();
   const [destinations, setDestinations] = useState<TouristDestination[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,16 +40,25 @@ export default function TouristDestinationsTab({
   const [selectedCity, setSelectedCity] = useState("semua");
   const [selectedCategory, setSelectedCategory] = useState<string>("semua");
 
-  // Modals
-  const [isAddModalOpenLocal, setIsAddModalOpenLocal] = useState(false);
-  const [destinationToEdit, setDestinationToEdit] = useState<TouristDestination | null>(null);
-
   // Quick Add to Trip Modal State
   const [destForTrip, setDestForTrip] = useState<TouristDestination | null>(null);
   const [targetTripId, setTargetTripId] = useState<string>("");
   const [targetTripDay, setTargetTripDay] = useState<number>(1);
   const [addingToTrip, setAddingToTrip] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (savedStatus === "created" || savedStatus === "updated") {
+      setToastMessage(
+        savedStatus === "updated"
+          ? "Spot wisata berhasil diperbarui."
+          : "Spot wisata baru berhasil disimpan ke katalog bersama!"
+      );
+      router.replace("/wisata?tab=katalog", { scroll: false });
+      const timer = setTimeout(() => setToastMessage(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [savedStatus, router]);
 
   const activeTrips = useMemo(() => {
     return trips.filter((t) => t.status === "planning" || t.status === "ongoing");
@@ -114,14 +120,6 @@ export default function TouristDestinationsTab({
     }
   };
 
-  const isModalOpen = Boolean(isAddModalOpenLocal || isAddModalOpenExternal);
-
-  const handleCloseModal = () => {
-    setIsAddModalOpenLocal(false);
-    setDestinationToEdit(null);
-    if (onCloseAddModalExternal) onCloseAddModalExternal();
-  };
-
   const loadData = useCallback(async () => {
     setLoading(true);
     setConnectionError(false);
@@ -168,8 +166,7 @@ export default function TouristDestinationsTab({
   }, [destinations, selectedCity, selectedCategory, searchQuery]);
 
   const handleEdit = (dest: TouristDestination) => {
-    setDestinationToEdit(dest);
-    setIsAddModalOpenLocal(true);
+    router.push(`/wisata/spot/${dest.id}/edit`);
   };
 
   const handleDelete = async (dest: TouristDestination) => {
@@ -180,23 +177,6 @@ export default function TouristDestinationsTab({
       setDestinations((prev) => prev.filter((d) => d.id !== dest.id));
     } catch (err: any) {
       alert("Gagal menghapus destinasi: " + err.message);
-    }
-  };
-
-  const handleSaveSuccess = (saved: TouristDestination) => {
-    setDestinations((prev) => {
-      const idx = prev.findIndex((d) => d.id === saved.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = saved;
-        return next;
-      }
-      return [saved, ...prev];
-    });
-
-    // Perbarui daftar kota jika ada kota baru
-    if (saved.city && !cities.map((c) => c.toLowerCase()).includes(saved.city.toLowerCase())) {
-      setCities((prev) => [...prev, saved.city].sort((a, b) => a.localeCompare(b)));
     }
   };
 
@@ -279,11 +259,8 @@ export default function TouristDestinationsTab({
           )}
         </div>
 
-        <button
-          onClick={() => {
-            setDestinationToEdit(null);
-            setIsAddModalOpenLocal(true);
-          }}
+        <Link
+          href="/wisata/spot/baru"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -294,8 +271,7 @@ export default function TouristDestinationsTab({
             color: "#ffffff",
             fontSize: "13px",
             fontWeight: 700,
-            border: "none",
-            cursor: "pointer",
+            textDecoration: "none",
             flexShrink: 0,
             boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
             whiteSpace: "nowrap",
@@ -303,7 +279,7 @@ export default function TouristDestinationsTab({
         >
           <Plus size={16} />
           <span>Tambah</span>
-        </button>
+        </Link>
       </div>
 
       {/* Filter Chips Kota (Horizontal Scroll) */}
@@ -525,11 +501,8 @@ export default function TouristDestinationsTab({
                 : "Bagikan rekomendasi tempat liburan seru keluarga agar bisa dipakai dalam rencana perjalanan."}
             </p>
           </div>
-          <button
-            onClick={() => {
-              setDestinationToEdit(null);
-              setIsAddModalOpenLocal(true);
-            }}
+          <Link
+            href="/wisata/spot/baru"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -540,14 +513,13 @@ export default function TouristDestinationsTab({
               color: "#ffffff",
               fontSize: "13px",
               fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
+              textDecoration: "none",
               boxShadow: "0 4px 12px rgba(40, 127, 240, 0.25)",
             }}
           >
             <Plus size={16} />
             <span>Tambah Tempat Ini Sekarang</span>
-          </button>
+          </Link>
         </div>
       ) : (
         <div
@@ -574,16 +546,6 @@ export default function TouristDestinationsTab({
           })}
         </div>
       )}
-
-      {/* Modal Tambah / Edit Destinasi */}
-      <AddDestinationModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        destinationToEdit={destinationToEdit}
-        onSuccess={handleSaveSuccess}
-        currentMemberId={currentMemberId}
-        currentFamilyName={currentFamilyName}
-      />
 
       {/* Modal Gunakan Destinasi di Rencana Trip */}
       {destForTrip && (

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import Skeleton from "@/components/Skeleton";
 import Modal from "@/components/Modal";
@@ -13,18 +14,39 @@ import { getVehicles } from "@/lib/vehicle-service";
 import { supabase } from "@/lib/supabase";
 import type { Trip, Vehicle } from "@/lib/types";
 import { formatRp } from "@/lib/wisata-utils";
-import { Plus, Compass, Palmtree, Sparkles, CheckCircle2, WifiOff, RotateCcw, MapPin } from "lucide-react";
+import { Plus, Compass, Palmtree, Sparkles, WifiOff, RotateCcw, MapPin } from "lucide-react";
 
-export default function WisataPage() {
+function WisataContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const savedParam = searchParams.get("saved");
+
   const { currentKeluarga, currentMember } = useApp();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [costsMap, setCostsMap] = useState<Record<string, { actual: number; estimated: number }>>({});
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
-  const [mainTab, setMainTab] = useState<"rencana" | "katalog">("rencana");
+  const [mainTab, setMainTab] = useState<"rencana" | "katalog">(
+    tabParam === "katalog" ? "katalog" : "rencana"
+  );
   const [activeTab, setActiveTab] = useState<"aktif" | "semua" | "selesai">("aktif");
-  const [isAddDestinationOpen, setIsAddDestinationOpen] = useState(false);
+
+  useEffect(() => {
+    if (tabParam === "katalog") {
+      setMainTab("katalog");
+    } else if (tabParam === "rencana") {
+      setMainTab("rencana");
+    }
+  }, [tabParam]);
+
+  const handleSwitchMainTab = (tab: "rencana" | "katalog") => {
+    setMainTab(tab);
+    router.replace(tab === "katalog" ? "/wisata?tab=katalog" : "/wisata", {
+      scroll: false,
+    });
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -138,8 +160,8 @@ export default function WisataPage() {
               <span>Trip Baru</span>
             </Link>
           ) : (
-            <button
-              onClick={() => setIsAddDestinationOpen(true)}
+            <Link
+              href="/wisata/spot/baru"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -150,14 +172,13 @@ export default function WisataPage() {
                 color: "#ffffff",
                 fontSize: "13px",
                 fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
+                textDecoration: "none",
                 boxShadow: "0 2px 8px rgba(40, 127, 240, 0.25)",
               }}
             >
               <Plus size={16} />
               <span>Spot Baru</span>
-            </button>
+            </Link>
           )
         }
       />
@@ -185,7 +206,7 @@ export default function WisataPage() {
           }}
         >
           <button
-            onClick={() => setMainTab("rencana")}
+            onClick={() => handleSwitchMainTab("rencana")}
             style={{
               flex: 1,
               padding: "9px 0",
@@ -209,7 +230,7 @@ export default function WisataPage() {
           </button>
 
           <button
-            onClick={() => setMainTab("katalog")}
+            onClick={() => handleSwitchMainTab("katalog")}
             style={{
               flex: 1,
               padding: "9px 0",
@@ -236,11 +257,9 @@ export default function WisataPage() {
         {mainTab === "katalog" ? (
           <TouristDestinationsTab
             currentMemberId={currentMember?.id}
-            currentFamilyName={currentKeluarga?.nama_keluarga}
             isSuperAdmin={currentMember?.role === "admin"}
-            isAddModalOpenExternal={isAddDestinationOpen}
-            onCloseAddModalExternal={() => setIsAddDestinationOpen(false)}
             trips={trips}
+            savedStatus={savedParam}
           />
         ) : (
           <>
@@ -559,5 +578,31 @@ export default function WisataPage() {
         </div>
       </Modal>
     </main>
+  );
+}
+
+export default function WisataPage() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          className="page active"
+          style={{
+            width: "100%",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <Skeleton height={56} borderRadius={14} />
+          <Skeleton height={140} borderRadius={18} />
+          <Skeleton height={140} borderRadius={18} />
+        </main>
+      }
+    >
+      <WisataContent />
+    </Suspense>
   );
 }
