@@ -4,11 +4,19 @@ import { useState, useEffect } from "react";
 import Modal from "@/components/Modal";
 import { useApp } from "@/lib/store";
 import VectorIconPicker from "@/components/ui/vector-icon-picker";
+import { parseGoldInput, sanitizeGoldInputString } from "@/lib/saku-utils";
 
 interface AddSakuModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (name: string, icon: string, initialBalance: number, type: "standalone" | "linked", linkedPosId: string | null) => void;
+  onSave: (
+    name: string,
+    icon: string,
+    initialBalance: number,
+    type: "standalone" | "linked",
+    linkedPosId: string | null,
+    initialGoldBalance: number
+  ) => void;
 }
 
 export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalProps) {
@@ -16,6 +24,7 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("wallet");
   const [balanceStr, setBalanceStr] = useState("");
+  const [goldBalanceStr, setGoldBalanceStr] = useState("");
   const [sakuType, setSakuType] = useState<"standalone" | "linked">("standalone");
   const [linkedPosId, setLinkedPosId] = useState<string>("");
 
@@ -24,6 +33,7 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
       setName("");
       setIcon("wallet");
       setBalanceStr("");
+      setGoldBalanceStr("");
       setSakuType("standalone");
       setLinkedPosId("");
     }
@@ -32,8 +42,9 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
   const handleSave = () => {
     if (!name.trim()) return;
     const rawNum = Number(balanceStr.replace(/\D/g, ""));
+    const rawGold = parseGoldInput(goldBalanceStr);
     const finalLinkedPos = sakuType === "linked" && linkedPosId ? linkedPosId : null;
-    onSave(name.trim(), icon, rawNum, sakuType, finalLinkedPos);
+    onSave(name.trim(), icon, rawNum, sakuType, finalLinkedPos, rawGold);
     onClose();
   };
 
@@ -41,6 +52,10 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
     const rawValue = e.target.value.replace(/\D/g, "");
     if (!rawValue) { setBalanceStr(""); return; }
     setBalanceStr(Number(rawValue).toLocaleString("id-ID"));
+  };
+
+  const handleGoldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGoldBalanceStr(sanitizeGoldInputString(e.target.value));
   };
 
   const linkablePos = posList.filter((p) => !p.is_goal && p.name !== "Tabungan");
@@ -70,9 +85,9 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
           />
         </div>
 
-        {/* Saldo awal */}
+        {/* Saldo awal Uang */}
         <div className="fg">
-          <div className="fl">Saldo Awal (opsional)</div>
+          <div className="fl">Saldo Awal Uang (opsional)</div>
           <div className="amt-wrap">
             <span className="amt-pre">Rp</span>
             <input
@@ -83,6 +98,47 @@ export default function AddSakuModal({ isOpen, onClose, onSave }: AddSakuModalPr
               value={balanceStr}
               onChange={handleBalChange}
             />
+          </div>
+        </div>
+
+        {/* Saldo awal Emas */}
+        <div className="fg">
+          <div className="fl" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>Saldo Awal Emas (opsional)</span>
+            <span style={{ fontSize: "10.5px", fontWeight: 600, color: "#8A5A00" }}>Satuan gram</span>
+          </div>
+          <div className="amt-wrap" style={{ position: "relative" }}>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="fi"
+              style={{
+                paddingRight: "44px",
+                fontFamily: "'Fraunces', serif",
+                fontSize: "20px",
+                fontWeight: 800,
+                background: "#FBF3DB55",
+                borderColor: "#EBD9A8",
+                color: "#5C3C00",
+              }}
+              placeholder="0"
+              value={goldBalanceStr}
+              onChange={handleGoldChange}
+            />
+            <span
+              style={{
+                position: "absolute",
+                right: "14px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "13px",
+                fontWeight: 750,
+                color: "#8A5A00",
+                pointerEvents: "none",
+              }}
+            >
+              gr
+            </span>
           </div>
         </div>
 

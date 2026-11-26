@@ -11,7 +11,8 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "./supabase";
-import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, DebtPayment, CyclePosHistory, SakuTxType, Keluarga, Member, StatusKeluarga, DeveloperSettings, MenuIconOverrides } from "./types";
+import type { Pos, PosConfigItem, Child, ChildTransaction, Transaction, Cycle, Debt, DebtPayment, CyclePosHistory, SakuTxType, SakuAssetType, Keluarga, Member, StatusKeluarga, DeveloperSettings, MenuIconOverrides } from "./types";
+import { calculateNextGoldBalance, roundGoldGram } from "./saku-utils";
 import GlobalLoader from "@/components/GlobalLoader";
 
 function formatLocalDate(d: Date): string {
@@ -40,8 +41,8 @@ const FALLBACK_POS: Pos[] = [
 ];
 const FALLBACK_TX: Transaction[] = [];
 const FALLBACK_CHILDREN: Child[] = [
-  { id: "ch1", name: "Raka", icon: "👦", balance: 185000, type: "standalone" },
-  { id: "ch2", name: "Nisa", icon: "👧", balance: 92000, type: "standalone" },
+  { id: "ch1", name: "Raka", icon: "👦", balance: 185000, gold_balance: 0, type: "standalone" },
+  { id: "ch2", name: "Nisa", icon: "👧", balance: 92000, gold_balance: 0, type: "standalone" },
 ];
 const FALLBACK_CHILD_TX: ChildTransaction[] = [];
 const FALLBACK_DEBTS: Debt[] = [];
@@ -62,11 +63,11 @@ interface AppState {
   addTransaction: (amount: number, posId: string, userRole?: StatusKeluarga, description?: string, type?: "income" | "expense", userName?: string) => Promise<void> | void;
   deleteTransaction: (txId: string) => void;
   children: Child[];
-  addSaku: (name: string, icon: string, initialBalance: number, type: "standalone" | "linked", linkedPosId?: string | null) => void;
+  addSaku: (name: string, icon: string, initialBalance: number, type: "standalone" | "linked", linkedPosId?: string | null, initialGoldBalance?: number) => void;
   updateSaku: (id: string, name: string, icon: string, type: "standalone" | "linked", linkedPosId?: string | null) => void;
   deleteSaku: (id: string) => void;
   childTransactions: ChildTransaction[];
-  addChildTransaction: (childId: string, type: SakuTxType, amount: number, description: string, refCycleId?: string | null, refTransactionId?: string | null) => void;
+  addChildTransaction: (childId: string, type: SakuTxType, amount: number, description: string, refCycleId?: string | null, refTransactionId?: string | null, assetType?: SakuAssetType) => Promise<void>;
   addSakuBorrowTransaction: (amount: number, posId: string, userRole?: StatusKeluarga, description?: string, sakuId?: string, sakuWithdrawAmount?: number, userName?: string) => Promise<void>;
   addSakuReturnTransaction: (sakuId: string, amount: number, description: string) => Promise<void>;
   cyclePosHistory: CyclePosHistory[];
@@ -468,6 +469,7 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         // Backward compat for children — add type field if missing
         const childData = ((childRes.data as Child[]) ?? []).map((c) => ({
           ...c,
+          gold_balance: Number(c.gold_balance ?? 0),
           type: (c.type ?? "standalone") as "standalone" | "linked",
           linked_pos_id: c.linked_pos_id ?? null,
         }));
@@ -476,6 +478,8 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         if (ctxRes.data && Array.isArray(ctxRes.data)) {
           setChildTransactions(ctxRes.data.map((ct: any) => ({
             ...ct,
+            asset_type: (ct.asset_type ?? "cash") as SakuAssetType,
+            gold_amount: Number(ct.gold_amount ?? 0),
             ref_cycle_id: ct.ref_cycle_id ?? null,
             ref_transaction_id: ct.ref_transaction_id ?? null,
           })));
@@ -919,14 +923,32 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   );
 
   // ── Saku actions (replaces child actions) ──
-  const addSaku = useCallback(async (name: string, icon: string, initialBalance: number, type: "standalone" | "linked" = "standalone", linkedPosId: string | null = null) => {
+  const addSaku = useCallback(async (name: string, icon: string, initialBalance: number, type: "standalone" | "linked" = "standalone", linkedPosId: string | null = null, initialGoldBalance: number = 0) => {
     setIsMutating(true);
     try {
-      const localChild: Child = { id: "ch" + Date.now(), name, icon, balance: initialBalance, type, linked_pos_id: linkedPosId };
+      const safeGold = roundGoldGram(initialGoldBalance);
+      const localChild: Child = { id: "ch" + Date.now(), name, icon, balance: initialBalance, gold_balance: safeGold, type, linked_pos_id: linkedPosId };
       setChildrenList((prev) => [...prev, localChild]);
 
-      const { data } = await supabase.from("children").insert({ name, icon, balance: initialBalance, type, linked_pos_id: linkedPosId }).select().single();
-      if (data) setChildrenList((prev) => prev.map((c) => (c.id === localChild.id ? { ...data, type: data.type ?? "standalone", linked_pos_id: data.linked_pos_id ?? null } as Child : c)));
+      const { data } = await supabase
+        .from("children")
+        .insert({ name, icon, balance: initialBalance, gold_balance: safeGold, type, linked_pos_id: linkedPosId })
+        .select()
+        .single();
+      if (data) {
+        setChildrenList((prev) =>
+          prev.map((c) =>
+            c.id === localChild.id
+              ? ({
+                  ...data,
+                  gold_balance: Number(data.gold_balance ?? safeGold),
+                  type: data.type ?? "standalone",
+                  linked_pos_id: data.linked_pos_id ?? null,
+                } as Child)
+              : c
+          )
+        );
+      }
     } finally {
       isMutatingCycleRef.current = false;
       setIsMutating(false);
@@ -956,9 +978,64 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
   }, []);
 
   const addChildTransaction = useCallback(
-    async (childId: string, type: SakuTxType, amount: number, description: string, refCycleId: string | null = null, refTransactionId: string | null = null) => {
+    async (
+      childId: string,
+      type: SakuTxType,
+      amount: number,
+      description: string,
+      refCycleId: string | null = null,
+      refTransactionId: string | null = null,
+      assetType: SakuAssetType = "cash"
+    ) => {
       setIsMutating(true);
       try {
+        const child = childrenList.find((c) => c.id === childId);
+
+        if (assetType === "gold") {
+          if (type !== "in" && type !== "out") {
+            throw new Error("Transaksi emas hanya mendukung pemasukan atau pengeluaran mandiri.");
+          }
+          const calc = calculateNextGoldBalance(child?.gold_balance ?? 0, type, amount);
+          if (!calc.ok) {
+            throw new Error(calc.error);
+          }
+
+          const icon = type === "in" ? "🥇" : "⚖️";
+          const desc = description || (type === "in" ? "Tabungan Emas" : "Tarik Emas");
+
+          const localTx: ChildTransaction = {
+            id: "ct" + Date.now(),
+            child_id: childId,
+            type,
+            amount: 0,
+            asset_type: "gold",
+            gold_amount: calc.amount,
+            description: desc,
+            icon,
+            created_at: new Date().toISOString(),
+            ref_cycle_id: null,
+            ref_transaction_id: null,
+          };
+          setChildTransactions((prev) => [localTx, ...prev]);
+          setChildrenList((prev) =>
+            prev.map((c) => (c.id === childId ? { ...c, gold_balance: calc.nextBalance } : c))
+          );
+
+          await supabase.from("child_transactions").insert({
+            child_id: childId,
+            type,
+            amount: 0,
+            asset_type: "gold",
+            gold_amount: calc.amount,
+            description: desc,
+            icon,
+            ref_cycle_id: null,
+            ref_transaction_id: null,
+          });
+          await supabase.from("children").update({ gold_balance: calc.nextBalance }).eq("id", childId);
+          return;
+        }
+
         const iconMap: Record<SakuTxType, string[]> = {
           in: ["💰", "🎁", "💸", "🏦"],
           out: ["🍦", "🍔", "🖊️", "🛍️", "🎮"],
@@ -972,21 +1049,37 @@ export function AppProvider({ children: reactChildren }: { children: ReactNode }
         const desc = description || (type === "in" ? "Pemasukan" : "Pengeluaran");
 
         const localTx: ChildTransaction = {
-          id: "ct" + Date.now(), child_id: childId, type, amount, description: desc, icon,
+          id: "ct" + Date.now(),
+          child_id: childId,
+          type,
+          amount,
+          asset_type: "cash",
+          gold_amount: 0,
+          description: desc,
+          icon,
           created_at: new Date().toISOString(),
           ref_cycle_id: refCycleId,
           ref_transaction_id: refTransactionId,
         };
         setChildTransactions((prev) => [localTx, ...prev]);
 
-        const child = childrenList.find((c) => c.id === childId);
-        // Positive types add to balance, negative types subtract
+        // Positive types add to balance, negative types subtract (only cash can be negative)
         const isPositive = type === "in" || type === "cycle_surplus" || type === "return_to_saku";
         const newBal = (child?.balance ?? 0) + (isPositive ? amount : -amount);
         setChildrenList((prev) => prev.map((c) => (c.id === childId ? { ...c, balance: newBal } : c)));
 
         // Sync to Supabase
-        await supabase.from("child_transactions").insert({ child_id: childId, type, amount, description: desc, icon, ref_cycle_id: refCycleId, ref_transaction_id: refTransactionId });
+        await supabase.from("child_transactions").insert({
+          child_id: childId,
+          type,
+          amount,
+          asset_type: "cash",
+          gold_amount: 0,
+          description: desc,
+          icon,
+          ref_cycle_id: refCycleId,
+          ref_transaction_id: refTransactionId,
+        });
         await supabase.from("children").update({ balance: newBal }).eq("id", childId);
       } finally {
         setIsMutating(false);

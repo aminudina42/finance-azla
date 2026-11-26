@@ -5,6 +5,7 @@ import Modal from "@/components/Modal";
 import { useApp } from "@/lib/store";
 import type { Child } from "@/lib/types";
 import VectorIconPicker from "@/components/ui/vector-icon-picker";
+import { formatGoldGram } from "@/lib/saku-utils";
 
 interface EditSakuModalProps {
   isOpen: boolean;
@@ -125,6 +126,26 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
           <button className="m-cancel" onClick={onClose} style={{ flex: 1 }}>Batal</button>
           <button className="m-save" onClick={handleSave} style={{ flex: 2 }}>Simpan</button>
         </div>
+        {confirmDelete && (saku.balance !== 0 || (saku.gold_balance ?? 0) > 0) && (
+          <div
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: "10px",
+              background: "#FDEBEC",
+              border: "1px solid rgba(240, 68, 103, 0.25)",
+              color: "#9F2F2D",
+              fontSize: "12px",
+              lineHeight: "1.45",
+              fontWeight: 600,
+            }}
+          >
+            Saku ini masih menyimpan{" "}
+            {saku.balance !== 0 ? `Rp ${saku.balance.toLocaleString("id-ID")}` : ""}
+            {saku.balance !== 0 && (saku.gold_balance ?? 0) > 0 ? " dan " : ""}
+            {(saku.gold_balance ?? 0) > 0 ? formatGoldGram(saku.gold_balance ?? 0) : ""}. Menghapus saku akan menghilangkan catatan saldo tersebut.
+          </div>
+        )}
         <button
           onClick={handleDelete}
           style={{
@@ -133,14 +154,14 @@ export default function EditSakuModal({ isOpen, onClose, saku, onSave, onDelete 
             borderRadius: "12px",
             border: "none",
             background: confirmDelete ? "var(--red)" : "rgba(255,79,109,.12)",
-            color: "var(--red)",
+            color: confirmDelete ? "#ffffff" : "var(--red)",
             fontWeight: 700,
             fontSize: "14px",
             cursor: "pointer",
             transition: "all .2s",
           }}
         >
-          {confirmDelete ? "Yakin? Tap lagi untuk hapus" : "Hapus Saku"}
+          {confirmDelete ? "Yakin? Tap lagi untuk hapus permanen" : "Hapus Saku"}
         </button>
       </div>
     </Modal>

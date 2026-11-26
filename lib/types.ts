@@ -86,12 +86,16 @@ export interface Cycle {
   created_at?: string;
 }
 
+export type SakuAssetType = "cash" | "gold";
+
 export interface Child {
   id: string;
   keluarga_id?: string;
   name: string;
   icon: string;
   balance: number;
+  // Saku multi-asset (emas dalam satuan gram, selalu >= 0)
+  gold_balance?: number;
   // Saku v2 fields
   type: "standalone" | "linked";
   linked_pos_id?: string | null;
@@ -105,6 +109,9 @@ export interface ChildTransaction {
   child_id: string;
   type: SakuTxType;
   amount: number;
+  // Saku multi-asset fields (default 'cash', gold_amount dalam gram)
+  asset_type?: SakuAssetType;
+  gold_amount?: number;
   description: string;
   icon: string;
   created_at: string;
